@@ -12,7 +12,8 @@
     rules: {
       bookAheadDays: 365,        // how far ahead people can book online
       minNoticeHours: 24,        // online bookings need this much notice
-      slotStep: 15,              // treatment start times every N minutes
+      slotStep: 30,              // treatments start every N minutes, on the clock: 15, 30 (on the hour and half hour) or 60 (on the hour)
+      minHandover: 15,           // every treatment leaves at least this long before the next one (room reset + therapist)
       maxHandsOn: 360,           // default therapist hands-on minutes per day (4-6 hours is good practice)
       // Breaks (each person can have their own in Staff). UK law: a 20-minute break for days over 6 hours.
       breaks: {
@@ -25,7 +26,7 @@
       headSpaOff: 10,            // % off Japanese head spa with a spa session or stay
       blueLight: true,           // Blue Light Card: included treatments upgraded to 30 minutes
       blueLightMin: 30,
-      share: 'even',             // 'even' = share treatments evenly between therapists; 'fill' = fill one therapist first so others finish early
+      share: 'fill',             // 'fill' = use therapist 1 (by priority) where possible, then the next; 'even' = share evenly
       groupTogether: true,       // groups: try to give guests their treatments at the same time, with different therapists
       groupTogetherFrom: 2,      // ...for bookings of this many guests or more (each product can override with together: true/false)
       holdMinutes: 30            // online checkout holds a slot this long (needs the live payment server)
@@ -142,11 +143,11 @@
     // Two therapists who can do every treatment (rename them and adjust hours in Staff).
     // Between them they cover spa days 09:30-17:00 every day and the spa-break evenings Wednesday to Sunday.
     staff: [
-      { id: 's1', name: 'Therapist 1', role: 'Spa therapist', colour: '#b4785a', email: '', phone: '', active: true, maxHands: 360, holidayDays: 28,
+      { id: 's1', name: 'Therapist 1', role: 'Spa therapist', colour: '#b4785a', email: '', phone: '', active: true, priority: 1, maxHands: 360, holidayDays: 28,
         treatments: ['inc-massage', 'inc-facial', 'inc-lux-facial', 'basics', 'radiance', 'tension', 'scalp', 'recipe', 'full', 'classic', 'ritual', 'zen'],
         pattern: { 1: { shifts: [{ start: '09:00', end: '18:00' }], breaks: [] }, 2: { shifts: [{ start: '09:00', end: '18:00' }], breaks: [] }, 3: { shifts: [{ start: '09:00', end: '18:00' }], breaks: [] },
           4: { shifts: [{ start: '09:00', end: '18:00' }], breaks: [] }, 5: { shifts: [{ start: '09:00', end: '18:00' }], breaks: [] } } },
-      { id: 's2', name: 'Therapist 2', role: 'Spa therapist', colour: '#5d7a63', email: '', phone: '', active: true, maxHands: 360, holidayDays: 28,
+      { id: 's2', name: 'Therapist 2', role: 'Spa therapist', colour: '#5d7a63', email: '', phone: '', active: true, priority: 2, maxHands: 360, holidayDays: 28,
         treatments: ['inc-massage', 'inc-facial', 'inc-lux-facial', 'basics', 'radiance', 'tension', 'scalp', 'recipe', 'full', 'classic', 'ritual', 'zen'],
         pattern: { 0: { shifts: [{ start: '11:00', end: '22:30' }], breaks: [] }, 3: { shifts: [{ start: '13:00', end: '22:00' }], breaks: [] }, 4: { shifts: [{ start: '13:00', end: '22:00' }], breaks: [] },
           5: { shifts: [{ start: '09:00', end: '18:00' }], breaks: [] }, 6: { shifts: [{ start: '09:00', end: '18:00' }], breaks: [] } } }
