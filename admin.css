@@ -695,3 +695,8 @@ html{touch-action:manipulation}
 .cal-bar-r{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .cal-jump{width:auto;padding:6px 8px;font-size:13px;margin-left:6px}
 @media (max-width:700px){.cal-jump{display:none}}
+
+.svc-row{flex-wrap:wrap;align-items:flex-start}
+.svc-row .grow{flex:1 1 150px;min-width:0;text-align:left}
+.svc-row .when{flex:none}
+.svc-row > .btn{margin-left:auto}
