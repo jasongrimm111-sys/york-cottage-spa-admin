@@ -348,7 +348,7 @@
   E.roomFree = (cfg, ix, date, tr, t, end, need) => {
     const rooms = cfg.treatRooms.filter(r => r.active !== false && (!tr.roomIds || !tr.roomIds.length || tr.roomIds.includes(r.id)) && (!tr.rooms || !tr.rooms.length || tr.rooms.every(tag => (r.tags || []).includes(tag))) && !E.closedBetween(cfg, date, ['troom:' + r.id], t, end));
     for (const r of rooms) {
-      const used = ((ix.troom[date] || {})[r.id] || []).filter(x => overlap(t, end, x[0], x[1])).length;
+      const used = E.bedsInUse((ix.troom[date] || {})[r.id] || [], t, end);
       if ((r.beds || 1) - used >= (need || 1)) return r;
     }
     return null;
@@ -439,6 +439,10 @@
   // Treatment hours (user, 2026-11-26): which days treatments happen and between which times, for every booking type.
   // cfg.treatHours = { 0..6 (Sunday = 0): { on, from, to } }; not set = treatments whenever the spa is open
   E.treatHours = (cfg, date) => { const h = cfg.treatHours && cfg.treatHours[dow(date)]; return h ? h : null; };
+  // the most beds of a room in use at any one moment between s and e (2026-11-26: counting every booking that touches
+  // the time over-counted, e.g. one before and one after a long treatment never share the room with each other)
+  E.bedsInUse = (list, s, e) => { const on = list.filter(x => x[0] < e && s < x[1]); if (!on.length) return 0;
+    return Math.max(...[s, ...on.map(x => x[0]).filter(p => p > s && p < e)].map(p => on.filter(x => x[0] <= p && p < x[1]).length)); };
   E.windows = (cfg, b) => {
     const clip = w => { const h = E.treatHours(cfg, w[0]); if (!h) return w; if (h.on === false) return null;
       const s = Math.max(T(w[1]), T(h.from || '00:00')), e = Math.min(T(w[2]), T(h.to || '23:59')); return e - s >= 20 ? [w[0], HM(s), HM(e)] : null; };
@@ -549,7 +553,7 @@
     const end = s + item.min + (item.buffer || 0);
     const room = to.troom ? cfg.treatRooms.find(r => r.id === to.troom) : E.roomFree(cfg, nx, d, tr, s, end, 1);
     if (!room) return 'No treatment room free';
-    if (((nx.troom[d] || {})[room.id] || []).filter(x => overlap(s, end, x[0], x[1])).length >= (room.beds || 1)) return `${room.name} is in use`;
+    if (E.bedsInUse((nx.troom[d] || {})[room.id] || [], s, end) >= (room.beds || 1)) return `${room.name} is in use`;
     return '';
   };
   // treatments that come with a booking type (each treatment lists the types it's included with)

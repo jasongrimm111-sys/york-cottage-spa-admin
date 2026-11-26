@@ -131,13 +131,16 @@
       onOpen: ov => { const m = ov.querySelector('[data-mvx]'); if (m) m.onclick = () => { ov.querySelector('[data-x]').click(); setTimeout(() => A.moveItem(b, key), 50); }; } });
     if (r) location.hash = '#/booking/' + b.id;
   };
-  A.calFood = async (d, sid) => {
+  A.foodList = (d, sid) => {
     const cfg = A.cfg(), sv = E.service(cfg, sid, d) || { name: 'Food service' }, ix = E.index(cfg, A.DB().bookings);
     const bs = A.DB().bookings.filter(E.live).filter(b => E.servicesFor(cfg, b).some(x => x.id === sid && x.date === d));
     const food = f => (cfg.foods.find(x => x.id === f || x.name === f) || {}).name || f || 'Not chosen yet';
-    const rows = bs.flatMap(b => (b.guestList && b.guestList.length ? b.guestList : Array.from({ length: b.guests }, () => ({}))).map((g, n) => ({ b, n, g })));
-    const tally = {}; rows.forEach(r => { const k = food(r.g.food || (cfg.products[r.b.product].foodsIncluded || [])[0]); tally[k] = (tally[k] || 0) + 1; });
-    const staff = ((ix.duty || {})[d] || {})[sid] || [];
+    const rows = bs.flatMap(b => (b.guestList && b.guestList.length ? b.guestList : Array.from({ length: b.guests }, () => ({}))).map((g, n) => ({ b, n, g, having: food(g.food || (cfg.products[b.product].foodsIncluded || [])[0]) })));
+    const tally = {}; rows.forEach(r => { tally[r.having] = (tally[r.having] || 0) + 1; });
+    return { sv, rows, tally, food, staff: ((ix.duty || {})[d] || {})[sid] || [], summary: Object.entries(tally).map(([k, n]) => `${n} × ${k}`).join(', ') };
+  };
+  A.calFood = async (d, sid) => {
+    const cfg = A.cfg(), { sv, rows, tally, food, staff } = A.foodList(d, sid);
     await A.modal({ title: '🍽 ' + esc(sv.name), size: 'wide', ok: 'Close', cancel: '',
       body: `${dl([['When', `${fdy(d)}, ${sv.start}–${sv.end}`], ['Serving', staff.length ? staff.map(x => esc(A.sname(x))).join(', ') : '<span class="badge warn">Nobody assigned</span>'], ['Guests', `<b>${rows.length}</b>`], ['Food', Object.entries(tally).map(([k, n]) => `${esc(k)} <b>× ${n}</b>`).join('<br>')]])}
         <div class="tbl-wrap" style="margin-top:12px"><table class="tbl"><thead><tr><th>Guest</th><th>Booking</th><th>Having</th><th>Dietary needs</th></tr></thead><tbody>
