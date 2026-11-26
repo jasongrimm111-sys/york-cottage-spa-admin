@@ -700,3 +700,10 @@ html{touch-action:manipulation}
 .svc-row .grow{flex:1 1 150px;min-width:0;text-align:left}
 .svc-row .when{flex:none}
 .svc-row > .btn{margin-left:auto}
+
+/* staff cards: one tidy row of buttons; sign-in is a detail line */
+.staff-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.staff-acts .btn svg{width:15px;height:15px}
+.signin{display:block}
+.linkbtn{all:unset;cursor:pointer;color:var(--clay);font-weight:600;text-decoration:underline;text-underline-offset:2px}
+.linkbtn:hover{color:var(--ink)}
