@@ -144,7 +144,7 @@
     // the menu follows the user's role; anyone linked to a staff member gets "My day"
     const nav = [...(A.myStaff() ? [['My work', [['staffday/' + A.myStaff(), 'My day', 'today']]]] : []), ...NAV.map(([h, items]) => [h, items.filter(([r]) => A.canRoute(r) && !(r === 'today' && false))])].filter(([, items]) => items.length);
     document.body.innerHTML = `<div class="app">
-      <aside class="side" id="side"><a class="brand" href="#/${A.homeRoute()}"><i>Y</i><span><b>York Cottage</b><small>Spa admin</small></span></a>
+      <aside class="side" id="side"><a class="brand" href="#/${A.homeRoute()}"><i class="brand-lotus">${A.lotus()}</i><span><b>York Cottage</b><small>Spa admin</small></span></a>
         <nav class="nav">${nav.map(([h, items]) => `<div class="nav-h">${h}</div>` + items.map(([r, t, ic]) => `<a href="#/${r}" data-r="${r.split('/')[0]}">${A.ic[ic]}<span>${t}</span>${r === 'bookings' || r === 'waitlist' || r === 'todo' || r === 'support' ? `<span class="cnt" data-cnt="${r}" hidden></span>` : ''}</a>`).join('')).join('')}</nav>
         <div class="side-foot">${S.mode === 'demo' ? '<span class="demo-tag">OFFLINE DEMO</span><br>Changes here are kept in this browser only and aren’t saved to York Cottage’s data.<br><button class="btn sm" id="leaveDemo" style="margin-top:8px;color:var(--ink)">Go to the real portal</button>' : `Signed in as ${esc(S.user.name)}<br><span style="opacity:.7">Everything saves to York Cottage’s private data store</span>`}${S.realUser ? '<br><button class="btn sm" id="backMgr" style="margin-top:8px;color:var(--ink)">Back to the manager view</button>' : ''}</div></aside>
       <div class="main"><header class="top">
@@ -290,10 +290,11 @@
   A.route = route; A.refresh = () => { const y = scrollY; route(); scrollTo(0, y); };
   addEventListener('hashchange', route);
 
+  A.lotus = (cls = '') => `<svg class="lotus ${cls}" viewBox="0 0 760 500" fill="none" stroke="currentColor" stroke-width="24" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M160 190 L160 45 C215 62 268 92 305 132"/><path d="M600 190 L600 45 C545 62 492 92 455 132"/><path d="M380 25 C455 115 515 215 515 325 C515 415 455 470 380 485 C305 470 245 415 245 325 C245 215 305 115 380 25 Z"/><path d="M10 180 C150 172 290 212 345 300 C368 337 380 360 380 385 L380 488 C235 488 125 455 82 382 C52 330 27 258 10 180 Z"/><path d="M750 180 C610 172 470 212 415 300 C392 337 380 360 380 385 L380 488 C525 488 635 455 678 382 C708 330 733 258 750 180 Z"/></svg>`;
   // ---------- sign-in screens ----------
   function authScreen(kind, msg) {
     const vaultMissing = kind === 'setup';
-    document.body.innerHTML = `<div class="auth"><div class="auth-pic"><div class="eyebrow" style="color:#f3c6ad">York Cottage Spa</div><h1>Admin portal</h1><p>Bookings, therapists, rooms, treatments, prices and reports in one place.</p></div>
+    document.body.innerHTML = `<div class="auth"><div class="auth-pic">${A.lotus('auth-lotus')}<div class="eyebrow" style="color:#f3c6ad">York Cottage Spa</div><h1>Admin portal</h1><p>Bookings, therapists, rooms, treatments, prices and reports in one place.</p></div>
       <div class="auth-box"><div class="auth-card">
       ${vaultMissing ? `<div class="eyebrow">First set-up</div><h2>Create the owner login</h2><p class="lead">This connects the portal to its private data store on GitHub and makes you the owner. You only do this once. It starts with York Cottage’s settings already in place (sessions, prices, rooms, treatments, two therapists), and no sample bookings.</p>
         <ol class="steps-list"><li>On GitHub, create a fine-grained access key with access to <b>${St.CONF.adminRepo}</b>, <b>${St.CONF.dataRepo}</b> and <b>${St.CONF.liveRepo}</b>, with <b>Contents: Read and write</b>.</li><li>Paste it below with your name, email and a strong password.</li><li>The key is saved only in encrypted form, unlocked by your password.</li></ol>
