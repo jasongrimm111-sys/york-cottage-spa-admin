@@ -25,6 +25,7 @@
       headSpaOff: 10,            // % off Japanese head spa with a spa session or stay
       blueLight: true,           // Blue Light Card: included treatments upgraded to 30 minutes
       blueLightMin: 30,
+      share: 'even',             // 'even' = share treatments evenly between therapists; 'fill' = fill one therapist first so others finish early
       groupTogether: true,       // groups: try to give guests their treatments at the same time, with different therapists
       groupTogetherFrom: 2,      // ...for bookings of this many guests or more (each product can override with together: true/false)
       holdMinutes: 30            // online checkout holds a slot this long (needs the live payment server)

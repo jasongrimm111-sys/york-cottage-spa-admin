@@ -389,7 +389,9 @@
         const used = [], picks = [];
         for (const it of g) {
           const cands = cfg.staff.filter(st => !used.includes(st.id) && E.canDo(st, it.tid) && (!it.staff || it.staff === st.id))
-            .filter(st => !E.staffFree(cfg, ix, st, date, t, it.min || tr.min, buf)).sort((a, b) => finishAfter(a, t + min + buf) - finishAfter(b, t + min + buf) || load(a) - load(b));
+            .filter(st => !E.staffFree(cfg, ix, st, date, t, it.min || tr.min, buf)).sort((a, b) => cfg.rules.share === 'fill'
+              ? load(b) - load(a) || finishAfter(a, t + min + buf) - finishAfter(b, t + min + buf)      // fill the busiest therapist first, others stay free
+              : load(a) - load(b) || finishAfter(a, t + min + buf) - finishAfter(b, t + min + buf));   // share the work evenly (default)
           if (!cands.length) break;
           used.push(cands[0].id); picks.push(cands[0]);
         }
