@@ -107,7 +107,22 @@
       { id: 'w1', at: new Date().toISOString(), product: 'day', date: E.addD(today, 4), guests: 2, name: 'Sample: Rachel Fox', email: 'rachel.fox@example.com', phone: '07700 900111', note: 'Any session', status: 'waiting' },
       { id: 'w2', at: new Date().toISOString(), product: 'break', date: E.addD(today, 8), guests: 2, name: 'Sample: Tom Ellis', email: 'tom.ellis@example.com', phone: '07700 900222', note: 'Anniversary', status: 'waiting' }
     ];
-    return { cfg, bookings, customers, vouchers, waitlist };
+    // sample support messages (sample emails: nothing is sent)
+    const tickets = ((customers, now) => {
+  const k = () => Array.from({ length: 32 }, () => '0123456789abcdef'[Math.floor(Math.random() * 16)]).join('');
+  const at = h => new Date(now.getTime() - h * 3600e3).toISOString();
+  const cs = Object.values(customers).filter(c => /@example\.com$/.test(c.email));
+  const a = cs[0] || { first: 'Olivia', last: 'Walker', email: 'olivia.walker@example.com' }, b = cs[1] || { first: 'James', last: 'Hunt', email: 'james.hunt@example.com' };
+  return [
+    { id: 'T-SMPL01', key: k(), status: 'open', needsReply: true, created: at(2), updated: at(2), name: a.first + ' ' + a.last, email: a.email, phone: a.phone || '', topic: 'An existing booking', ref: '', customer: a.email, sample: true,
+      messages: [{ from: 'guest', at: at(2), text: 'Hi, is it possible to move our afternoon session to the morning instead? We have a family thing later in the day. Thanks!' }] },
+    { id: 'T-SMPL02', key: k(), status: 'open', needsReply: false, created: at(30), updated: at(26), name: b.first + ' ' + b.last, email: b.email, phone: b.phone || '', topic: 'Gift vouchers', ref: '', customer: b.email, sample: true,
+      messages: [{ from: 'guest', at: at(30), text: 'Do your gift vouchers cover the overnight spa break, or just spa days?' }, { from: 'staff', by: 'York Cottage', at: at(26), text: 'Hi! Our money vouchers can be used on anything, including the overnight spa break. Experience vouchers are for the experience named on them.' }] },
+    { id: 'T-SMPL03', key: k(), status: 'open', needsReply: true, created: at(0.5), updated: at(0.5), name: 'Megan Hartley', email: 'megan.hartley@example.com', phone: '07700 900123', topic: 'Groups and events', ref: '', customer: null, sample: true,
+      messages: [{ from: 'guest', at: at(0.5), text: 'Hello, I’m organising a hen party for 10 in June. Could we book the whole house for two nights and add treatments for everyone?' }] },
+  ];
+})(customers, new Date());
+    return { cfg, bookings, customers, vouchers, waitlist, tickets };
   }
   const S = { make, STAFF };
   if (typeof module !== 'undefined') module.exports = S; else root.YCSeed = S;

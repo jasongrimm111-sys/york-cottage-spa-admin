@@ -133,7 +133,7 @@
   const NAV = [
     ['Run the day', [['today', 'Today', 'today'], ['ahead', 'Future days', 'cal'], ['calendar', 'Calendar', 'cal'], ['roomcal', 'Room calendar', 'bed'], ['bookings', 'Bookings', 'list'], ['waitlist', 'Waitlist', 'wait']]],
     ['Team', [['staff', 'Staff', 'staff'], ['rota', 'Rota', 'rota']]],
-    ['Guests & sales', [['customers', 'Customers', 'cust'], ['vouchers', 'Gift vouchers', 'gift'], ['promos', 'Discount codes', 'tag'], ['reports', 'Reports', 'chart']]],
+    ['Guests & sales', [['support', 'Support', 'mail'], ['customers', 'Customers', 'cust'], ['vouchers', 'Gift vouchers', 'gift'], ['promos', 'Discount codes', 'tag'], ['reports', 'Reports', 'chart']]],
     ['Set-up', [['spa', 'Spa & sessions', 'spa'], ['treatments', 'Treatments', 'treat'], ['rooms', 'Rooms', 'bed'], ['products', 'Booking types', 'box'], ['rates', 'Date prices', 'price'], ['emails', 'Emails', 'mail'], ['settings', 'Settings', 'cog']]]
   ];
   A.isTher = () => !!(St.S.user && !A.can('staff.view') && A.myStaff());   // sees only their own day
@@ -144,7 +144,7 @@
     const nav = [...(A.myStaff() ? [['My work', [['staffday/' + A.myStaff(), 'My day', 'today']]]] : []), ...NAV.map(([h, items]) => [h, items.filter(([r]) => A.canRoute(r) && !(r === 'today' && false))])].filter(([, items]) => items.length);
     document.body.innerHTML = `<div class="app">
       <aside class="side" id="side"><a class="brand" href="#/${A.homeRoute()}"><i>Y</i><span><b>York Cottage</b><small>Spa admin</small></span></a>
-        <nav class="nav">${nav.map(([h, items]) => `<div class="nav-h">${h}</div>` + items.map(([r, t, ic]) => `<a href="#/${r}" data-r="${r.split('/')[0]}">${A.ic[ic]}<span>${t}</span>${r === 'bookings' || r === 'waitlist' || r === 'todo' ? `<span class="cnt" data-cnt="${r}" hidden></span>` : ''}</a>`).join('')).join('')}</nav>
+        <nav class="nav">${nav.map(([h, items]) => `<div class="nav-h">${h}</div>` + items.map(([r, t, ic]) => `<a href="#/${r}" data-r="${r.split('/')[0]}">${A.ic[ic]}<span>${t}</span>${r === 'bookings' || r === 'waitlist' || r === 'todo' || r === 'support' ? `<span class="cnt" data-cnt="${r}" hidden></span>` : ''}</a>`).join('')).join('')}</nav>
         <div class="side-foot">${S.mode === 'demo' ? '<span class="demo-tag">OFFLINE DEMO</span><br>Changes here are kept in this browser only and aren’t saved to York Cottage’s data.<br><button class="btn sm" id="leaveDemo" style="margin-top:8px;color:var(--ink)">Go to the real portal</button>' : `Signed in as ${esc(S.user.name)}<br><span style="opacity:.7">Everything saves to York Cottage’s private data store</span>`}${S.realUser ? '<br><button class="btn sm" id="backMgr" style="margin-top:8px;color:var(--ink)">Back to the manager view</button>' : ''}</div></aside>
       <div class="main"><header class="top">
         <button class="burger" id="burger" aria-label="Menu">${A.ic.menu}</button>
@@ -183,6 +183,7 @@
     const pend = DB.bookings.filter(b => b.status === 'pending' && b.date >= t).length;
     const wl = DB.waitlist.filter(w => w.status === 'waiting' && w.date >= t).length;
     const c1 = $('[data-cnt=bookings]'), c2 = $('[data-cnt=waitlist]'), c3 = $('[data-cnt=todo]');
+    { const cs = $('[data-cnt=support]'); if (cs && A.ticketsNeedingReply) { const n = A.ticketsNeedingReply().length; cs.hidden = !n; cs.textContent = n; cs.classList.add('hot'); cs.title = n + ' message' + (n === 1 ? '' : 's') + ' need a reply'; } }
     if (c3 && A.todoCount) { const n = A.todoCount(); c3.hidden = !n; c3.textContent = n; c3.title = n + ' to do'; const c4 = $('[data-cnt=todo2]'); if (c4) { c4.hidden = !n; c4.textContent = n; } }
     if (c1) { c1.hidden = !pend; c1.textContent = pend; c1.title = pend + ' waiting for payment'; }
     if (c2) { c2.hidden = !wl; c2.textContent = wl; }

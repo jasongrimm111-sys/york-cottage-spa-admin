@@ -156,13 +156,14 @@
         ${its.length ? `<h3 style="margin:14px 0 6px;font-size:15px">Treatments</h3><div class="list">${its.map(i => `<div class="li"><span class="when">${i.start}</span><span class="grow"><b>${esc(A.tname(i.tid))}</b><span class="small muted" style="display:block">${esc(guestName(b, i.guest))} · ${esc(A.sname(i.staff))} · ${esc(room(i.troom))}${b.nights ? ' · ' + fd(i.date || b.date) : ''} · ${i.min} min</span></span></div>`).join('')}</div>` : ''}` });
     if (r) location.hash = '#/booking/' + b.id;
   };
-  A.wireCalClicks = el => el.addEventListener('click', e => {
+  // added once per element: the page area is reused for every page, so adding it on each draw opened one box per draw (2026-11-26)
+  A.wireCalClicks = el => { if (el._calClicks) return; el._calClicks = true; el.addEventListener('click', e => {
     if (e.target.closest('[data-mv], [data-move], [data-cview], [data-arr], [data-tick], input, select')) return;   // their own buttons keep working
     const tr = e.target.closest('[data-it]'), fo = e.target.closest('[data-food]'), bk = e.target.closest('[data-bk]');
     if (tr) { e.preventDefault(); e.stopPropagation(); const [bid, key] = tr.dataset.it.split('|'); A.calTreatment(bid, key); return; }
     if (fo) { e.preventDefault(); e.stopPropagation(); const [d, sid] = fo.dataset.food.split('|'); A.calFood(d, sid); return; }
     if (bk) { e.preventDefault(); A.calBooking(bk.dataset.bk); }
-  });
+  }); };
 
   const old = V.calendar;
   V.calendar = (mode, d) => {

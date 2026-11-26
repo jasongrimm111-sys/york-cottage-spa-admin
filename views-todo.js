@@ -8,6 +8,8 @@
   A.todoItems = () => {
     const t = today(), DB = A.DB(), cfg = A.cfg(), out = [], live = DB.bookings.filter(E.live), due = A.due, cd = A.consultDue;
     const add = o => { if (!tasks().hidden[o.key]) out.push(o); };
+    // support messages waiting for a reply come first (user, 2026-11-26: it should be obvious)
+    (A.ticketsNeedingReply ? A.ticketsNeedingReply() : []).forEach(tk => out.push({ key: 'tk:' + tk.id, group: 'Support messages', level: 'bad', title: `${tk.name || tk.email} needs a reply`, sub: `${tk.topic || 'Message'} · ${tk.id} · ${new Date(tk.updated || tk.created).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`, href: '#/ticket/' + tk.id }));
     DB.bookings.filter(b => b.status === 'pending' && b.date >= t && b.payLink && E.between((b.payLink.sent || b.created || '').slice(0, 10) || t, t) >= 2)
       .forEach(b => add({ key: 'pay:' + b.id + ':' + (b.payLink.sent || ''), group: 'Payments', level: 'warn', title: `${A.cust(b)} hasn’t paid`, sub: `Link for ${gbp(b.payLink.amount || due(b), 2)} sent ${fd((b.payLink.sent || '').slice(0, 10))} · visit ${fd(b.date)}`, href: '#/booking/' + b.id, booking: b, act: 'resend' }));
     live.filter(b => (b.quote || {}).balance && due(b) > 0 && b.status !== 'pending' && b.quote.balanceDue && E.between(t, b.quote.balanceDue) <= 14 && b.date >= t)

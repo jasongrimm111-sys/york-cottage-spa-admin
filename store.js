@@ -81,6 +81,7 @@
     // settings added after a demo was saved
     db.cfg = deepFill(db.cfg, root.YC_DEFAULTS);
     E.migrate(db.cfg); db.tasks = db.tasks || { items: [], hidden: {} };
+    if (!db.tickets) db.tickets = (root.YCSeed.make().tickets || []);   // demos saved before Support existed
     return db;
   }
   // add any settings missing from saved data (new features) without touching saved values
@@ -101,13 +102,20 @@
     const files = (await gh.list(R, 'bookings')).filter(f => /\.json$/.test(f.name));
     const months = await Promise.all(files.map(f => get('bookings/' + f.name)));
     const bookings = months.flatMap(m => m || []);
-    const [customers, vouchers, waitlist, audit, outbox, tasks] = await Promise.all(['customers.json', 'vouchers.json', 'waitlist.json', 'audit.json', 'outbox.json', 'tasks.json'].map(get));
-    const db = { cfg, bookings, customers: customers || {}, vouchers: vouchers || [], waitlist: waitlist || [], audit: audit || [], outbox: outbox || [], tasks: tasks || { items: [], hidden: {} } };
+    const [customers, vouchers, waitlist, audit, outbox, tasks, tickets] = await Promise.all(['customers.json', 'vouchers.json', 'waitlist.json', 'audit.json', 'outbox.json', 'tasks.json', 'support/tickets.json'].map(get));
+    const db = { cfg, bookings, customers: customers || {}, vouchers: vouchers || [], waitlist: waitlist || [], audit: audit || [], outbox: outbox || [], tasks: tasks || { items: [], hidden: {} }, tickets: tickets || [] };
     if (firstRun) { S.dirty.add('config.json'); }
     return db;
   }
 
   function fileFor(part) { return part; }
+  async function reloadTickets() {
+    if (S.mode === 'demo') return S.DB.tickets || [];
+    const cur = await S.gh.get(CONF.dataRepo, 'support/tickets.json'); if (!cur) return S.DB.tickets || [];
+    S.sha['support/tickets.json'] = cur.sha;
+    if (S.dirty.has('support/tickets.json')) return S.DB.tickets;   // our unsaved changes win until they're saved (and merged)
+    S.DB.tickets = cur.data || []; return S.DB.tickets;
+  }
   // mark what changed: 'cfg', 'booking' (with the booking), 'customers', 'vouchers', 'waitlist', 'outbox'
   function touch(part, b) {
     if (part === 'cfg') S.dirty.add('config.json');
@@ -140,6 +148,7 @@
     if (f === 'config.json') return DB.cfg;
     if (f.startsWith('bookings/')) { const m = f.slice(9, 16); return DB.bookings.filter(b => month(b) === m); }
     if (f === 'audit.json') return DB.audit.slice(-3000);
+    if (f === 'support/tickets.json') return DB.tickets || [];
     return DB[f.replace('.json', '')];
   }
   async function writeFile(f, tries = 0) {
@@ -151,6 +160,13 @@
       if ((e.status === 409 || e.status === 422) && tries < 3) {
         // someone else saved first: take their copy, re-apply ours on top (bookings merge by id), then save again
         const cur = await S.gh.get(CONF.dataRepo, f); S.sha[f] = cur && cur.sha;
+        // support tickets: messages that arrived meanwhile (from the website) are kept, ours are added on top
+        if (cur && f === 'support/tickets.json') {
+          const sig = m => m.at + '|' + m.from + '|' + (m.text || '').slice(0, 40);
+          for (const t of cur.data || []) { const mine = S.DB.tickets.find(x => x.id === t.id); if (!mine) { S.DB.tickets.push(t); continue; }
+            const have = new Set(mine.messages.map(sig)); const extra = t.messages.filter(m => !have.has(sig(m)));
+            if (extra.length) { mine.messages.push(...extra); mine.messages.sort((a, b) => a.at.localeCompare(b.at)); if (extra.some(m => m.from === 'guest')) { mine.needsReply = true; mine.status = 'open'; } } }
+        }
         if (cur && f.startsWith('bookings/')) {
           const mine = new Map(data.map(b => [b.id, b]));
           for (const b of cur.data) if (!mine.has(b.id) && !S.DB.bookings.some(x => x.id === b.id)) S.DB.bookings.push(b);
@@ -325,6 +341,6 @@
   }
   function audit(what, ref) { if (!what) return; S.DB.audit.push({ at: new Date().toISOString(), by: S.user ? S.user.name : 'Admin', what, ref: ref || '' }); }
 
-  root.YCStore = { S, CONF, signIn, resume, startDemo, setup, signOut, users, addUser, removeUser, changePassword, replaceToken, consultKey, makeConsultKey, saveConsult, listConsults, touch, saveNow, publish, queue, audit, getVault, month, sha, loadDemo, DEMO_KEY,
+  root.YCStore = { S, CONF, reloadTickets, signIn, resume, startDemo, setup, signOut, users, addUser, removeUser, changePassword, replaceToken, consultKey, makeConsultKey, saveConsult, listConsults, touch, saveNow, publish, queue, audit, getVault, month, sha, loadDemo, DEMO_KEY,
     onChange: f => S.listeners.push(f) };
 })(this);
