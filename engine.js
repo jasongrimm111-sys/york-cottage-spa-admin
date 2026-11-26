@@ -330,6 +330,8 @@
     return out;
   };
   // can therapist st do [t, t+min) (+buffer) on date, given the index?
+  E.freeAt = (ix, date) => { const v = []; for (const m of [ix.staff, ix.troom]) for (const l of Object.values((m || {})[date] || {})) for (const x of l) v.push(Math.ceil(x[1] / 5) * 5); return v; };
+  E.startsWith = (grid, ix, date, lo, hi, min, w1) => [...new Set(grid.concat(E.freeAt(ix, date).filter(t => t >= lo && t <= hi && t + min <= w1)))].sort((a, b) => a - b);
   E.staffFree = (cfg, ix, st, date, t, min, buffer) => {
     const day = E.staffDay(cfg, st, date); if (!day) return 'Not working';
     const e = t + min, eb = e + (buffer || 0);
@@ -384,7 +386,7 @@
       const starts = g[0].start ? [T(g[0].start)] : [];
       // treatments start between the day's first and last start times (Settings → Treatment times)
       const tt = E.treatTimes(cfg, date), first = Math.max(w0, T(tt.first)), last = T(tt.last);
-      if (!starts.length) for (let t = Math.ceil(first / step) * step; t + min <= w1 && t <= last; t += step) starts.push(t);
+      if (!starts.length) { for (let t = Math.ceil(first / step) * step; t + min <= w1 && t <= last; t += step) starts.push(t); starts.splice(0, starts.length, ...E.startsWith(starts, ix, date, first, last, min, w1)); }
       if (opt.prefer === 'late') starts.reverse();
       // group setting: try the start times already used by this booking first, so guests are treated side by side
       if (opt.align && (out.length || taken.length) && !g[0].start) { const used = [...new Set(out.concat(taken).map(o => T(o.start)))].filter(t => t >= w0 && t + min <= w1).sort((a, b) => a - b); starts.unshift(...used.filter(t => starts.includes(t))); }
@@ -516,8 +518,9 @@
     ix = { ...ix, duty: { ...(ix.duty || {}) } };
     for (const sv of E.servicesFor(cfg, b)) { ix.staff[sv.date] = JSON.parse(JSON.stringify(ix.staff[sv.date] || {})); ix.duty[sv.date] = { ...(ix.duty[sv.date] || {}) }; E.ensureDuty(cfg, ix, sv.date, sv.id); }
     for (const w of E.windows(cfg, b)) {
-      const tt = E.treatTimes(cfg, w[0]), times = [];
-      for (let t = Math.ceil(Math.max(T(w[1]), T(tt.first)) / step) * step; t + min <= T(w[2]) && t <= T(tt.last); t += step) {
+      const tt = E.treatTimes(cfg, w[0]), times = [], lo = Math.max(T(w[1]), T(tt.first)), grid = [];
+      for (let t = Math.ceil(lo / step) * step; t + min <= T(w[2]) && t <= T(tt.last); t += step) grid.push(t);
+      for (const t of E.startsWith(grid, ix, w[0], lo, T(tt.last), min, T(w[2]))) {
         if (others.some(o => (o.date || b.date) === w[0] && o.guest === need.guest && overlap(t - 5, t + min + 5, T(o.start), T(o.start) + o.min))) continue;
         const st = cfg.staff.filter(x => E.canDoAll(x, need)).sort(E.byPriority).find(x => !E.staffFree(cfg, ix, x, w[0], t, min, buf));
         if (!st) continue;
