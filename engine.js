@@ -204,7 +204,7 @@
   E.pickRooms = (cfg, ix, product, date, nights, guests, keep) => {
     const p = cfg.products[product], free = E.freeRooms(cfg, ix, date, nights, product);
     if (p.kind === 'house') return free.length === cfg.rooms.filter(r => r.active !== false).length ? free.map(r => r.id) : null;
-    let pool = product === 'break' ? free.filter(r => r.forBreaks) : free;
+    let pool = p.kind === 'stay' && !p.allRooms ? free.filter(r => r.forBreaks) : free;   // allRooms: groups can use every bedroom
     if (keep && keep.length && keep.every(id => pool.some(r => r.id === id)) && keep.reduce((n, id) => n + pool.find(r => r.id === id).people, 0) >= guests) return keep.slice();
     pool = pool.slice().sort((a, b) => b.people - a.people || (b.ensuite ? 1 : 0) - (a.ensuite ? 1 : 0));
     const pick = []; let cap = 0;
@@ -515,6 +515,8 @@
       if (!p.includedPick) p.includedPick = 'one';
       delete p.included; delete p.includedAll;
     }
+    // policies now live on each booking type
+    for (const p of Object.values(cfg.products || {})) if (p.policy == null && cfg.policies) { p.policy = cfg.policies[p.kind === 'house' ? 'house' : p.kind === 'stay' ? 'stay' : 'spa'] || ''; n++; }
     for (const t of cfg.treatments || []) if (t.included || t.cat === 'Included') { t.sell = false; delete t.included; if (t.cat === 'Included') t.cat = /facial/i.test(t.name) ? 'Facials' : 'Massage'; n++; }
     return n;
   };

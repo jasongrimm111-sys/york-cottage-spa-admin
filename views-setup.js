@@ -437,7 +437,7 @@
   // ============ BOOKING TYPES (products), food, policies ============
   V.products = (tab = 'types') => {
     const cfg = A.cfg();
-    const T = tabs('products', [['types', 'Booking types'], ['foods', 'Food choices'], ['policies', 'Policies']], tab);
+    const T = tabs('products', [['types', 'Booking types'], ['foods', 'Food choices']], tab);
     let body = '';
     if (tab === 'types') body = `<div class="grid g2">${Object.entries(cfg.products).map(([k, p]) => `<div class="card" style="${p.active === false ? 'opacity:.6' : ''}"><div class="card-h"><h3>${A.prodDot(k)} ${esc(p.name)}</h3><button class="btn sm" data-p="${k}">${A.ic.edit} Edit</button></div><p class="small muted">${esc(p.blurb || '')}</p>
       <dl class="kv" style="grid-template-columns:120px 1fr;margin-top:10px;font-size:13.5px"><dt>Price</dt><dd>${p.kind === 'house' ? gbp(p.night) + ' a night' : p.priceN ? Object.entries(p.priceN).map(([n, v]) => `${n} night${n > 1 ? 's' : ''} ${gbp(v)} pp`).join(' · ') : p.kind === 'treat' ? 'By treatment' : gbp(p.price) + ' pp'}</dd><dt>Guests</dt><dd>${p.min}–${p.max}${p.minByDay && p.minByDay[0] ? ` (Sunday min ${p.minByDay[0]})` : ''}</dd>
@@ -445,21 +445,25 @@
         <dt>Payment</dt><dd>${(p.pay || {}).deposit < 100 ? `${p.pay.deposit}% deposit, balance ${(p.pay.balanceDays / 7)} weeks before` : 'In full when booking'}</dd><dt>Website</dt><dd>${p.active === false ? 'Off' : p.online === false ? 'Admin only' : 'Bookable online'}</dd></dl></div>`).join('')}</div>`;
     if (tab === 'foods') body = `<div class="card flush"><div class="card-h" style="padding:16px 18px 0"><h3>Food choices</h3><button class="btn sm" id="addF">${A.ic.plus} Add a choice</button></div><table class="tbl"><thead><tr><th>Choice</th><th>Offered with</th><th>Vegan option</th><th></th></tr></thead><tbody>${cfg.foods.map(f => `<tr class="click" data-f="${f.id}" style="${f.active === false ? 'opacity:.5' : ''}"><td><b>${esc(f.name)}</b><br><span class="small muted">${esc(f.desc || '')}</span></td><td>${f.products.map(k => esc(A.pname(k))).join(', ')}</td><td>${f.vegan ? 'Yes' : 'No'}</td><td class="r">${A.ic.edit}</td></tr>`).join('')}</tbody></table></div>
       <div class="card" style="max-width:520px"><div class="card-h"><h3>Breakfast</h3><button class="btn sm pri" id="saveBf">Save</button></div>${A.f.money('breakfastPrice', 'Continental breakfast, per person per morning', cfg.breakfastPrice)}</div>`;
-    if (tab === 'policies') body = `<div class="card"><div class="card-h"><h3>Policies shown to guests</h3><button class="btn pri" id="savePol">Save</button></div>${A.f.area('spa', 'Spa days', cfg.policies.spa)}${A.f.area('stay', 'Spa breaks', cfg.policies.stay)}${A.f.area('house', 'Whole house', cfg.policies.house, { rows: 4 })}<p class="small muted">The refund amounts the portal suggests come from each booking type’s cancellation rules (Booking types → Edit).</p></div>`;
-    return { html: `<div class="vh"><div><div class="eyebrow">Set-up</div><h1>Booking types</h1><p>Prices, guest numbers, what’s included, times, payment and cancellation rules.</p></div></div>${T}${body}`, wire: el => {
+    return { html: `<div class="vh"><div><div class="eyebrow">Set-up</div><h1>Booking types</h1><p>What guests can book: prices, guest numbers, what’s included, times, payment, cancellation rules and the policy shown to guests.</p></div><div class="acts"><button class="btn pri" id="addType">${A.ic.plus} Add a booking type</button></div></div>${T}${body}`, wire: el => {
+      $('#addType', el).onclick = () => addType();
       $$('[data-p]', el).forEach(b => b.onclick = () => editProduct(b.dataset.p));
       const af = $('#addF', el); if (af) { const ed = async f0 => { const f = f0 ? clone(f0) : { id: uid('f'), name: '', desc: '', products: ['day'], vegan: true, active: true }; const v = await A.modal({ title: f0 ? 'Edit food choice' : 'Add a food choice', body: `${A.f.text('name', 'Name', f.name)}${A.f.text('desc', 'Description', f.desc)}${A.f.chips('products', 'Offered with', f.products, Object.entries(cfg.products).map(([k, p]) => [k, p.name]))}${A.f.sw('vegan', 'Vegan option available', f.vegan)}${A.f.sw('active', 'Active', f.active !== false)}`, onOk: m => { const x = A.read(m); if (!x.name) throw new Error('Name it'); return x; } }); if (!v) return; Object.assign(f, v); const i = cfg.foods.findIndex(x => x.id === f.id); if (i >= 0) cfg.foods[i] = f; else cfg.foods.push(f); A.change('cfg', null, 'Food choice saved: ' + f.name); A.refresh(); };
         af.onclick = () => ed(null); $$('[data-f]', el).forEach(r => r.onclick = () => ed(cfg.foods.find(f => f.id === r.dataset.f))); $('#saveBf', el).onclick = () => { cfg.breakfastPrice = A.read(el).breakfastPrice; A.change('cfg', null, 'Breakfast price changed'); A.toast('Saved'); }; }
-      const sp = $('#savePol', el); if (sp) sp.onclick = () => { Object.assign(cfg.policies, A.read(el)); A.change('cfg', null, 'Policies changed'); A.toast('Saved'); };
     } };
   };
   async function editProduct(k) {
     const cfg = A.cfg(), p = clone(cfg.products[k]), tt = p.times || null;
     const timesRow = (key, label, o) => `<tr><td><b>${label}</b></td><td><input type="time" class="inp" data-k="times.${key}.checkIn" value="${(o || {}).checkIn || ''}" style="width:110px"></td><td><input type="time" class="inp" data-k="times.${key}.spaFrom" value="${(o || {}).spa ? o.spa[0] : ''}" style="width:110px">–<input type="time" class="inp" data-k="times.${key}.spaTo" value="${(o || {}).spa ? o.spa[1] : ''}" style="width:110px"></td><td><input type="time" class="inp" data-k="times.${key}.food" value="${(o || {}).food || ''}" style="width:110px"></td><td><input type="time" class="inp" data-k="times.${key}.checkOut" value="${(o || {}).checkOut || ''}" style="width:110px"></td></tr>`;
     const cancel = (p.cancel && p.cancel.rules) || [];
-    const r = await A.modal({ title: 'Edit ' + esc(p.name), size: 'xl', body: `
+    const used = A.DB().bookings.some(b => b.product === k && E.live(b) && b.date >= today());
+    const r = await A.modal({ title: 'Edit ' + esc(p.name), size: 'xl', foot: p.custom ? '<button class="btn danger" data-del style="margin-right:auto">Delete this booking type</button>' : '',
+      onOpen: (m, close) => { const d = $('[data-del]', m); if (d) d.onclick = async () => { if (used) { A.toast('It has future bookings. Switch “Offered” off instead.'); return; } if (!(await A.confirm('Delete ' + esc(p.name) + '?', 'Its sessions go too. Past bookings keep their history.', 'Delete'))) return; delete cfg.products[k]; cfg.sessions = cfg.sessions.filter(s => s.product !== k); (cfg.services || []).forEach(sv => sv.products = (sv.products || []).filter(x => x !== k)); cfg.foods.forEach(f => f.products = f.products.filter(x => x !== k)); cfg.treatments.forEach(t => t.includedWith = (t.includedWith || []).filter(x => x !== k)); A.change('cfg', null, 'Booking type deleted: ' + p.name); close(); A.refresh(); };
+        const ca = $('#canAdd', m); if (ca) ca.onclick = () => $('#canT tbody', m).insertAdjacentHTML('beforeend', `<tr><td>Cancelled at least <input type="number" class="inp cMin" value="0" style="width:80px"> days before:</td><td><select class="inp cKeep"><option value="0">Full refund</option><option value="deposit">Keep the deposit</option><option value="50">Keep 50%</option><option value="100" selected>No refund</option></select></td></tr>`); },
+      body: `
       <div class="row r3">${A.f.text('name', 'Name', p.name)}<div class="fld"><span>&nbsp;</span>${A.f.sw('active', 'Offered', p.active !== false)}</div><div class="fld"><span>&nbsp;</span>${A.f.sw('online', 'Bookable on the website', p.online !== false)}</div></div>
-      ${A.f.area('blurb', 'Description', p.blurb, { rows: 2 })}
+      ${A.f.area('blurb', 'Description (shown when choosing)', p.blurb, { rows: 2 })}
+      ${A.f.area('policy', 'Policy shown to guests before they pay', p.policy || '', { rows: 3, hint: 'Payment, refunds and moving dates, in plain words. The refunds the portal suggests come from the cancellation rules below.' })}
       <div class="row r4">${p.kind === 'house' ? A.f.money('night', 'Price a night', p.night) + A.f.num('minN', 'Minimum nights', p.minN) + A.f.num('maxN', 'Maximum nights', p.maxN) : p.priceN ? Object.keys(p.priceN).map(n => A.f.money('priceN.' + n, `${n} night${n > 1 ? 's' : ''}, per person`, p.priceN[n])).join('') : p.kind !== 'treat' ? A.f.money('price', 'Price per person', p.price) : ''}
         ${A.f.num('min', 'Fewest guests', p.min)}${A.f.num('max', 'Most guests', p.max)}${p.kind === 'private' ? A.f.num('minSun', 'Fewest guests on Sundays', (p.minByDay || {})[0] || '') : ''}${p.kind === 'stay' && k === 'break' ? A.f.num('exclusiveFrom', 'Groups this big get the spa to themselves', p.exclusiveFrom) : ''}</div>
       ${p.kind !== 'treat' ? `<div class="fld"><span>Included treatments</span><p class="small">${E.includedFor(cfg, k).map(t => esc(t.name)).join(', ') || 'None'} · <a href="#/treatments" onclick="document.querySelector('.ov [data-x]').click()">change in Treatments</a></p></div>${A.f.sel('includedPick', 'With more than one included treatment', E.includedPick(cfg, k), [['one', 'Each guest chooses one'], ['all', 'Each guest has all of them']])}` : ''}
@@ -471,11 +475,10 @@
       <div class="row r3">${A.f.num('pay.deposit', 'Paid when booking (%)', (p.pay || {}).deposit ?? 100, { hint: '100 = in full' })}${A.f.num('pay.balanceDays', 'Balance due (days before)', (p.pay || {}).balanceDays || '', { hint: 'Within this, pay in full' })}${A.f.money('pay.damage', 'Damage deposit (pre-authorised)', (p.pay || {}).damage || '')}</div>
       <div class="fld"><span>Cancellation rules (the portal suggests refunds from these)</span><table class="tbl" id="canT"><tbody>${cancel.map(c => `<tr><td>Cancelled at least <input type="number" class="inp cMin" value="${c.minDays}" style="width:80px"> days before:</td><td><select class="inp cKeep"><option value="0" ${c.keepPct === 0 ? 'selected' : ''}>Full refund</option><option value="deposit" ${c.keepDeposit ? 'selected' : ''}>Keep the deposit</option><option value="50" ${c.keepPct === 50 ? 'selected' : ''}>Keep 50%</option><option value="100" ${c.keepPct === 100 ? 'selected' : ''}>No refund</option></select></td></tr>`).join('')}</tbody></table>
         <button type="button" class="btn sm ghost" id="canAdd">+ add a rule</button>${A.f.num('moveDays', 'Guests can move their date with at least this many days’ notice', (p.cancel || {}).moveDays ?? '')}</div>`,
-      onOpen: m => { $('#canAdd', m).onclick = () => $('#canT tbody', m).insertAdjacentHTML('beforeend', `<tr><td>Cancelled at least <input type="number" class="inp cMin" value="0" style="width:80px"> days before:</td><td><select class="inp cKeep"><option value="0">Full refund</option><option value="deposit">Keep the deposit</option><option value="50">Keep 50%</option><option value="100" selected>No refund</option></select></td></tr>`); },
       onOk: m => { const v = A.read(m); v.cancelRules = $$('#canT tr', m).map(tr => { const keep = $('.cKeep', tr).value; return { minDays: +$('.cMin', tr).value || 0, ...(keep === 'deposit' ? { keepDeposit: true } : { keepPct: +keep }) }; }).sort((a, b) => b.minDays - a.minDays); if (!v.cancelRules.length || v.cancelRules[v.cancelRules.length - 1].minDays !== 0) throw new Error('Add a rule for 0 days (the last-minute rule)'); return v; } });
     if (!r) return;
     const q = cfg.products[k];
-    q.name = r.name; q.active = r.active; q.online = r.online; q.blurb = r.blurb; q.min = r.min; q.max = r.max;
+    q.name = r.name; q.active = r.active; q.online = r.online; q.blurb = r.blurb; q.policy = r.policy; q.min = r.min; q.max = r.max;
     if (r.night != null) q.night = r.night; if (r.minN) q.minN = r.minN; if (r.maxN) q.maxN = r.maxN; if (r.price != null) q.price = r.price; if (r.priceN) q.priceN = { ...q.priceN, ...r.priceN };
     if (r.minSun != null) q.minByDay = r.minSun ? { 0: r.minSun } : {};
     if (r.exclusiveFrom != null) q.exclusiveFrom = r.exclusiveFrom;
@@ -489,6 +492,30 @@
     q.cancel = { ...(q.cancel || {}), rules: r.cancelRules, moveDays: r.moveDays ?? undefined };
     A.change('cfg', null, 'Booking type saved: ' + q.name); A.toast('Saved'); A.refresh();
   }
+  // new booking types copy their starting settings from an existing one of the same kind
+  const KINDS = [['session', 'Spa session', 'Shared spa sessions with places, like the Day Spa or Spa Access'], ['private', 'Private spa hire', 'The spa just for one group for a session'], ['stay', 'Overnight stay', 'Nights in the bedrooms with spa time, like the spa breaks'], ['house', 'Whole house', 'Exclusive use of the house and spa'], ['treat', 'Treatments only', 'Treatments with no spa session or room']];
+  async function addType() {
+    const cfg = A.cfg();
+    const r = await A.modal({ title: 'Add a booking type', size: 'wide', ok: 'Create', body: `${A.f.text('name', 'Name', '', { ph: 'e.g. Twilight Spa, Mother & Daughter Day' })}
+      <div class="fld"><span>What kind of booking is it?</span><div class="pick" id="kindPick">${KINDS.map(([k, n, d], i) => `<button type="button" data-kind="${k}" class="${i === 0 ? 'on' : ''}"><b>${n}</b><small>${d}</small></button>`).join('')}</div></div>
+      <label class="fld"><span>Start from the settings of</span><select class="inp" id="tplSel"></select><small>Prices, guests, times and rules are copied, and you can change them next.</small></label>`,
+      onOpen: m => { let kind = 'session'; const fill = () => { const opts = Object.entries(cfg.products).filter(([, p]) => p.kind === kind); $('#tplSel', m).innerHTML = opts.map(([k, p]) => `<option value="${k}">${esc(p.name)}</option>`).join(''); }; $$('[data-kind]', m).forEach(b => b.onclick = () => { kind = b.dataset.kind; $$('[data-kind]', m).forEach(x => x.classList.toggle('on', x === b)); fill(); }); fill(); m._kind = () => kind; },
+      onOk: m => { const v = A.read(m); if (!v.name) throw new Error('Name it'); const tpl = $('#tplSel', m).value; if (!tpl) throw new Error('Choose one to copy'); return { name: v.name, kind: m._kind(), tpl }; } });
+    if (!r) return;
+    let key = r.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24) || 'type'; while (cfg.products[key]) key += '-2';
+    const src = cfg.products[r.tpl], np = clone(src); np.name = r.name; np.custom = true; np.active = true; np.online = false;
+    cfg.products[key] = np;
+    // copy its sessions, food service, foods, and the treatments included with it
+    cfg.sessions.filter(s => s.product === r.tpl).forEach(s => cfg.sessions.push({ ...clone(s), id: uid('ses'), product: key }));
+    (cfg.services || []).forEach(sv => { if ((sv.products || []).includes(r.tpl)) sv.products.push(key); });
+    cfg.foods.forEach(f => { if ((f.products || []).includes(r.tpl)) f.products.push(key); });
+    cfg.treatments.forEach(t => { if ((t.includedWith || []).includes(r.tpl)) t.includedWith.push(key); });
+    A.change('cfg', null, `Booking type added: ${r.name} (copied from ${src.name})`);
+    A.toast('Created. It’s hidden from the website until you switch “Bookable on the website” on.');
+    A.refresh(); setTimeout(() => editProduct(key), 200);
+  }
+  A.addType = addType;
+
   // ============ DATE PRICES ============
   V.rates = () => {
     const cfg = A.cfg(), t = today();

@@ -304,3 +304,8 @@ a.btn.pri{color:#fff}
 .badge,.li .btn,.li .when{flex:none}
 .li .grow{overflow:hidden}
 .li .grow .small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* numbers: the serif's 1 looks like I, so figures use the sans font */
+.kpi b,.be-sum .tot b,.mcal .n,.minical button,.tnum,.when,.badge,.planner th{font-family:var(--sans);font-variant-numeric:tabular-nums lining-nums;letter-spacing:-.01em}
+.kpi b{font-size:30px;font-weight:600}
+.be-sum .tot b{font-size:28px;font-weight:600}

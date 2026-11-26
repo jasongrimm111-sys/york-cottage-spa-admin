@@ -237,8 +237,11 @@
     let h = location.hash.replace(/^#\/?/, '') || 'today';
     if (A.isTher() && !THER_OK.includes(h.split('/')[0])) h = 'staffday/' + St.S.user.staffId;
     if (St.S.user.role === 'reception' && RECEPTION_NO.includes(h.split('/')[0])) h = 'today';
-    const [name, ...rest] = h.split('/');
+    const [name, ...rest] = h.split('?')[0].split('/');   // ?query stays in location.hash for the view to read
     const v = A.views[name] || A.views.today;
+    // colours for booking types added later: the next validated palette slot
+    const SLOTS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'];
+    Object.keys(A.cfg().products).forEach((k, i) => { if (!PCOL[k]) PCOL[k] = SLOTS[i % SLOTS.length]; });
     $$('.nav a').forEach(a => a.classList.toggle('on', a.dataset.r === name || (name === 'booking' && a.dataset.r === 'bookings') || (name === 'day' && a.dataset.r === 'calendar') || (name === 'customer' && a.dataset.r === 'customers') || (name === 'edit' && a.dataset.r === 'bookings')));
     const el = $('#view');
     const same = current === h; current = h;

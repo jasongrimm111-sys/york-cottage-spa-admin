@@ -22,9 +22,10 @@
   function make(opts = {}) {
     let seed = opts.seed || 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
     const pick = a => a[Math.floor(rnd() * a.length)];
-    const cfg = JSON.parse(JSON.stringify(D0));   // the real starting setup: 2 therapists
-    cfg.staff[1].off = [{ from: E.addD(E.localISO(), 9), to: E.addD(E.localISO(), 13), reason: 'Holiday', kind: 'holiday' }];
-    cfg.promos = [
+    const cfg = JSON.parse(JSON.stringify(opts.cfg || D0));   // the real starting setup: 2 therapists
+    E.migrate(cfg);
+    if (!opts.cfg) cfg.staff[1].off = [{ from: E.addD(E.localISO(), 9), to: E.addD(E.localISO(), 13), reason: 'Holiday', kind: 'holiday' }];
+    if (!opts.cfg) cfg.promos = [
       { id: 'p1', code: 'WINTER15', label: '15% off winter spa days', type: 'pct', value: 15, on: 'base', from: E.localISO(), to: E.addD(E.localISO(), 45), visitFrom: E.localISO(), visitTo: E.addD(E.localISO(), 90), days: [1, 2, 3, 4], products: ['day', 'access'], minSpend: 0, maxUses: 100, used: 7, active: true,
         banner: { on: true, from: E.localISO(), to: E.addD(E.localISO(), 45), text: 'Winter weekdays: 15% off Day Spa and Spa Access with code WINTER15' } },
       { id: 'p2', code: 'THANKYOU10', label: '£10 off for returning guests', type: 'amt', value: 10, on: 'all', from: '', to: '', products: [], minSpend: 80, maxUses: 0, used: 3, active: true, banner: { on: false } }
@@ -34,20 +35,25 @@
     const mix = [['day', 34], ['access', 14], ['break', 20], ['treat', 12], ['private', 5], ['group', 3], ['house', 2]];
     const W = mix.reduce((a, x) => a + x[1], 0);
     const prodPick = () => { let r = rnd() * W; for (const [k, w] of mix) { if ((r -= w) < 0) return k; } return 'day'; };
-    const days = opts.days || [-75, 60];
+    const days = opts.days || [-90, 60];
+    // make sure every kind of booking shows up: private spa days, group breaks and whole-house weekends on a rhythm
+    const forced = off => { const d = E.addD(today, off), w = E.dow(d), out = [];
+      if (off % 9 === 0) out.push('private'); if (w >= 0 && w <= 3 && off % 5 === 0) out.push('group'); if (w === 5 && Math.abs(off) % 3 === 1) out.push('house');
+      if (off % 4 === 0) out.push('treat'); if (w >= 0 && w <= 3 && off % 3 === 0) out.push('break'); return out; };
     let n = 0; const ix = E.index(cfg, []);
     for (let off = days[0]; off <= days[1]; off++) {
       const date = E.addD(today, off), busyness = 0.55 + (E.dow(date) >= 5 || E.dow(date) === 0 ? 0.35 : 0) + (off > 30 ? -0.35 : 0);
       const tries = Math.round(busyness * 5 + rnd() * 2);
-      for (let k = 0; k < tries; k++) {
-        const product = prodPick(), p = cfg.products[product];
+      const must = forced(off);
+      for (let k = 0; k < tries + must.length; k++) {
+        const product = k < must.length ? must[k] : prodPick(), p = cfg.products[product]; if (!p || p.active === false) continue;
         let guests = product === 'group' ? 7 + Math.floor(rnd() * 5) : product === 'house' ? 10 + Math.floor(rnd() * 6) : product === 'private' ? 4 + Math.floor(rnd() * 5) : product === 'treat' ? 1 + (rnd() < .3 ? 1 : 0) : rnd() < .7 ? 2 : (product === 'break' ? 4 : 1 + Math.floor(rnd() * 4));
         guests = Math.max(E.minGuests(cfg, product, date), Math.min(p.max, guests));
         const nights = p.kind === 'house' ? 2 + (rnd() < .3 ? 1 : 0) : p.nights ? (rnd() < .3 && p.nights.includes(2) ? 2 : 1) : 0;
         const chk = E.dateCheck(cfg, ix, { product, date, nights, guests, admin: true, today: E.addD(date, -30) });
         if (!chk.ok) continue;
         const ses = chk.sessions ? chk.sessions.filter(s => s.ok) : [];
-        const b = { id: 'b' + (++n), ref: ref(), product, date, nights, guests, status: 'confirmed', sessionId: ses.length ? pick(ses).id : null,
+        const b = { id: (opts.idPrefix || 'b') + (++n), sample: !!opts.cfg, ref: ref(), product, date, nights, guests, status: 'confirmed', sessionId: ses.length ? pick(ses).id : null,
           part: product === 'treat' ? pick(['Morning', 'Afternoon']) : null, rooms: chk.rooms || [], breakfast: p.breakfast && rnd() < .4, blueLight: rnd() < .06,
           guestList: [], items: [], payments: [], history: [], source: pick(['web', 'web', 'web', 'web', 'phone', 'email']), tags: [] };
         const foods = cfg.foods.filter(f => f.products.includes(product));
@@ -64,7 +70,7 @@
         b.items = sch.items;
         const first = pick(FIRST), last = pick(LAST), email = `${first}.${last}`.toLowerCase() + '@example.com';
         b.customer = { first, last, email, phone: '07700 9' + String(Math.floor(rnd() * 99999)).padStart(5, '0') };
-        if (rnd() < .08) b.promo = { code: 'THANKYOU10', type: 'amt', value: 10, on: 'all' };
+        if (!opts.cfg && rnd() < .08) b.promo = { code: 'THANKYOU10', type: 'amt', value: 10, on: 'all' };
         if (rnd() < .05) b.discount = { type: 'pct', value: 10, reason: 'Birthday' };
         b.quote = E.quote(cfg, b, E.addD(date, -30));
         const lead = 3 + Math.floor(rnd() * 50), created = new Date(E.pd(E.addD(date, -lead)).getTime() + 9 * 36e5 + rnd() * 10 * 36e5).toISOString();
