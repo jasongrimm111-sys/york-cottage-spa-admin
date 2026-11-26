@@ -804,3 +804,6 @@ html{touch-action:manipulation}
 .td-bar{align-items:flex-start}
 @media (max-width:700px){.who-pick{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}.who-pick a{flex:none}}
 .who-pick{margin:0 0 14px}
+
+.tpick-a{border:1px dashed var(--stone);border-radius:10px;padding:10px 12px;margin:6px 0;background:#fffdf9}
+.tpick-a .chip{cursor:pointer}
