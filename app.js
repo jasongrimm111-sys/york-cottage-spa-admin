@@ -98,6 +98,7 @@
       try { const r = onOk ? await onOk(m, msg) : true; if (r !== false) close(r === undefined ? true : r); } catch (err) { msg.textContent = err.message; }
     };
     if (onOpen) onOpen(m, close);
+    if (A.applyPerms) A.applyPerms(m);
     setTimeout(() => { const f = $('input:not([type=checkbox]),select,textarea', m); if (f && !A.touch) f.focus(); }, 30);
   });
   A.confirm = (title, text, ok = 'Yes', danger = true) => A.modal({ title, body: `<p>${text}</p>`, ok, danger });
@@ -123,32 +124,31 @@
 
   // ---------- shell ----------
   const NAV = [
-    ['Run the day', [['today', 'Today', 'today'], ['todo', 'To do', 'check'], ['calendar', 'Calendar', 'cal'], ['bookings', 'Bookings', 'list'], ['waitlist', 'Waitlist', 'wait']]],
+    ['Run the day', [['today', 'Today', 'today'], ['todo', 'To do', 'check'], ['calendar', 'Calendar', 'cal'], ['roomcal', 'Room calendar', 'bed'], ['bookings', 'Bookings', 'list'], ['waitlist', 'Waitlist', 'wait']]],
     ['Team', [['staff', 'Staff', 'staff'], ['rota', 'Rota', 'rota']]],
     ['Guests & sales', [['customers', 'Customers', 'cust'], ['vouchers', 'Gift vouchers', 'gift'], ['promos', 'Discount codes', 'tag'], ['reports', 'Reports', 'chart']]],
     ['Set-up', [['spa', 'Spa & sessions', 'spa'], ['treatments', 'Treatments', 'treat'], ['rooms', 'Rooms', 'bed'], ['products', 'Booking types', 'box'], ['rates', 'Date prices', 'price'], ['emails', 'Emails', 'mail'], ['settings', 'Settings', 'cog']]]
   ];
-  A.isTher = () => St.S.user && St.S.user.role === 'therapist';
+  A.isTher = () => !!(St.S.user && !A.can('staff.view') && A.myStaff());   // sees only their own day
   A.reshell = () => { shell(); route(); saveSt(); };
-  const THER_OK = ['staffday', 'rota'];
-  const RECEPTION_NO = ['settings', 'products', 'rates', 'emails', 'spa', 'treatments', 'rooms', 'staff'];
   function shell() {
-    const S = St.S, ther = A.isTher(), rec = S.user.role === 'reception';
-    const nav = ther ? [['My work', [['staffday/' + S.user.staffId, 'My day', 'today'], ['rota', 'Rota', 'rota']]]] : NAV.map(([h, items]) => [h, items.filter(([r]) => !(rec && RECEPTION_NO.includes(r)))]).filter(([, items]) => items.length);
+    const S = St.S, ther = !A.can('view.today');
+    // the menu follows the user's role; anyone linked to a staff member gets "My day"
+    const nav = [...(A.myStaff() ? [['My work', [['staffday/' + A.myStaff(), 'My day', 'today']]]] : []), ...NAV.map(([h, items]) => [h, items.filter(([r]) => A.canRoute(r) && !(r === 'today' && false))])].filter(([, items]) => items.length);
     document.body.innerHTML = `<div class="app">
-      <aside class="side" id="side"><a class="brand" href="#/today"><i>Y</i><span><b>York Cottage</b><small>Spa admin</small></span></a>
+      <aside class="side" id="side"><a class="brand" href="#/${A.homeRoute()}"><i>Y</i><span><b>York Cottage</b><small>Spa admin</small></span></a>
         <nav class="nav">${nav.map(([h, items]) => `<div class="nav-h">${h}</div>` + items.map(([r, t, ic]) => `<a href="#/${r}" data-r="${r.split('/')[0]}">${A.ic[ic]}<span>${t}</span>${r === 'bookings' || r === 'waitlist' || r === 'todo' ? `<span class="cnt" data-cnt="${r}" hidden></span>` : ''}</a>`).join('')).join('')}</nav>
         <div class="side-foot">${S.mode === 'demo' ? '<span class="demo-tag">OFFLINE DEMO</span><br>Changes here are kept in this browser only and aren’t saved to York Cottage’s data.<br><button class="btn sm" id="leaveDemo" style="margin-top:8px;color:var(--ink)">Go to the real portal</button>' : `Signed in as ${esc(S.user.name)}<br><span style="opacity:.7">Everything saves to York Cottage’s private data store</span>`}${S.realUser ? '<br><button class="btn sm" id="backMgr" style="margin-top:8px;color:var(--ink)">Back to the manager view</button>' : ''}</div></aside>
       <div class="main"><header class="top">
         <button class="burger" id="burger" aria-label="Menu">${A.ic.menu}</button>
-        <div class="search">${A.ic.search}<input id="q" placeholder="Search bookings, guests, references…" autocomplete="off" aria-label="Search"><div class="search-res" id="qres" hidden></div></div>
+        <div class="search">${A.ic.search}<input id="q" placeholder="${innerWidth < 600 ? 'Search guests, bookings…' : 'Search bookings, guests, references…'}" autocomplete="off" aria-label="Search" type="search" enterkeyhint="search"><div class="search-res" id="qres" hidden></div></div>
         <span style="flex:1"></span>
-        ${ther ? '' : `<a class="btn pri" href="#/new">${A.ic.plus}<span>New booking</span></a>`}
+        ${A.can('bookings.create') ? `<a class="btn pri" href="#/new">${A.ic.plus}<span>New booking</span></a>` : ''}
         <span class="save-st" id="saveSt"><i></i><span>Saved</span></span>
         <div class="me"><button class="me-btn" id="meBtn"><i>${A.initials(S.user.name)}</i><b>${esc(S.user.name.split(' ')[0])}</b></button>
           <div class="me-menu" id="meMenu" hidden><a href="#/settings/users">Users & password</a><a href="#/settings/data">Backup & data</a>${S.mode === 'demo' ? '<button id="resetDemo">Reset the demo data</button>' : ''}<button id="signOut">Sign out</button></div></div>
       </header><main class="view" id="view"></main></div>
-      <nav class="tabbar" aria-label="Main">${(ther ? [['staffday/' + S.user.staffId, 'My day', 'today'], ['rota', 'Rota', 'rota']] : [['today', 'Today', 'today'], ['todo', 'To do', 'check'], ['calendar', 'Calendar', 'cal'], ['bookings', 'Bookings', 'list']]).map(([r, t, ic]) => `<a href="#/${r}" data-r="${r.split('/')[0]}">${A.ic[ic]}<span>${t}</span>${r === 'todo' ? '<i class="tb-cnt" data-cnt="todo2" hidden></i>' : ''}</a>`).join('')}<button id="tbMenu" type="button">${A.ic.menu}<span>Menu</span></button></nav></div>`;
+      <nav class="tabbar" aria-label="Main">${[...(A.can('view.today') ? [['today', 'Today', 'today'], ['todo', 'To do', 'check']] : A.myStaff() ? [['staffday/' + A.myStaff(), 'My day', 'today']] : []), ...(A.can('view.calendar') ? [['calendar', 'Calendar', 'cal']] : []), ...(A.can('view.bookings') ? [['bookings', 'Bookings', 'list']] : [])].slice(0, 4).map(([r, t, ic]) => `<a href="#/${r}" data-r="${r.split('/')[0]}">${A.ic[ic]}<span>${t}</span>${r === 'todo' ? '<i class="tb-cnt" data-cnt="todo2" hidden></i>' : ''}</a>`).join('')}<button id="tbMenu" type="button">${A.ic.menu}<span>Menu</span></button></nav></div>`;
     $('#burger').onclick = () => document.body.classList.toggle('nav-open');
     $('#tbMenu').onclick = e => { e.stopPropagation(); document.body.classList.toggle('nav-open'); };
     $('#side').addEventListener('click', e => { if (e.target.closest('a')) document.body.classList.remove('nav-open'); });
@@ -158,7 +158,7 @@
     $('#signOut').onclick = async () => { await St.saveNow(); St.signOut(); };
     const ld = $('#leaveDemo'); if (ld) ld.onclick = () => { sessionStorage.removeItem('yc-admin-sess'); location.href = location.pathname; };
     const bm = $('#backMgr'); if (bm) bm.onclick = () => { S.user = S.realUser; delete S.realUser; A.reshell(); location.hash = '#/today'; };
-    if (ther) $('.search').style.visibility = 'hidden';
+    if (!A.can('view.bookings')) $('.search').style.visibility = 'hidden';
     const rd = $('#resetDemo'); if (rd) rd.onclick = async () => { if (await A.confirm('Reset the demo?', 'This replaces everything in the demo with fresh sample data.', 'Reset')) { localStorage.removeItem(St.DEMO_KEY); await St.startDemo(true); route(); A.toast('Demo reset'); } };
     St.onChange(k => { if (k === 'status') saveSt(); });
     search();
@@ -238,9 +238,8 @@
   // ---------- routing ----------
   let current = '';
   async function route() {
-    let h = location.hash.replace(/^#\/?/, '') || 'today';
-    if (A.isTher() && !THER_OK.includes(h.split('/')[0])) h = 'staffday/' + St.S.user.staffId;
-    if (St.S.user.role === 'reception' && RECEPTION_NO.includes(h.split('/')[0])) h = 'today';
+    let h = location.hash.replace(/^#\/?/, '') || A.homeRoute();
+    if (!A.canRoute(h.split('?')[0].split('/')[0])) h = A.homeRoute();
     const [name, ...rest] = h.split('?')[0].split('/');   // ?query stays in location.hash for the view to read
     const v = A.views[name] || A.views.today;
     // colours for booking types added later: the next validated palette slot
@@ -254,6 +253,7 @@
       const out = v(...rest.map(decodeURIComponent));
       if (out && typeof out === 'object' && 'html' in out) { el.innerHTML = out.html; if (out.wire) await out.wire(el); }
       else el.innerHTML = out;
+      A.applyPerms(el);
     } catch (err) { console.error(err); el.innerHTML = `<div class="note bad">Something went wrong showing this page: ${esc(err.message)}</div>`; }
     if (!same) scrollTo(0, 0);
     counts();
@@ -307,4 +307,8 @@
     authScreen(v ? 'login' : 'setup');
   }
   A.boot = boot;
+  document.addEventListener('gesturestart', e => e.preventDefault(), { passive: false });
+  document.addEventListener('gesturechange', e => e.preventDefault(), { passive: false });
+  document.addEventListener('touchmove', e => { if (e.touches && e.touches.length > 1) e.preventDefault(); }, { passive: false });
+  let lastTouch = 0; document.addEventListener('touchend', e => { const t = Date.now(); if (t - lastTouch < 300 && !e.target.closest('input,select,textarea')) e.preventDefault(); lastTouch = t; }, { passive: false });
 })();

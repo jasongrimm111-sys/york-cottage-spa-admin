@@ -174,7 +174,7 @@
     const cfg = A.cfg(), DB = A.DB(), t = today();
     let mon = start || t; while (E.dow(mon) !== 1) mon = E.addD(mon, -1);
     const days = Array.from({ length: 7 }, (_, i) => E.addD(mon, i)), ixAll = E.index(cfg, DB.bookings);
-    const me = A.isTher() ? St.S.user.staffId : null;
+    const me = !A.can('staff.view') ? A.myStaff() : null;
     const staff = cfg.staff.filter(s => s.active !== false && (!me || s.id === me));
     const cell = (st, d) => {
       const day = E.staffDay(cfg, st, d), list = (ixAll.staff[d] || {})[st.id] || [], hands = list.filter(x => x[3] !== 'duty').reduce((a, x) => a + (x[2] || 0), 0), duty = list.filter(x => x[3] === 'duty');
@@ -406,7 +406,7 @@
   // ============ ROOMS ============
   V.rooms = (tab = 'bedrooms') => {
     const cfg = A.cfg(), t = today();
-    const T = tabs('rooms', [['bedrooms', 'Bedrooms'], ['treatment', 'Treatment rooms'], ['planner', 'Room planner']], tab);
+    const T = tabs('rooms', [['bedrooms', 'Bedrooms'], ['treatment', 'Treatment rooms']], tab);
     let body = '';
     if (tab === 'bedrooms') body = `<div class="card flush"><div class="card-h" style="padding:16px 18px 0"><h3>Bedrooms</h3><button class="btn sm" id="addR">${A.ic.plus} Add a room</button></div><table class="tbl"><thead><tr><th>Room</th><th>Bed</th><th class="r">Sleeps</th><th>Ensuite</th><th>Spa breaks</th><th></th></tr></thead><tbody>${cfg.rooms.map(r => `<tr class="click" data-r="${r.id}" style="${r.active === false ? 'opacity:.5' : ''}"><td><b>${esc(r.name)}</b></td><td>${esc(r.bed)}</td><td class="r">${r.people}</td><td>${r.ensuite ? 'Yes' : 'No'}</td><td>${r.forBreaks ? 'Yes' : 'Groups & whole house only'}</td><td class="r">${A.ic.edit}</td></tr>`).join('')}</tbody></table></div>
       <div class="card"><div class="card-h"><h3>Check-in & check-out times</h3><a class="btn sm" href="#/products">Edit in Booking types</a></div>${['break', 'group', 'house'].map(k => { const tt = cfg.products[k].times || {}; return `<p><b>${esc(A.pname(k))}</b>: check-in ${tt.default.checkIn}${tt[0] && tt[0].checkIn ? ` (Sunday ${tt[0].checkIn})` : ''} · check-out ${tt.default.checkOut}</p>`; }).join('')}</div>`;
