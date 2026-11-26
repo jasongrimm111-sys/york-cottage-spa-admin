@@ -44,8 +44,16 @@
     const vals = { first: (b.customer || {}).first || '', name: A.cust(b), ref: b.ref, product: A.pname(b.product), when: A.whenText(b), details: A.details(b), total: gbp(q.total, 2), paid: gbp(paid, 2),
       due: gbp(extra.amount != null ? extra.amount : due(b), 2), balanceLine: q.balance && paid < q.total ? `\nBalance ${gbp(q.total - paid, 2)} due by ${fdy(q.balanceDue)}` : '', payLink: extra.link || A.payURL(b, extra.amount != null ? extra.amount : due(b)),
       dueDate: q.balanceDue ? fdy(q.balanceDue) : '', reviewLink: cfg.business.googleReviewUrl || cfg.business.website, consultLink: A.consultURL ? (A.consultURL(b) || cfg.business.consultUrl || '(please fill it in when you arrive)') : cfg.business.consultUrl || '', refundLine: extra.refund ? `\nWe’ve refunded ${gbp(extra.refund, 2)} to your original payment method.` : '', ...extra };
+    vals.reasonLine = extra.reason ? `\nReason: ${extra.reason}.` : ''; vals.message = extra.message || '';
     const fill = s => s.replace(/\{(\w+)\}/g, (m, k) => vals[k] != null ? vals[k] : m);
-    return { to: (b.customer || {}).email, subject: fill(tp.subject), body: fill(tp.body) };
+    let body = fill(tp.body);
+    // cancellations: templates saved before {reasonLine}/{message} existed still get them, above the sign-off
+    if (key === 'cancel') {
+      const add = [!/\{reasonLine\}/.test(tp.body) && extra.reason ? `Reason: ${extra.reason}.` : '', !/\{message\}/.test(tp.body) && extra.message ? extra.message : ''].filter(Boolean).join('\n\n');
+      if (add) { const k = body.lastIndexOf('\n\n'); body = k > 0 ? body.slice(0, k) + '\n\n' + add + body.slice(k) : body + '\n\n' + add; }
+      body = body.replace(/\n{3,}/g, '\n\n');
+    }
+    return { to: (b.customer || {}).email, subject: fill(tp.subject), body };
   };
   // queue an email (the data repo's GitHub Action sends it); in the demo it is shown instead
   A.sendEmail = async (key, b, extra = {}, show = true) => {
@@ -397,14 +405,14 @@
     const r = await A.modal({ title: 'Cancel this booking?', body: `<div class="note">${esc(t.text)}. Under the terms: refund <b>${gbp(t.refund, 2)}</b>, keep ${gbp(t.keep, 2)}.</div>
       <div class="row r2">${A.f.money('refund', 'Refund now', t.refund, { hint: `Paid so far: ${gbp(E.paid(b), 2)}` })}${A.f.sel('method', 'Refund to', 'card', [['card', 'Original card / Klarna (Stripe)'], ['card terminal', 'Card machine'], ['cash', 'Cash'], ['bank transfer', 'Bank transfer'], ['voucher', 'Gift voucher credit']])}</div>
       ${A.f.sel('reason', 'Reason', 'Guest cancelled', ['Guest cancelled', 'Illness', 'Moved to another date', 'No-show', 'Spa closed', 'Duplicate booking', 'Other'])}
-      ${b.customer && b.customer.email ? A.f.chk('email', 'Email the guest that it’s cancelled', true) : ''}`, ok: 'Cancel booking', cancel: 'Keep it', danger: true,
+      ${b.customer && b.customer.email ? `${A.f.chk('email', 'Email the guest that it’s cancelled', true)}${A.f.area('message', 'Message to the guest (goes in the email with the reason)', '', { rows: 3, ph: 'e.g. We’re so sorry to hear you’re unwell. We’d love to see you another time, just reply to this email to rebook.' })}` : ''}`, ok: 'Cancel booking', cancel: 'Keep it', danger: true,
       onOk: m => { const v = A.read(m); if (v.refund > E.paid(b) + 0.001) throw new Error(`You can refund up to ${gbp(E.paid(b), 2)}`); return v; } });
     if (!r) return;
-    b.status = 'cancelled'; b.cancelled = { at: new Date().toISOString(), reason: r.reason, by: St.S.user.name };
+    b.status = 'cancelled'; b.cancelled = { at: new Date().toISOString(), reason: r.reason, message: r.message || '', by: St.S.user.name };
     (b.history = b.history || []).push({ at: b.cancelled.at, by: St.S.user.name, what: 'Cancelled · ' + r.reason });
     if (r.refund > 0) A.doRefund(b, r.refund, r.method, 'Refund on cancellation');
     A.change('booking', b, 'Cancelled ' + b.ref);
-    if (r.email) await A.sendEmail('cancel', b, { refund: r.refund });
+    if (r.email) await A.sendEmail('cancel', b, { refund: r.refund, reason: r.reason, message: r.message || '' });
     const wl = A.DB().waitlist.filter(w => w.status === 'waiting' && w.date === b.date);
     A.toast(wl.length ? `Cancelled. ${wl.length} on the waitlist for that day.` : 'Booking cancelled');
     A.refresh();
@@ -559,13 +567,14 @@
             ${orig && B.customer.email && cfg.emails.templates.changed && cfg.emails.templates.changed.on ? `<label class="chk" style="margin-top:12px"><input type="checkbox" id="mailChg" ${st.mailChg !== false ? 'checked' : ''}> <span>Email the guest the updated booking</span></label>` : ''}
             ${orig ? `<div class="lines" style="margin-top:8px"><div><span>Paid so far</span><span>${gbp(paid, 2)}</span></div><div><b>${q.total - paid < 0 ? 'Refund due' : 'Still to pay'}</b><b>${gbp(Math.abs(q.total - paid), 2)}</b></div></div>` : ''}
             ${probs.length ? `<div class="note bad" style="margin-top:12px">${probs.map(esc).join('<br>')}</div>` : B.date ? '<div class="note ok" style="margin-top:12px">Everything fits.</div>' : ''}
-            ${!orig ? `<div class="hr"></div><div class="fld"><span>Then</span>
+            ${q.total <= 0 ? `<div class="note ok" style="margin-top:12px">Nothing to pay: the total is £0.${orig && paid > 0 ? ` ${gbp(paid, 2)} has been paid, so you can refund it after saving.` : ''}</div>` : ''}
+            ${!orig && q.total > 0 ? `<div class="hr"></div><div class="fld"><span>Then</span>
               <label class="chk"><input type="radio" name="pm" value="link" ${st.payMode === 'link' ? 'checked' : ''}> <span>Email a payment link (${gbp(q.deposit, 2)})</span></label>
               <label class="chk"><input type="radio" name="pm" value="paid" ${st.payMode === 'paid' ? 'checked' : ''}> <span>They’ve paid now</span></label>
               ${st.payMode === 'paid' ? `<div class="row r2" style="margin:4px 0 4px 26px"><select class="inp" id="pmM">${[['card terminal', 'Card machine'], ['cash', 'Cash'], ['bank transfer', 'Bank transfer'], ['voucher', 'Gift voucher']].map(([v, tx]) => `<option value="${v}" ${st.pay.method === v ? 'selected' : ''}>${tx}</option>`).join('')}</select><input class="inp" id="pmA" type="number" step="0.01" value="${st.pay.amount ?? q.deposit}"></div>` : ''}
               <label class="chk"><input type="radio" name="pm" value="hold" ${st.payMode === 'hold' ? 'checked' : ''}> <span>Confirm now, pay later or on arrival</span></label>
               <label class="chk"><input type="radio" name="pm" value="enquiry" ${st.payMode === 'enquiry' ? 'checked' : ''}> <span>Save as an enquiry (doesn’t hold the space)</span></label></div>` : ''}
-            <button class="btn pri" id="saveB" style="width:100%;justify-content:center;margin-top:12px">${orig ? 'Save changes' : st.payMode === 'link' ? 'Book & send payment link' : st.payMode === 'enquiry' ? 'Save enquiry' : 'Make the booking'}</button>
+            <button class="btn pri" id="saveB" style="width:100%;justify-content:center;margin-top:12px">${orig ? (q.total <= 0 && paid > 0 ? 'Save and refund' : 'Save changes') : q.total <= 0 ? 'Make the booking' : st.payMode === 'link' ? 'Book & send payment link' : st.payMode === 'enquiry' ? 'Save enquiry' : 'Make the booking'}</button>
             <p class="small muted" id="saveMsg" style="margin-top:8px;color:var(--bad)"></p>
           </div></div>
       </div>`;
@@ -626,6 +635,7 @@
       if (!B.date) { msg.textContent = 'Choose a date'; return; }
       if ((P.kind === 'session' || P.kind === 'private') && !B.sessionId) { msg.textContent = 'Choose a session'; return; }
       if (!B.customer.first && !B.customer.last) { msg.textContent = 'Add the guest’s name'; return; }
+      if (B.quote && B.quote.total <= 0 || E.quote(cfg, B).total <= 0) { if (!orig) st.payMode = 'hold'; }
       if (st.payMode === 'link' && !orig && !/^\S+@\S+\.\S+$/.test(B.customer.email || '')) { msg.textContent = 'A payment link needs an email address'; return; }
       if (lastProbs.length && !(await A.confirm('Book anyway?', `There ${lastProbs.length === 1 ? 'is a problem' : 'are problems'}:<br>${lastProbs.map(esc).join('<br>')}<br><br>Save it anyway?`, 'Save anyway'))) return;
       if (B.items.some(i => !i.staff)) B.items.forEach(i => { if (!i.staff) i.staff = null; });
@@ -646,6 +656,7 @@
         A.change('booking', orig, `Edited ${orig.ref}`);
         if (changes.length && st.mailChg !== false && orig.customer.email && cfg.emails.templates.changed && cfg.emails.templates.changed.on) { await A.sendEmail('changed', orig); A.change('booking', orig); }
         A.toast('Booking saved');
+        if (orig.quote.total <= 0 && E.paid(orig) > 0) setTimeout(() => A.refundDialog(orig), 450);
         const owe = due(orig);
         location.hash = '#/booking/' + orig.id;
         if (owe > 0.009 && orig.status !== 'pending' && E.paid(orig) > 0) setTimeout(() => A.toast(`The guest now owes ${gbp(owe, 2)}`), 400);

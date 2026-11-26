@@ -360,3 +360,53 @@ a.btn.pri{color:#fff}
 .be-sum.static{position:static}
 .cf-acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end}
 .gcard-h{flex-wrap:wrap}
+
+/* booking editor: a bigger date picker */
+.minical{max-width:440px;gap:5px}
+.minical .dw{font-size:12px}
+.minical button{font-size:15px;border-radius:10px;aspect-ratio:1/.86}
+.be .card .minical + *{margin-top:8px}
+
+/* ===== phones ===== */
+.tabbar{display:none}
+@media (max-width:980px){
+  body{font-size:15px}
+  .inp,select.inp,textarea.inp,.search input,input,select,textarea{font-size:16px!important}   /* no iPhone zoom on fields */
+  .tabbar{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:60;background:#fff;border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom));box-shadow:0 -10px 30px -20px rgba(35,40,35,.4)}
+  .tabbar a,.tabbar button{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;font-weight:700;color:var(--muted);text-decoration:none;padding:4px 0;position:relative}
+  .tabbar svg{width:22px;height:22px}
+  .tabbar a.on{color:var(--clay)}
+  .tabbar .tb-cnt{position:absolute;top:0;left:calc(50% + 6px);background:var(--clay);color:#fff;font-style:normal;font-size:10px;border-radius:99px;padding:0 5px;line-height:16px}
+  body.nav-open .tabbar #tbMenu{color:var(--clay)}
+  .view{padding-bottom:110px}
+  .burger{display:flex;border:1px solid var(--line-2);background:#fff}
+  .top{gap:8px}
+  .top .btn.pri span{display:none}
+  .top .btn.pri{padding:9px 11px}
+  .search{max-width:none}
+  .vh{align-items:flex-start}
+  .vh .acts{width:100%}
+  .vh .acts .inp[type=date]{flex:1;min-width:0}
+  h1{font-size:30px}
+  .kpi b{font-size:26px}
+  .card{padding:15px}
+  .tbl th,.tbl td{padding:9px 10px}
+  .m-b{padding-left:16px;padding-right:16px}
+  .side{width:290px;padding-bottom:90px}
+  .nav a{padding:11px 12px;font-size:15px}
+  .li{flex-wrap:wrap}
+  .li .grow{min-width:60%}
+  .cf-acts{justify-content:flex-start}
+  .mcal .d .cntm{display:block}
+  .be-sum{margin-top:6px}
+  .tl-grid{min-width:0}
+}
+@media (max-width:600px){
+  .row.r2,.row.r3,.row.r4{grid-template-columns:1fr}
+  .kpi-side,.g4{grid-template-columns:1fr 1fr}
+  .vh .acts .btn{padding:8px 11px}
+  .tabs{margin-left:-14px;margin-right:-14px;padding:0 14px}
+  .mcal .dw{padding:6px 2px;text-align:center;font-size:10px}
+  .mcal .n{margin:0 auto}
+  .minical{max-width:none}
+}

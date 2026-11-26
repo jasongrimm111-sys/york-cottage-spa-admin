@@ -162,7 +162,7 @@
         review: { on: true, subject: 'Thank you for visiting York Cottage', body: 'Hello {first},\n\nThank you for visiting us. We’d love to hear how it went: {reviewLink}\n\nYork Cottage Spa' },
         balance: { on: true, subject: 'Your balance for {ref} is due soon', body: 'Hello {first},\n\nThe balance of {due} for your stay on {when} is due by {dueDate}.\nPay here: {payLink}\n\nYork Cottage Spa' },
         changed: { on: true, subject: 'Your York Cottage booking {ref} has changed', body: 'Hello {first},\n\nWe’ve updated your booking. Here are your new details:\n\n{details}\n\nIf anything doesn’t look right, just reply to this email or call 01933 580 100.\nYork Cottage Spa' },
-        cancel: { on: true, subject: 'Your York Cottage booking {ref} is cancelled', body: 'Hello {first},\n\nYour booking {ref} for {when} has been cancelled.{refundLine}\n\nYork Cottage Spa · 01933 580 100' },
+        cancel: { on: true, subject: 'Your York Cottage booking {ref} is cancelled', body: 'Hello {first},\n\nYour booking {ref} for {when} has been cancelled.{reasonLine}{refundLine}\n\n{message}\n\nYork Cottage Spa · 01933 580 100' },
         voucher: { on: true, subject: 'Your York Cottage gift voucher', body: 'Hello {name},\n\nHere is your gift voucher: {code}\nValue: {value} · valid until {expires}\n\nYork Cottage Spa' }
       }
     },

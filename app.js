@@ -147,10 +147,12 @@
         <span class="save-st" id="saveSt"><i></i><span>Saved</span></span>
         <div class="me"><button class="me-btn" id="meBtn"><i>${A.initials(S.user.name)}</i><b>${esc(S.user.name.split(' ')[0])}</b></button>
           <div class="me-menu" id="meMenu" hidden><a href="#/settings/users">Users & password</a><a href="#/settings/data">Backup & data</a>${S.mode === 'demo' ? '<button id="resetDemo">Reset the demo data</button>' : ''}<button id="signOut">Sign out</button></div></div>
-      </header><main class="view" id="view"></main></div></div>`;
+      </header><main class="view" id="view"></main></div>
+      <nav class="tabbar" aria-label="Main">${(ther ? [['staffday/' + S.user.staffId, 'My day', 'today'], ['rota', 'Rota', 'rota']] : [['today', 'Today', 'today'], ['todo', 'To do', 'check'], ['calendar', 'Calendar', 'cal'], ['bookings', 'Bookings', 'list']]).map(([r, t, ic]) => `<a href="#/${r}" data-r="${r.split('/')[0]}">${A.ic[ic]}<span>${t}</span>${r === 'todo' ? '<i class="tb-cnt" data-cnt="todo2" hidden></i>' : ''}</a>`).join('')}<button id="tbMenu" type="button">${A.ic.menu}<span>Menu</span></button></nav></div>`;
     $('#burger').onclick = () => document.body.classList.toggle('nav-open');
+    $('#tbMenu').onclick = e => { e.stopPropagation(); document.body.classList.toggle('nav-open'); };
     $('#side').addEventListener('click', e => { if (e.target.closest('a')) document.body.classList.remove('nav-open'); });
-    document.addEventListener('click', e => { if (document.body.classList.contains('nav-open') && !e.target.closest('#side') && !e.target.closest('#burger')) document.body.classList.remove('nav-open'); });
+    document.addEventListener('click', e => { if (document.body.classList.contains('nav-open') && !e.target.closest('#side') && !e.target.closest('#burger') && !e.target.closest('#tbMenu')) document.body.classList.remove('nav-open'); });
     $('#meBtn').onclick = e => { e.stopPropagation(); $('#meMenu').hidden = !$('#meMenu').hidden; };
     document.addEventListener('click', () => { const m = $('#meMenu'); if (m) m.hidden = true; });
     $('#signOut').onclick = async () => { await St.saveNow(); St.signOut(); };
@@ -173,7 +175,7 @@
     const pend = DB.bookings.filter(b => b.status === 'pending' && b.date >= t).length;
     const wl = DB.waitlist.filter(w => w.status === 'waiting' && w.date >= t).length;
     const c1 = $('[data-cnt=bookings]'), c2 = $('[data-cnt=waitlist]'), c3 = $('[data-cnt=todo]');
-    if (c3 && A.todoCount) { const n = A.todoCount(); c3.hidden = !n; c3.textContent = n; c3.title = n + ' to do'; }
+    if (c3 && A.todoCount) { const n = A.todoCount(); c3.hidden = !n; c3.textContent = n; c3.title = n + ' to do'; const c4 = $('[data-cnt=todo2]'); if (c4) { c4.hidden = !n; c4.textContent = n; } }
     if (c1) { c1.hidden = !pend; c1.textContent = pend; c1.title = pend + ' waiting for payment'; }
     if (c2) { c2.hidden = !wl; c2.textContent = wl; }
   }
@@ -244,6 +246,7 @@
     // colours for booking types added later: the next validated palette slot
     const SLOTS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'];
     Object.keys(A.cfg().products).forEach((k, i) => { if (!PCOL[k]) PCOL[k] = SLOTS[i % SLOTS.length]; });
+    $$('.tabbar a').forEach(a => a.classList.toggle('on', a.dataset.r === name || (name === 'booking' && a.dataset.r === 'bookings') || (name === 'day' && a.dataset.r === 'calendar')));
     $$('.nav a').forEach(a => a.classList.toggle('on', a.dataset.r === name || (name === 'booking' && a.dataset.r === 'bookings') || (name === 'day' && a.dataset.r === 'calendar') || (name === 'customer' && a.dataset.r === 'customers') || (name === 'edit' && a.dataset.r === 'bookings')));
     const el = $('#view');
     const same = current === h; current = h;
