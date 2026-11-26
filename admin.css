@@ -826,3 +826,19 @@ html{touch-action:manipulation}
 .brand i.brand-lotus{background:none;width:40px;height:auto;border-radius:0;color:var(--cream);display:block}
 .brand i.brand-lotus svg{width:40px;height:auto;display:block}
 .auth-lotus{width:84px;height:auto;color:#f6f1e9;display:block;margin-bottom:16px;opacity:.95}
+
+/* Rules page (2026-11-27) */
+.rl-toc{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 16px}
+.rl-toc a{padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:13px;font-weight:600;color:var(--ink);text-decoration:none}
+.rl-toc a:hover{border-color:var(--ink)}
+.rl-card{scroll-margin-top:80px}
+.rl-card .card-h{align-items:center}
+.rl-go{font-size:13px;font-weight:600;white-space:nowrap;text-decoration:none}
+.rl-intro{margin:-4px 0 10px}
+.rl-list{margin:0;padding-left:20px;display:grid;gap:7px;line-height:1.5}
+.rl-tbl-wrap{overflow-x:auto;margin-top:6px}
+.rl-tbl td{vertical-align:top;font-size:13.5px}
+.rl-tbl td:first-child{white-space:nowrap}
+.rl-off{color:var(--bad);font-weight:600}
+.rl-links{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px}
+@media (max-width:700px){.rl-tbl td:first-child{white-space:normal}}
