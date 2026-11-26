@@ -97,7 +97,7 @@
       if (!it.staff || it.start == null) continue;
       const d = it.date || b.date, s = T(it.start), e = s + it.min, eb = e + (it.buffer || 0);
       ((ix.staff[d] = ix.staff[d] || {})[it.staff] = ix.staff[d][it.staff] || []).push([s, eb, it.min]);
-      if (it.troom) ((ix.troom[d] = ix.troom[d] || {})[it.troom] = ix.troom[d][it.troom] || []).push([s, eb]);
+      if (it.troom) ((ix.troom[d] = ix.troom[d] || {})[it.troom] = ix.troom[d][it.troom] || []).push(it.pair ? [s, eb, it.pair] : [s, eb]);
     }
     // food service: count who eats, then make sure someone is on duty to serve it
     for (const sv of E.servicesFor(cfg, b)) { ix.food = ix.food || {}; const f = ix.food[sv.date] = ix.food[sv.date] || {}; f[sv.id] = (f[sv.id] || 0) + b.guests; E.ensureDuty(cfg, ix, sv.date, sv.id); }
@@ -355,14 +355,18 @@
   E.buf = (cfg, tr) => Math.max((tr && tr.buffer) || 0, cfg.rules.minHandover || 0);
   // therapist order: priority 1 first (Staff → Edit), then the rest
   E.byPriority = (a, b) => (a.priority || 99) - (b.priority || 99);
-  E.roomFree = (cfg, ix, date, tr, t, end, need) => {
-    const rooms = cfg.treatRooms.filter(r => r.active !== false && (!tr.roomIds || !tr.roomIds.length || tr.roomIds.includes(r.id)) && (!tr.rooms || !tr.rooms.length || tr.rooms.every(tag => (r.tags || []).includes(tag))) && !E.closedBetween(cfg, date, ['troom:' + r.id], t, end));
-    for (const r of rooms) {
-      const used = E.bedsInUse((ix.troom[date] || {})[r.id] || [], t, end);
-      if ((r.beds || 1) - used >= (need || 1)) return r;
-    }
+  E.roomFree = (cfg, ix, date, tr, t, end, need, tag) => {
+    const trs = [].concat(tr), rooms = cfg.treatRooms.filter(r => r.active !== false && trs.every(tr => (!tr.roomIds || !tr.roomIds.length || tr.roomIds.includes(r.id)) && (!tr.rooms || !tr.rooms.length || tr.rooms.every(tag => (r.tags || []).includes(tag)))) && !E.closedBetween(cfg, date, ['troom:' + r.id], t, end));
+    for (const r of rooms) if (E.roomOK(r, (ix.troom[date] || {})[r.id] || [], t, end, need, tag)) return r;
     return null;
   };
+  // a treatment room is used by one guest at a time, unless guests from the same booking asked to be treated together
+  // (user 2026-11-27): then up to one guest per bed, each with their own therapist. Entries are [start, end, pairTag].
+  E.canShare = (cfg, tids) => (cfg.treatRooms || []).some(r => r.active !== false && (r.beds || 1) >= tids.length && tids.every(id => { const tr = E.tr(cfg, id) || {}; return (!tr.roomIds || !tr.roomIds.length || tr.roomIds.includes(r.id)) && (!tr.rooms || !tr.rooms.length || tr.rooms.every(tag => (r.tags || []).includes(tag))); }));
+  E.roomOK = (r, list, t, end, need, tag) => { const on = list.filter(x => x[0] < end && t < x[1]);
+    if (!on.length) return (r.beds || 1) >= (need || 1);
+    if (!tag || !on.every(x => x[2] === tag)) return false;
+    return (r.beds || 1) - E.bedsInUse(on, t, end) >= (need || 1); };
 
   /* Schedule treatments on one date inside a window.
      items: [{ key, guest, tid, min?, together? (same value = side by side), start? (fixed), staff? (wanted) }]
@@ -372,12 +376,12 @@
     const guestBusy = {}, taken = (opt.taken || []).filter(x => (x.date || date) === date);
     for (const x of taken) (guestBusy[x.guest] = guestBusy[x.guest] || []).push([T(x.start), T(x.start) + x.min]);
     const w0 = T(win[0]), w1 = T(win[1]);
-    const book = (it, st, room, t) => {
+    const book = (it, st, room, t, tag) => {
       const tr = E.tr(cfg, it.tid), min = it.min || tr.min, buf = E.buf(cfg, tr);
       ((ix.staff[date] = ix.staff[date] || {})[st.id] = ix.staff[date][st.id] || []).push([t, t + min + buf, min]);
-      ((ix.troom[date] = ix.troom[date] || {})[room.id] = ix.troom[date][room.id] || []).push([t, t + min + buf]);
+      ((ix.troom[date] = ix.troom[date] || {})[room.id] = ix.troom[date][room.id] || []).push(tag ? [t, t + min + buf, tag] : [t, t + min + buf]);
       (guestBusy[it.guest] = guestBusy[it.guest] || []).push([t, t + min]);
-      out.push({ key: it.key, guest: it.guest, tid: it.tid, ...(it.with && it.with.length ? { with: it.with.slice() } : {}), min, buffer: buf, start: HM(t), staff: st.id, troom: room.id, date });
+      out.push({ key: it.key, guest: it.guest, tid: it.tid, ...(it.with && it.with.length ? { with: it.with.slice() } : {}), min, buffer: buf, start: HM(t), staff: st.id, troom: room.id, date, ...(tag ? { pair: tag } : {}) });
     };
     const guestFree = (g, t, e) => !(guestBusy[g] || []).some(x => overlap(t - 5, e + 5, x[0], x[1]));
     const load = st => handsOn((ix.staff[date] || {})[st.id] || []);
@@ -414,8 +418,10 @@
       }
       for (const t of starts) {
         if (!g.every(it => guestFree(it.guest, t, t + min))) continue;
-        const room = E.roomFree(cfg, ix, date, tr, t, t + min + buf, g.length);
-        if (!room) { why = 'No treatment room free'; continue; }
+        const gmin = Math.max(...g.map(it => it.min || (E.tr(cfg, it.tid) || {}).min || min)), tag = 'P' + Math.random().toString(36).slice(2, 10);
+        if (!g.every(it => guestFree(it.guest, t, t + (it.min || (E.tr(cfg, it.tid) || {}).min || min)))) continue;
+        const room = E.roomFree(cfg, ix, date, g.map(it => E.tr(cfg, it.tid)).filter(Boolean), t, t + gmin + buf, g.length, tag);
+        if (!room) { why = 'No room for you to be treated together then'; continue; }
         const used = [], picks = [];
         for (const it of g) {
           const cands = cfg.staff.filter(st => !used.includes(st.id) && E.canDoAll(st, it) && (!it.staff || it.staff === st.id))
@@ -426,7 +432,7 @@
           used.push(cands[0].id); picks.push(cands[0]);
         }
         if (picks.length < g.length) continue;
-        g.forEach((it, i) => book(it, picks[i], room, t)); done = true; break;
+        g.forEach((it, i) => book(it, picks[i], room, t, tag)); done = true; break;
       }
       if (!done) return { ok: false, fail: { key: g[0].key, why, name: tr.name }, items: out };
     }
@@ -508,7 +514,7 @@
     for (const it of items) {
       const d = it.date, s = T(it.start), eb = s + it.min + (it.buffer || 0);
       nx.staff[d] = { ...(nx.staff[d] || {}) }; nx.staff[d][it.staff] = [...(nx.staff[d][it.staff] || []), [s, eb, it.min]];
-      nx.troom[d] = { ...(nx.troom[d] || {}) }; nx.troom[d][it.troom] = [...(nx.troom[d][it.troom] || []), [s, eb]];
+      nx.troom[d] = { ...(nx.troom[d] || {}) }; nx.troom[d][it.troom] = [...(nx.troom[d][it.troom] || []), it.pair ? [s, eb, it.pair] : [s, eb]];
     }
     return nx;
   };
@@ -588,7 +594,7 @@
     const end = s + item.min + (item.buffer || 0);
     const room = to.troom ? cfg.treatRooms.find(r => r.id === to.troom) : E.roomFree(cfg, nx, d, tr, s, end, 1);
     if (!room) return 'No treatment room free';
-    if (E.bedsInUse((nx.troom[d] || {})[room.id] || [], s, end) >= (room.beds || 1)) return `${room.name} is in use`;
+    if (!E.roomOK(room, ((nx.troom[d] || {})[room.id] || []).filter(x => true), s, end, 1, item.pair)) return `${room.name} is in use`;
     return '';
   };
   // treatments that come with a booking type (each treatment lists the types it's included with)
@@ -618,7 +624,9 @@
   // the list of treatments a booking needs scheduled (included + extras)
   E.treatmentNeeds = (cfg, b) => {
     const out = E._needs(cfg, b), tm = b.times || {};
-    for (const n of out) if (tm[n.key]) { n.start = tm[n.key].start; n.date = tm[n.key].date; }
+    // treated together (user 2026-11-27): only guests in this booking, only when they ask; same time, same room
+    for (const [k, w] of Object.entries(b.pairs || {})) { const a = out.find(n => n.key === k), o = out.find(n => n.key === w); if (!a || !o || a.guest === o.guest) continue; o.together = a.together = o.together || 'T:' + w; }
+    for (const n of out) { const src = n.together && Object.keys(b.pairs || {}).includes(n.key) ? b.pairs[n.key] : n.key; if (tm[src]) { n.start = tm[src].start; n.date = tm[src].date; } }
     return out;
   };
   E._needs = (cfg, b) => {
