@@ -213,6 +213,8 @@
     // a list down the side instead of a row of tabs that scrolls sideways (user, 2026-11-26); on phones the list wraps
     const GROUPS = [['Your spa', ['business', 'rules', 'treathours', 'breaks', 'consult']], ['People', ['users', 'roles']], ['System', ['connect', 'data', 'log']]];
     const side = `<nav class="set-nav" aria-label="Settings">${GROUPS.map(([h, ks]) => { const its = allTabs.filter(([k]) => ks.includes(k)); return its.length ? `<div class="set-h">${h}</div>` + its.map(([k, t]) => `<a href="#/settings/${k}" class="${k === tab ? 'on' : ''}">${t}</a>`).join('') : ''; }).join('')}</nav>`;
-    return { html: `<div class="vh"><div><div class="eyebrow">Set-up</div><h1>Settings</h1></div></div><div class="set-wrap">${side}<div class="set-body">${body}</div></div>`, wire };
+    // phones: one dropdown instead of rows of buttons
+    const pick = `<label class="set-pick"><span class="small muted">Section</span><select class="inp" onchange="location.hash='#/settings/'+this.value">${allTabs.map(([k, t]) => `<option value="${k}" ${k === tab ? 'selected' : ''}>${t}</option>`).join('')}</select></label>`;
+    return { html: `<div class="vh"><div><div class="eyebrow">Set-up</div><h1>Settings</h1></div></div><div class="set-wrap">${side}${pick}<div class="set-body">${body}</div></div>`, wire };
   };
 })();
