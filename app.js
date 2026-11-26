@@ -138,7 +138,7 @@
     document.body.innerHTML = `<div class="app">
       <aside class="side" id="side"><a class="brand" href="#/today"><i>Y</i><span><b>York Cottage</b><small>Spa admin</small></span></a>
         <nav class="nav">${nav.map(([h, items]) => `<div class="nav-h">${h}</div>` + items.map(([r, t, ic]) => `<a href="#/${r}" data-r="${r.split('/')[0]}">${A.ic[ic]}<span>${t}</span>${r === 'bookings' || r === 'waitlist' ? `<span class="cnt" data-cnt="${r}" hidden></span>` : ''}</a>`).join('')).join('')}</nav>
-        <div class="side-foot">${S.mode === 'demo' ? '<span class="demo-tag">DEMO</span><br>Sample data, kept in this browser only.' : `Signed in as ${esc(S.user.name)}`}${S.realUser ? '<br><button class="btn sm" id="backMgr" style="margin-top:8px;color:var(--ink)">Back to the manager view</button>' : ''}</div></aside>
+        <div class="side-foot">${S.mode === 'demo' ? '<span class="demo-tag">OFFLINE DEMO</span><br>Changes here are kept in this browser only and aren’t saved to York Cottage’s data.<br><button class="btn sm" id="leaveDemo" style="margin-top:8px;color:var(--ink)">Go to the real portal</button>' : `Signed in as ${esc(S.user.name)}<br><span style="opacity:.7">Everything saves to York Cottage’s private data store</span>`}${S.realUser ? '<br><button class="btn sm" id="backMgr" style="margin-top:8px;color:var(--ink)">Back to the manager view</button>' : ''}</div></aside>
       <div class="main"><header class="top">
         <button class="burger" id="burger" aria-label="Menu">${A.ic.menu}</button>
         <div class="search">${A.ic.search}<input id="q" placeholder="Search bookings, guests, references…" autocomplete="off" aria-label="Search"><div class="search-res" id="qres" hidden></div></div>
@@ -154,6 +154,7 @@
     $('#meBtn').onclick = e => { e.stopPropagation(); $('#meMenu').hidden = !$('#meMenu').hidden; };
     document.addEventListener('click', () => { const m = $('#meMenu'); if (m) m.hidden = true; });
     $('#signOut').onclick = async () => { await St.saveNow(); St.signOut(); };
+    const ld = $('#leaveDemo'); if (ld) ld.onclick = () => { sessionStorage.removeItem('yc-admin-sess'); location.href = location.pathname; };
     const bm = $('#backMgr'); if (bm) bm.onclick = () => { S.user = S.realUser; delete S.realUser; A.reshell(); location.hash = '#/today'; };
     if (ther) $('.search').style.visibility = 'hidden';
     const rd = $('#resetDemo'); if (rd) rd.onclick = async () => { if (await A.confirm('Reset the demo?', 'This replaces everything in the demo with fresh sample data.', 'Reset')) { localStorage.removeItem(St.DEMO_KEY); await St.startDemo(true); route(); A.toast('Demo reset'); } };
@@ -164,7 +165,7 @@
   function saveSt() {
     const el = $('#saveSt'); if (!el) return; const s = St.S.status;
     el.className = 'save-st ' + s;
-    $('span', el).textContent = s === 'saving' ? 'Saving…' : s === 'unsaved' ? 'Saving…' : s === 'error' ? 'Not saved: ' + St.S.lastError.slice(0, 60) : St.S.mode === 'demo' ? 'Saved in this browser' : 'Saved';
+    $('span', el).textContent = s === 'saving' ? 'Saving…' : s === 'unsaved' ? 'Saving…' : s === 'error' ? 'Not saved: ' + St.S.lastError.slice(0, 60) : St.S.mode === 'demo' ? 'Demo only, not saved' : St.S.lastSaved ? 'Saved to York Cottage data' : 'Up to date';
     el.title = St.S.lastError || '';
   }
   function counts() {
@@ -202,13 +203,13 @@
 
   // ---------- shared bits ----------
   A.statusBadge = b => {
-    if (b.status === 'cancelled') return '<span class="badge bad dot">Cancelled</span>';
-    if (b.status === 'enquiry') return '<span class="badge info dot">Enquiry</span>';
-    if (b.noShow) return '<span class="badge bad dot">No-show</span>';
-    if (b.status === 'pending') return '<span class="badge warn dot">Awaiting payment</span>';
+    if (b.status === 'cancelled') return '<span class="badge bad bdot">Cancelled</span>';
+    if (b.status === 'enquiry') return '<span class="badge info bdot">Enquiry</span>';
+    if (b.noShow) return '<span class="badge bad bdot">No-show</span>';
+    if (b.status === 'pending') return '<span class="badge warn bdot">Awaiting payment</span>';
     const q = b.quote || {}, paid = E.paid(b);
-    if (paid + 0.009 < (q.total || 0)) return paid > 0 ? '<span class="badge info dot">Deposit paid</span>' : '<span class="badge warn dot">Unpaid</span>';
-    return '<span class="badge ok dot">Paid</span>';
+    if (paid + 0.009 < (q.total || 0)) return paid > 0 ? '<span class="badge info bdot">Deposit paid</span>' : '<span class="badge warn bdot">Unpaid</span>';
+    return '<span class="badge ok bdot">Paid</span>';
   };
   A.whenText = b => {
     const cfg = A.cfg(), p = cfg.products[b.product] || {};
@@ -271,10 +272,10 @@
         <div class="fld" style="margin-bottom:12px"><label for="lp">Password</label><input class="inp" id="lp" type="password" autocomplete="current-password" required></div>
         <label class="chk" style="margin-bottom:6px"><input type="checkbox" id="lk"> <span>Keep me signed in on this device for 30 days</span></label>
         <div class="auth-msg" id="am">${esc(msg || '')}</div><button class="btn pri" type="submit">Sign in</button></form>`}
-      <div class="or">or</div><button class="btn" id="demoB" style="width:100%;justify-content:center">Explore the demo with sample data</button>
-      <p class="small muted" style="margin-top:14px">The demo uses made-up guests and keeps everything in this browser. Nothing is sent anywhere.</p>
+      ${!vaultMissing && !/[?&]demo/.test(location.search) ? '' : `<div class="or">or</div><button class="btn" id="demoB" style="width:100%;justify-content:center">Explore the offline demo</button>
+      <p class="small muted" style="margin-top:14px">The offline demo uses made-up guests and keeps everything in this browser only. Nothing is saved to York Cottage’s data.</p>`}
       </div></div></div>`;
-    $('#demoB').onclick = async () => { await St.startDemo(); boot2(); };
+    const db = $('#demoB'); if (db) db.onclick = async () => { await St.startDemo(); boot2(); };
     const lf = $('#loginF');
     if (lf) lf.onsubmit = async e => {
       e.preventDefault(); const am = $('#am'), btn = $('button[type=submit]', lf);
