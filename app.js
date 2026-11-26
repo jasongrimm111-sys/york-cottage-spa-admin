@@ -276,7 +276,7 @@
         <div class="fld" style="margin-bottom:12px"><label for="lp">Password</label><input class="inp" id="lp" type="password" autocomplete="current-password" required></div>
         <label class="chk" style="margin-bottom:6px"><input type="checkbox" id="lk"> <span>Keep me signed in on this device for 30 days</span></label>
         <div class="auth-msg" id="am">${esc(msg || '')}</div><button class="btn pri" type="submit">Sign in</button></form>`}
-      ${!vaultMissing && !/[?&]demo/.test(location.search) ? '' : `<div class="or">or</div><button class="btn" id="demoB" style="width:100%;justify-content:center">Explore the offline demo</button>
+      ${!vaultMissing && !/[?&]demo\b/.test(location.search) ? '' : `<div class="or">or</div><button class="btn" id="demoB" style="width:100%;justify-content:center">Explore the offline demo</button>
       <p class="small muted" style="margin-top:14px">The offline demo uses made-up guests and keeps everything in this browser only. Nothing is saved to York Cottage’s data.</p>`}
       </div></div></div>`;
     const db = $('#demoB'); if (db) db.onclick = async () => { await St.startDemo(); boot2(); };

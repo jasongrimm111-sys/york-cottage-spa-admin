@@ -437,7 +437,7 @@
         rooms: [], guestList: [], items: [], payments: [], history: [], source: 'phone', tags: [], customer: src ? clone(src.customer) : wl ? { first: wl.name.replace(/^Sample: /, '').split(' ')[0], last: wl.name.split(' ').slice(1).join(' '), email: wl.email, phone: wl.phone } : { first: '', last: '', email: pre.email || '', phone: '' } };
       if (wl) B._wl = wl.id;
     }
-    const st = { month: (B.date || t).slice(0, 7), lock: !!orig, override: false, payMode: orig ? null : 'link', pay: { method: 'card terminal', amount: null }, promoMsg: '' };
+    const st = { g: 0, month: (B.date || t).slice(0, 7), lock: !!orig, override: false, payMode: orig ? null : 'link', pay: { method: 'card terminal', amount: null }, promoMsg: '' };
     const p = () => cfg.products[B.product];
     const ix = () => E.index(cfg, DB.bookings, B.id);
     const fixGuests = () => {
@@ -488,7 +488,7 @@
       let cal = ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(x => `<span class="dw">${x}</span>`).join('') + '<span></span>'.repeat(sw);
       for (let i = 1; i <= dim; i++) {
         const d = `${st.month}-${String(i).padStart(2, '0')}`, c = E.dateCheck(cfg, I, { product: B.product, date: d, nights: B.nights, guests: B.guests, admin: true });
-        const end = B.nights ? E.addD(B.date || '0000', B.nights) : null;
+        const end = B.date && B.nights ? E.addD(B.date, B.nights) : null;
         cal += `<button type="button" data-day="${d}" class="${d === B.date ? 'on' : ''} ${B.date && end && d > B.date && d < end ? 'in' : ''} ${d === t ? 'today' : ''}" ${c.ok || st.override || d === (orig && orig.date) ? '' : 'disabled'} title="${esc(c.ok ? 'Available' : c.why)}">${i}</button>`;
       }
       const sessions = pl.chk && pl.chk.sessions || (B.date && (P.kind === 'session' || P.kind === 'private') ? E.sessions(cfg, I, B.product, B.date, B.guests) : []);
@@ -531,17 +531,24 @@
                 ${(P.kind === 'stay' || P.kind === 'house') && B.date ? `<div class="fld" style="margin-top:12px"><span>Rooms</span><div class="chips">${cfg.rooms.filter(r => r.active !== false).map(r => { const free = E.freeRooms(cfg, I, B.date, B.nights, B.product).some(x => x.id === r.id); return `<button type="button" class="chip ${B.rooms.includes(r.id) ? 'on' : ''}" data-room="${r.id}" ${free || B.rooms.includes(r.id) ? '' : 'disabled style="opacity:.4"'} title="${esc(r.bed)} · ${r.people} people">${esc(r.name)}</button>`; }).join('')}</div><small>${B.product === 'house' ? 'The whole house uses every room.' : 'Picked automatically. Tap to change.'}</small></div>` : ''}
                 ${P.times && B.date ? (() => { const tt = E.stayTimes(cfg, B.product, B.date, B.nights); return `<p class="small muted" style="margin-top:10px">Check-in from ${tt.checkIn}${tt.spa ? ` · spa ${tt.spa[0]}–${tt.spa[1]}` : ''} · check-out ${tt.checkOut}</p>`; })() : ''}
               </div></div></div>
-          <div class="card"><div class="card-h"><h3>4 · Each guest</h3>${B.guests > 1 ? '<button type="button" class="btn sm" id="sameAll">Same as guest 1 for everyone</button>' : ''}</div>
-            ${B.guestList.map((g, i) => `<div class="gcard"><div class="gcard-h"><span class="av" style="background:var(--sage)">${i + 1}</span><input class="inp" data-gn="${i}" placeholder="${i === 0 ? 'Lead guest (from the contact below)' : 'Guest ' + (i + 1) + ' name (optional)'}" value="${esc(g.name)}" style="max-width:300px"></div>
-              <div class="row">
-                ${incList.length ? (incAll || incList.length === 1 ? `<div class="fld"><span>Included</span><span class="small" style="padding-top:9px">${incList.map(t => esc(t.name)).join(' + ')}</span></div>` : `<label class="fld"><span>Included treatment (choose one)</span><select class="inp" data-gi="${i}" data-gf="included">${incList.map(t => `<option value="${t.id}" ${g.included === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label>`) : ''}
-                ${P.food && foods.length ? `<label class="fld"><span>Food</span><select class="inp" data-gi="${i}" data-gf="food">${foods.map(f => `<option value="${f.id}" ${g.food === f.id ? 'selected' : ''}>${esc(f.name)}</option>`).join('')}</select></label>` : ''}
-                <label class="fld"><span>Add a treatment</span><select class="inp" data-addx="${i}"><option value="">Choose…</option>${[...new Set(extrasAll.map(x => x.cat))].map(c => `<optgroup label="${esc(c)}">${extrasAll.filter(x => x.cat === c).map(x => `<option value="${x.id}">${esc(x.name)} · ${x.min} min · £${x.price}</option>`).join('')}</optgroup>`).join('')}</select></label>
+          <div class="card"><div class="card-h"><h3>4 · Each guest</h3>${B.guests > 1 ? '<button type="button" class="btn sm" id="sameAll" title="Copy guest 1’s food, included treatment and extras to everyone">Copy guest 1 to everyone</button>' : ''}</div>
+            ${(() => { const g0 = Math.min(st.g, B.guests - 1); st.g = g0; const g = B.guestList[g0], i = g0;
+              const gname = (x, n) => x.name || (n === 0 ? (A.cust(B) || 'Lead guest') : 'Guest ' + (n + 1));
+              const tabs = B.guests > 1 ? `<div class="gtabs">${B.guestList.map((x, n) => { const cnt = (incList.length ? (incAll ? incList.length : 1) : 0) + (x.extras || []).length; const bad = (pl.conflicts || []).some(c => (B.items.find(it => it.key === c[0]) || {}).guest === n); return `<button type="button" class="gtab ${n === g0 ? 'on' : ''} ${bad ? 'bad' : ''}" data-gtab="${n}"><b>${n + 1}</b><span>${esc(gname(x, n))}<small>${cnt} treatment${cnt === 1 ? '' : 's'}${x.food ? ' · ' + esc((cfg.foods.find(f => f.id === x.food) || {}).name || '').split(' ')[0] : ''}</small></span></button>`; }).join('')}</div>` : '';
+              const mine = B.items.filter(it => it.guest === i).sort((a, c) => ((a.date || '') + a.start).localeCompare((c.date || '') + c.start));
+              return `${tabs}<div class="gcard gcard-one"><div class="gcard-h"><span class="av" style="background:var(--sage)">${i + 1}</span><input class="inp" data-gn="${i}" placeholder="${i === 0 ? 'Lead guest (from the contact below)' : 'Guest ' + (i + 1) + ' name (optional)'}" value="${esc(g.name)}" style="max-width:320px">${B.guests > 1 ? `<span class="small muted" style="margin-left:auto">Guest ${i + 1} of ${B.guests}</span>` : ''}</div>
+                <div class="row">
+                  ${incList.length ? (incAll || incList.length === 1 ? `<div class="fld"><span>Included</span><span class="small" style="padding-top:9px">${incList.map(t => esc(t.name)).join(' + ')}</span></div>` : `<label class="fld"><span>Included treatment (choose one)</span><select class="inp" data-gi="${i}" data-gf="included">${incList.map(t => `<option value="${t.id}" ${g.included === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label>`) : ''}
+                  ${P.food && foods.length ? `<label class="fld"><span>Food</span><select class="inp" data-gi="${i}" data-gf="food">${foods.map(f => `<option value="${f.id}" ${g.food === f.id ? 'selected' : ''}>${esc(f.name)}</option>`).join('')}</select></label>` : ''}
+                </div>
+                <div class="fld" style="margin-top:12px"><span>Extra treatments${g.extras.length ? ` (${g.extras.length})` : ''}</span>
+                  ${g.extras.length ? `<div class="xlist">${g.extras.map((x, j) => { const tr = E.tr(cfg, x) || {}; return `<div class="xrow"><b>${esc(tr.name || x)}</b><span class="small muted">${tr.min || ''} min · ${gbp(tr.price || 0)}</span><button type="button" class="icon-btn" data-rmx="${i}:${j}" title="Remove">${A.ic.x}</button></div>`; }).join('')}</div>` : '<span class="small muted">None yet</span>'}
+                  <select class="inp" data-addx="${i}" style="margin-top:8px;max-width:420px"><option value="">${g.extras.length ? '+ Add another treatment…' : '+ Add a treatment…'}</option>${[...new Set(extrasAll.map(x => x.cat))].map(c => `<optgroup label="${esc(c)}">${extrasAll.filter(x => x.cat === c).map(x => `<option value="${x.id}">${esc(x.name)} · ${x.min} min · £${x.price}</option>`).join('')}</optgroup>`).join('')}</select></div>
+                ${mine.length ? `<div class="fld" style="margin-top:14px"><span>Times for ${esc(gname(g, i))}</span><div class="sched">${mine.map(itemRow).join('')}</div></div>` : ''}
+                ${B.guests > 1 ? `<div style="display:flex;justify-content:space-between;margin-top:14px">${i > 0 ? `<button type="button" class="btn sm" data-gtab="${i - 1}">${A.ic.left} Guest ${i}</button>` : '<span></span>'}${i < B.guests - 1 ? `<button type="button" class="btn sm" data-gtab="${i + 1}">Guest ${i + 2} ${A.ic.right}</button>` : '<span></span>'}</div>` : ''}
               </div>
-              ${g.extras.length ? `<div class="chips" style="margin-top:8px">${g.extras.map((x, j) => `<span class="chip on">${esc(A.tname(x))} <button type="button" data-rmx="${i}:${j}" aria-label="Remove" style="color:#fff;margin-left:4px">×</button></span>`).join('')}</div>` : ''}
-              ${B.items.some(it => it.guest === i) ? `<div class="sched">${B.items.filter(it => it.guest === i).sort((a, c) => a.start.localeCompare(c.start)).map(itemRow).join('')}</div>` : ''}
-            </div>`).join('')}
-            ${E.treatmentNeeds(cfg, B).length ? `<div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap"><button type="button" class="btn sm" id="replan">Re-plan times automatically</button>${B.guests > 1 ? `<label class="sw small"><input type="checkbox" id="together" ${(B.together != null ? B.together : E.alignFor(cfg, B)) ? 'checked' : ''}> Treat guests at the same time where possible</label>` : ''}<span class="small muted">${P.kind === 'treat' ? 'Times follow the start time chosen above.' : 'The booking system sets the times: the earliest free slots, so therapists finish early.'} You can change any time, therapist or room above.</span></div>` : ''}
+              ${B.guests > 1 && B.items.length ? `<details class="overview" ${B.items.length <= 12 ? 'open' : ''}><summary><b>Everyone’s times</b> <span class="small muted">${B.items.length} treatment${B.items.length === 1 ? '' : 's'}</span></summary><table class="tbl"><tbody>${B.items.slice().sort((a, c) => ((a.date || '') + a.start).localeCompare((c.date || '') + c.start)).map(it => `<tr><td class="tnum" style="width:110px">${it.date && it.date !== B.date ? fd(it.date) + ' ' : ''}${it.start}</td><td><b>${esc(gname(B.guestList[it.guest] || {}, it.guest))}</b></td><td>${esc(A.tname(it.tid))}</td><td class="small muted">${esc(A.sname(it.staff))} · ${esc((cfg.treatRooms.find(r => r.id === it.troom) || {}).name || '')}</td></tr>`).join('')}</tbody></table></details>` : ''}`; })()}
+            ${E.treatmentNeeds(cfg, B).length ? `<div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap"><button type="button" class="btn sm" id="replan">Re-plan times automatically</button>${B.guests > 1 ? `<label class="sw small"><input type="checkbox" id="together" ${(B.together != null ? B.together : E.alignFor(cfg, B)) ? 'checked' : ''}> Treat guests at the same time where possible</label>` : ''}<span class="small muted">${P.kind === 'treat' ? 'Times follow the start time chosen above.' : 'The booking system sets the times: the earliest free slots, so therapists finish early.'} You can change any time, therapist or room.</span></div>` : ''}
           </div>
           <div class="card"><div class="card-h"><h3>5 · Contact</h3></div>
             <div class="row r2">${A.f.text('customer.first', 'First name', B.customer.first, { ac: 'off' })}${A.f.text('customer.last', 'Last name', B.customer.last)}${A.f.text('customer.email', 'Email', B.customer.email, { type: 'email', list: 'custList' })}${A.f.text('customer.phone', 'Phone', B.customer.phone, { type: 'tel' })}</div>
@@ -586,7 +593,14 @@
     };
     const wire = el => {
       const re = () => { const y = scrollY; view(el); scrollTo(0, y); };
-      $$('[data-prod]', el).forEach(b => b.onclick = () => { if (B.product !== B.product) return; B.product = b.dataset.prod; B.sessionId = null; B.rooms = []; B.guests = Math.max(B.guests, cfg.products[B.product].min); B.guestList.forEach(g => g.extras = g.extras || []); st.lock = false; re(); });
+      $$('[data-prod]', el).forEach(b => b.onclick = () => {
+        const k = b.dataset.prod; if (k === B.product) return;
+        const P2 = cfg.products[k];
+        Object.assign(B, { product: k, date: null, nights: 0, sessionId: null, rooms: [], treatStart: null, part: null, items: [], breakfast: false, blueLight: false, together: undefined, promo: null, discount: null, totalOverride: null, addOns: [],
+          guests: Math.max(P2.min || 1, Math.min(P2.max || 16, k === 'group' ? 8 : k === 'house' ? 10 : k === 'private' ? Math.max(4, P2.min || 1) : 2)), guestList: [] });
+        st.lock = false; st.override = false; st.g = 0; st.promoMsg = ''; re();
+        A.toast('Started again for ' + P2.name + ' (contact details kept)');
+      });
       $$('[data-g]', el).forEach(b => b.onclick = () => { B.guests += +b.dataset.g; st.lock = false; re(); });
       $$('[data-n]', el).forEach(b => b.onclick = () => { B.nights = +b.dataset.n; B.rooms = []; re(); });
       const hn = $('#hn', el); if (hn) hn.onchange = () => { B.nights = Math.max(p().minN, Math.min(p().maxN, +hn.value || p().minN)); re(); };
@@ -600,8 +614,9 @@
       $$('[data-tstart]', el).forEach(b => b.onclick = () => { B.treatStart = b.dataset.tstart; st.lock = false; re(); });
       $$('[data-room]', el).forEach(b => b.onclick = () => { const id = b.dataset.room; B.rooms = B.rooms.includes(id) ? B.rooms.filter(x => x !== id) : [...B.rooms, id]; re(); });
       $$('[data-gn]', el).forEach(i => i.oninput = () => B.guestList[+i.dataset.gn].name = i.value);
+      $$('[data-gtab]', el).forEach(b => b.onclick = () => { st.g = +b.dataset.gtab; re(); const c = $('.gcard-one', el); if (c) c.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); });
       $$('[data-gf]', el).forEach(s => s.onchange = () => { B.guestList[+s.dataset.gi][s.dataset.gf] = s.value; if (s.dataset.gf === 'included') st.lock = false; re(); });
-      $$('[data-addx]', el).forEach(s => s.onchange = () => { if (s.value) { B.guestList[+s.dataset.addx].extras.push(s.value); st.lock = false; re(); } });
+      $$('[data-addx]', el).forEach(s => s.onchange = () => { if (s.value) { B.guestList[+s.dataset.addx].extras.push(s.value); st.lock = false; re(); A.toast(A.tname(s.value) + ' added'); } });
       $$('[data-rmx]', el).forEach(b => b.onclick = () => { const [i, j] = b.dataset.rmx.split(':').map(Number); B.guestList[i].extras.splice(j, 1); st.lock = false; re(); });
       $$('[data-it]', el).forEach(s => s.onchange = () => { const it = B.items.find(x => x.key === s.dataset.it); it[s.dataset.fld] = s.value; if (s.dataset.fld === 'troom' || s.dataset.fld === 'staff') {} st.lock = true; re(); });
       const rp = $('#replan', el); if (rp) rp.onclick = () => { st.lock = false; re(); };
