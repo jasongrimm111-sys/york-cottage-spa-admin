@@ -31,7 +31,7 @@
     if (!St.S.user || (A.isTher && A.isTher())) return '';
     const cfg = A.cfg(), who = sid || (cfg.staff.find(s => s.active !== false) || {}).id;
     const tabs = [['today', 'Overview', `#/today/${d}`], ['calendar', 'Calendar', `#/calendar/day/${d}`], ['person', 'Staff view', `#/today/${d}?as=${who}`]];
-    return `<nav class="day-tabs" aria-label="Ways to see this day">${tabs.map(([k, t, h]) => `<a href="${h}" class="${k === cur ? 'on' : ''}">${t}</a>`).join('')}</nav>`;
+    return '';   // removed; kept as a no-op so older calls stay harmless
   };
   A.ic = {
     today: I('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
@@ -244,7 +244,22 @@
 
   // ---------- routing ----------
   let current = '';
+  const TRAIL = 'yc-admin-trail';
+  let trail = (() => { try { return JSON.parse(sessionStorage.getItem(TRAIL) || '[]'); } catch (e) { return []; } })(), lastHash = null, lastTitle = '', fromMenu = false;
+  document.addEventListener('click', e => { if (e.target.closest('.nav a, .tabbar a')) fromMenu = true; }, true);
+  const pageKey = x => (x || '').split('?')[0];
+  function step(cur){
+    if (fromMenu) { trail = []; fromMenu = false; }
+    else if (lastHash && pageKey(lastHash) !== pageKey(cur)) {
+      const i = trail.findIndex(t => t.h === cur);
+      if (i >= 0) trail = trail.slice(0, i);   // went back (link or browser)
+      else trail.push({ h: lastHash, t: lastTitle });
+      trail = trail.slice(-12);
+    }
+    try { sessionStorage.setItem(TRAIL, JSON.stringify(trail)); } catch (e) {}
+  }
   async function route() {
+    step(location.hash);
     let h = location.hash.replace(/^#\/?/, '') || A.homeRoute();
     if (!A.canRoute(h.split('?')[0].split('/')[0])) h = A.homeRoute();
     const [name, ...rest] = h.split('?')[0].split('/');   // ?query stays in location.hash for the view to read
@@ -258,13 +273,16 @@
     const same = current === h; current = h;
     try {
       const out = v(...rest.map(decodeURIComponent));
-      if (out && typeof out === 'object' && 'html' in out) { el.innerHTML = out.html; if (out.wire) await out.wire(el); }
-      else el.innerHTML = out;
+      const back = trail.length ? `<a class="backbar" href="${esc(trail[trail.length - 1].h)}">${A.ic.left}<span>Back to ${esc(trail[trail.length - 1].t)}</span></a>` : '';
+      if (out && typeof out === 'object' && 'html' in out) { el.innerHTML = back + out.html; if (out.wire) await out.wire(el); }
+      else el.innerHTML = back + out;
       A.applyPerms(el);
     } catch (err) { console.error(err); el.innerHTML = `<div class="note bad">Something went wrong showing this page: ${esc(err.message)}</div>`; }
     if (!same) scrollTo(0, 0);
     counts();
     document.title = (($('.vh h1', el) || {}).textContent || 'Admin') + ' · York Cottage admin';
+    // a main page is named as in the menu ("Back to Today"), anything else by its heading ("Back to Olivia Barker")
+    { const on = $('.nav a.on'); lastHash = location.hash; lastTitle = ((on && on.dataset.r === name ? (on.querySelector('span') || {}).textContent : ($('.vh h1', el) || {}).textContent) || 'the last page').trim().slice(0, 40); }
   }
   A.route = route; A.refresh = () => { const y = scrollY; route(); scrollTo(0, y); };
   addEventListener('hashchange', route);

@@ -671,3 +671,9 @@ html{touch-action:manipulation}
 @media (max-width:600px){.day-tabs{display:flex;overflow-x:auto;scrollbar-width:none}.day-tabs::-webkit-scrollbar{display:none}.day-tabs a{flex:1;text-align:center;padding:6px 8px}}
 
 .signin{display:inline-flex;align-items:center}
+
+/* back to the page you came from */
+.backbar{display:inline-flex;align-items:center;gap:6px;margin:0 0 10px;padding:5px 12px 5px 8px;border-radius:999px;font-size:13.5px;font-weight:600;color:var(--muted);text-decoration:none;border:1px solid transparent}
+.backbar:hover{color:var(--ink);background:#fff;border-color:var(--line)}
+.backbar svg{width:16px;height:16px}
+.day-tabs{display:none}
