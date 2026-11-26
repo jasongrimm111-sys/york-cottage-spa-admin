@@ -101,7 +101,7 @@
           <div class="card"><div class="card-h"><h3>Treatments</h3><a class="btn sm" href="#/day/${t}">Timeline</a></div>
             ${staffToday.length ? staffToday.map(s => { const mine = items.filter(i => i.staff === s.id).sort((a, b) => a.start.localeCompare(b.start)), d = E.staffDay(cfg, s, t);
               return `<div style="margin-bottom:12px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span class="av" style="background:${s.colour}">${A.initials(s.name)}</span><b>${esc(s.name)}</b><span class="muted small">${d.spans.map(x => E.HM(x[0]) + '–' + E.HM(x[1])).join(', ')} · ${mine.length} treatment${mine.length === 1 ? '' : 's'}</span><a class="btn sm ghost" style="margin-left:auto" href="#/staffday/${s.id}/${t}">Their day</a></div>
-                ${mine.length ? mine.map(i => `<a class="li" href="#/booking/${i.b.id}" style="padding:6px 0 6px 38px"><span class="when">${i.start}</span><span class="grow"><b>${esc(A.tname(i.tid))}</b><span class="small muted">${esc((i.b.guestList[i.guest] || {}).name || A.cust(i.b))} · ${i.min} min · ${(cfg.treatRooms.find(r => r.id === i.troom) || {}).name || ''}</span></span></a>`).join('') : '<p class="muted small" style="padding-left:38px">Nothing booked yet</p>'}</div>`; }).join('') : `<div class="empty"><b>No therapists working ${isToday ? 'today' : 'that day'}</b></div>`}
+                ${mine.length ? mine.map(i => `<a class="li" href="#/booking/${i.b.id}" style="padding:6px 0 6px 38px"><span class="when">${i.start}</span><span class="grow"><b>${esc(A.tname(i.tid))}</b><span class="small muted">${esc((i.b.guestList[i.guest] || {}).name || A.cust(i.b))} · ${i.min} min · ${(cfg.treatRooms.find(r => r.id === i.troom) || {}).name || ''}</span></span><button class="btn sm" data-mv="${i.b.id}|${i.key}" title="Move to another time or hand to another therapist">Move or hand over</button></a>`).join('') : '<p class="muted small" style="padding-left:38px">Nothing booked yet</p>'}</div>`; }).join('') : `<div class="empty"><b>No therapists working ${isToday ? 'today' : 'that day'}</b></div>`}
           </div>
         </div>
         <div>
@@ -114,7 +114,7 @@
             ${next7.map(x => `<a class="hbar" href="#/day/${x.d}" style="text-decoration:none"><span>${fd(x.d)}</span><span class="bar"><i style="width:${x.n / mx * 100}%"></i></span><b>${x.n}</b></a>`).join('')}<p class="small muted">Guests visiting or staying each day</p></div>
         </div>
       </div>`,
-      wire: el => { const tp = $('#todayPick', el); if (tp) tp.onchange = () => { if (tp.value) location.hash = '#/today/' + tp.value; }; $$('[data-arr]', el).forEach(btn => btn.onclick = e => { e.preventDefault(); const b = findB(btn.dataset.arr); b.arrived = !b.arrived; A.change('booking', b, (b.arrived ? 'Marked arrived: ' : 'Unmarked arrival: ') + b.ref); A.refresh(); }); } };
+      wire: el => { A.wireMove(el); const tp = $('#todayPick', el); if (tp) tp.onchange = () => { if (tp.value) location.hash = '#/today/' + tp.value; }; $$('[data-arr]', el).forEach(btn => btn.onclick = e => { e.preventDefault(); const b = findB(btn.dataset.arr); b.arrived = !b.arrived; A.change('booking', b, (b.arrived ? 'Marked arrived: ' : 'Unmarked arrival: ') + b.ref); A.refresh(); }); } };
   };
 
   // ============ CALENDAR (month) ============
@@ -191,7 +191,7 @@
         if (last < t1) o += `<div class="tl-off" style="top:${y(last)}px;height:${(t1 - last) * PX}px"></div>`;
         c.day.breaks.forEach(b => o += `<div class="tl-brk" style="top:${y(b[0])}px;height:${(b[1] - b[0]) * PX}px">Break</div>`);
       } else if (c.s.id) o += `<div class="tl-off" style="top:0;height:${H}px"></div>`;
-      c.items.forEach(i => { const s = E.T(i.start); o += `<a class="tl-ev" href="#/booking/${i.b.id}" style="top:${y(s)}px;height:${(i.min + (i.buffer || 0)) * PX - 2}px;${colEv(i.b.product)}" title="${esc(A.tname(i.tid))} · ${esc(A.cust(i.b))}"><b>${i.start} ${esc(A.tname(i.tid))}</b>${esc((i.b.guestList[i.guest] || {}).name || A.cust(i.b))} · ${i.min} min<span class="buf" style="height:${(i.buffer || 0) * PX}px"></span></a>`; });
+      c.items.forEach(i => { const s = E.T(i.start); o += `<a class="tl-ev" href="#/booking/${i.b.id}" style="top:${y(s)}px;height:${(i.min + (i.buffer || 0)) * PX - 2}px;${colEv(i.b.product)}" title="${esc(A.tname(i.tid))} · ${esc(A.cust(i.b))}"><b>${i.start} ${esc(A.tname(i.tid))}</b>${esc((i.b.guestList[i.guest] || {}).name || A.cust(i.b))} · ${i.min} min<span class="buf" style="height:${(i.buffer || 0) * PX}px"></span><button class="tl-mv" data-mv="${i.b.id}|${i.key}" title="Move or hand over" aria-label="Move or hand over">⇄</button></a>`; });
       return o;
     };
     const tl = cols.length ? `<div class="tl"><div class="tl-grid" style="grid-template-columns:56px repeat(${cols.length},minmax(150px,1fr))">
@@ -215,7 +215,7 @@
           <div class="card"><div class="card-h"><h3>Food</h3></div>${Object.entries(foods).map(([f, n]) => `<div class="li"><span class="grow">${esc((cfg.foods.find(x => x.id === f) || {}).name || f)}</span><b>${n}</b></div>`).join('') || '<p class="muted">No food orders.</p>'}</div>
         </div>
       </div>`;
-    return { html, wire: el => { $$('[data-hk]', el).forEach(c => c.onchange = () => { const [id, kind, r] = c.dataset.hk.split('|'), b = A.DB().bookings.find(x => x.id === id); b.hk = b.hk || {}; b.hk[kind + r] = c.checked; A.change('booking', b, `Housekeeping: ${roomName(r)} ${kind === 'out' ? 'cleaned' : 'ready'}`); }); $('#dayPick', el).onchange = e => { if (e.target.value) location.hash = '#/day/' + e.target.value; }; if (mode === 'print') setTimeout(() => print(), 300); } };
+    return { html, wire: el => { A.wireMove(el); $$('[data-hk]', el).forEach(c => c.onchange = () => { const [id, kind, r] = c.dataset.hk.split('|'), b = A.DB().bookings.find(x => x.id === id); b.hk = b.hk || {}; b.hk[kind + r] = c.checked; A.change('booking', b, `Housekeeping: ${roomName(r)} ${kind === 'out' ? 'cleaned' : 'ready'}`); }); $('#dayPick', el).onchange = e => { if (e.target.value) location.hash = '#/day/' + e.target.value; }; if (mode === 'print') setTimeout(() => print(), 300); } };
   };
 
   // ============ BOOKINGS list ============
@@ -334,6 +334,9 @@
       $('#dupB', el).onclick = () => { A._dup = b; location.hash = '#/new?dup=' + b.id; };
     } };
   };
+
+  // move / hand over buttons on Today, the day timeline and day sheets
+  A.wireMove = el => $$('[data-mv]', el).forEach(btn => btn.onclick = e => { e.preventDefault(); e.stopPropagation(); const [bid, key] = btn.dataset.mv.split('|'); A.moveItem(A.DB().bookings.find(x => x.id === bid), key); });
 
   // ---------- payments ----------
   A.takePayment = async (b, preset) => {

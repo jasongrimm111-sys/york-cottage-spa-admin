@@ -317,3 +317,6 @@ a.btn.pri{color:#fff}
 .m-b{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-top:16px;padding-bottom:22px}
 .m-f{position:static;flex:none}
 @media (max-width:700px){.ov{padding:0;align-items:stretch}.modal{max-height:100dvh;height:100dvh;border-radius:0}}
+.tl-mv{position:absolute;top:3px;right:3px;width:24px;height:24px;border-radius:6px;background:rgba(255,255,255,.88);color:var(--ink);font-size:13px;font-weight:700;display:grid;place-items:center;opacity:.85}
+.tl-mv:hover{opacity:1;background:#fff}
+.tl-ev b{padding-right:26px}
