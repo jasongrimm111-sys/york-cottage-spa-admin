@@ -37,7 +37,7 @@
     const flush = () => { const ends = []; cluster.forEach(ev => { let l = ends.findIndex(x => x <= ev.s); if (l < 0) { l = ends.length; ends.push(0); } ends[l] = ev.e; ev.lane = l; }); cluster.forEach(ev => ev.lanes = ends.length); cluster = []; };
     evs.forEach(ev => { if (ev.s >= end) { flush(); end = -1; } cluster.push(ev); end = Math.max(end, ev.e); }); flush(); return evs; };
   const label = b => `${A.cust(b)} · ${b.guests}`;
-  const evStyle = k => `background:${PCOL[k] || '#8a9a85'};color:${PINK[k] || '#fff'}`;
+  const evStyle = k => { const c = PCOL[k] || '#8a9a85'; return `--c:${c};background:color-mix(in srgb, ${c} 13%, #fff);color:var(--ink);border-left:3px solid ${c}`; };
 
   // ---------- shared toolbar (mail-app style) ----------
   function toolbar(mode, d, title) {
@@ -48,7 +48,7 @@
     const tog = k => { const n = f.includes(k) ? f.filter(x => x !== k) : f.concat([k]); return `#/calendar/${mode}/${d}${n.length ? '?p=' + n.join(',') : ''}`; };
     return `<div class="cal-bar"><div class="cal-bar-l"><a class="btn" href="#/calendar/${mode}/${today()}${qs()}">Today</a><a class="icon-btn" href="#/calendar/${mode}/${prev}${qs()}" title="Previous" aria-label="Previous">${A.ic.left}</a><a class="icon-btn" href="#/calendar/${mode}/${next}${qs()}" title="Next" aria-label="Next">${A.ic.right}</a><h1 class="cal-title">${title}</h1></div>
       <div class="seg cal-modes">${[['day', 'Day'], ['3day', '3 days'], ['week', 'Week'], ['month', 'Month']].map(([m, t]) => `<a href="#/calendar/${m}/${d}${qs()}" class="${m === mode ? 'on' : ''}">${t}</a>`).join('')}</div></div>
-      <div class="chips cal-filter"><span class="small muted">Show:</span><a class="chip sm ${!f.length ? 'on' : ''}" href="#/calendar/${mode}/${d}">Everything</a>${prods.map(([k, p]) => `<a class="chip sm ${f.includes(k) ? 'on' : ''}" href="${tog(k)}">${A.prodDot(k)} ${esc(p.name)}</a>`).join('')}</div>`;
+      <details class="cal-filter-dd"><summary>${A.ic.list} ${f.length ? `Showing ${f.length} type${f.length > 1 ? 's' : ''}` : 'Showing everything'}</summary><div class="cal-filter-menu"><a class="chip sm ${!f.length ? 'on' : ''}" href="#/calendar/${mode}/${d}">Everything</a>${prods.map(([k, p]) => `<a class="chip sm ${f.includes(k) ? 'on' : ''}" href="${tog(k)}">${A.prodDot(k)} ${esc(p.name)}</a>`).join('')}</div></details>`;
   }
   // little month on the left
   function mini(d, mode) {
