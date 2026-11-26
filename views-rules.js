@@ -29,7 +29,7 @@
       'Treatments are planned at the <b>earliest free time</b>. Guests are put side by side only if that delays them by 30 minutes or less.',
       `Treatments can start on the ${(r.slotStep || 30) === 60 ? 'hour' : (r.slotStep || 30) === 30 ? 'hour and half hour' : `${r.slotStep}-minute marks`}, or <b>back to back</b>, as soon as a therapist and room are free again (to the nearest 5 minutes).`,
       '<b>Treatments only</b> are never offered on a day the spa is booked exclusively (private spa, group or whole house).',
-      '<b>Private spa and group bookings</b> can’t be on any day of a whole-house stay, from its arrival day to its departure day.',
+      '<b>Spa days, spa access, private spa, groups and treatments only</b> can’t be on any day of a whole-house stay, from its arrival day to its departure day.',
       'No therapist is booked over their hours, breaks, time off, food duty, or daily hands-on limit.'
     ]));
 

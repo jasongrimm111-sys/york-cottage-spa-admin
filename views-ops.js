@@ -488,6 +488,7 @@
     }
     // an existing booking's treatments already have their times
     B.times = B.times || {}; if (orig) (B.items || []).forEach(i => { if (i.start) B.times[i.key] = { date: i.date || B.date, start: i.start }; });
+    B.pairs = B.pairs || {}; if (orig) { const first = {}; (B.items || []).filter(i => i.pair).forEach(i => { if (!first[i.pair]) first[i.pair] = i.key; else { B.pairs[i.key] = first[i.pair]; delete B.times[i.key]; } }); }
     const st = { g: 0, month: (B.date || t).slice(0, 7), lock: !!orig, override: false, payMode: orig ? null : 'link', pay: { method: 'card terminal', amount: null }, promoMsg: '' };
     const p = () => cfg.products[B.product];
     // times a guest is paying for on the website right now count as taken
@@ -517,8 +518,8 @@
         // who sleeps where: one room = everyone in it; more = each guest needs a room
         if ((B.rooms || []).length === 1) B.guestList.forEach(g => g.room = B.rooms[0]); else if ((B.rooms || []).length > 1) { B.guestList.forEach(g => { if (g.room && !B.rooms.includes(g.room)) g.room = null; }); const miss = B.guestList.filter(g => !g.room).length; if (miss) out.problems.push(`Choose a room for ${miss === 1 ? 'one guest' : miss + ' guests'} (Guests section)`); } }
       B.treatStart = null;   // treatments-only: each treatment gets its own time, like the website
-      const all = E.treatmentNeeds(cfg, B), needs = all.filter(n => B.times[n.key]);
-      out.missing = all.filter(n => !B.times[n.key]);
+      const all = E.treatmentNeeds(cfg, B), needs = all.filter(n => n.start);   // a guest treated together takes their partner's time
+      out.missing = all.filter(n => !n.start);
       if (out.missing.length) out.problems.push(`Choose a time for ${out.missing.length === 1 ? (E.tr(cfg, out.missing[0].tid) || {}).name || 'one treatment' : out.missing.length + ' treatments'}`);
       if (needs.length) {
         const keep = st.lock && B.items.length && needs.every(n => B.items.some(i => i.key === n.key && i.tid === n.tid));
@@ -601,8 +602,15 @@
                   ${g.extras.length ? `<div class="xlist">${g.extras.map((x, j) => { const tr = E.tr(cfg, x) || {}; return `<div class="xrow"><b>${esc(tr.name || x)}</b><span class="small muted">${tr.min || ''} min · ${gbp(tr.price || 0)}</span><button type="button" class="icon-btn" data-rmx="${i}:${j}" title="Remove">${A.ic.x}</button></div>`; }).join('')}</div>` : '<span class="small muted">None yet</span>'}
                   <select class="inp" data-addx="${i}" style="margin-top:8px;max-width:420px"><option value="">${g.extras.length ? '+ Add another treatment…' : '+ Add a treatment…'}</option>${[...new Set(extrasAll.map(x => x.cat))].map(c => `<optgroup label="${esc(c)}">${extrasAll.filter(x => x.cat === c).map(x => { const ch = E.extraCharges(cfg, { ...B, guestList: B.guestList.map((gg, k) => k === i ? { ...gg, extras: (gg.extras || []).concat(x.id) } : gg) }).filter(z => z.guest === i && z.tid === x.id).pop() || {}; const blocked = ch.extends && ch.mins === 0; return `<option value="${x.id}" ${blocked ? 'disabled' : ''}>${esc(x.name)} · ${blocked ? 'the included treatment is already extended' : ch.extends ? `+${ch.mins} min to the included treatment · £${ch.price}` : `${x.min} min · £${x.price}`}</option>`; }).join('')}</optgroup>`).join('')}</select></div>
                 ${(() => { const todo = (pl.missing || []).filter(n => n.guest === i); if (!B.date || (!mine.length && !todo.length)) return '';
-                  const picker = n => { const sl = E.slotsAhead(cfg, ix(), B, n, B.items || []), days = sl.filter(d => d.times.length);
-                    return `<div class="tpick-a"><b>${esc((E.tr(cfg, n.tid) || {}).name || n.tid)}</b> <span class="muted small">${n.min || (E.tr(cfg, n.tid) || {}).min} min · choose a time</span>${days.length ? days.map(d => `<div class="chips" style="margin-top:6px">${sl.length > 1 ? `<span class="small muted" style="min-width:70px">${fd(d.date)}</span>` : ''}${d.times.map(x => `<button type="button" class="chip sm" data-pick="${n.key}|${d.date}|${x.start}">${x.start}</button>`).join('')}</div>`).join('') : '<p class="small" style="color:var(--bad);margin-top:6px">No free time left for this treatment. Choose another day or session, or remove it.</p>'}</div>`; };
+                  const nm = n => E.itemName ? E.itemName(cfg, n) : (E.tr(cfg, n.tid) || {}).name || n.tid;
+                  const canPair = (k, w) => { const b = { ...B, pairs: { ...(B.pairs || {}), [k]: w } }, tm = { ...(B.times || {}) }; delete tm[k]; b.times = tm; return E.plan(cfg, ix(), b, { needs: E.treatmentNeeds(cfg, b) }).ok; };
+                  const picker = n => { const pk = (B.pairs || {})[n.key];
+                    if (pk) { const pn = E.treatmentNeeds(cfg, B).find(x => x.key === pk) || {}; return `<div class="tpick-a"><b>${esc(nm(n))}</b> <span class="muted small">together with ${esc(gname(B.guestList[pn.guest] || {}, pn.guest))}’s ${esc(nm(pn))}, same room and time${B.times[pk] ? '' : ' (once their time is chosen)'}</span> <button type="button" class="btn sm" data-unpair="${n.key}">On their own</button></div>`; }
+                    const taken = new Set([...Object.keys(B.pairs || {}), ...Object.values(B.pairs || {})]);
+                    const mates = B.guests > 1 && !taken.has(n.key) ? E.treatmentNeeds(cfg, B).filter(x => x.guest !== n.guest && !taken.has(x.key) && E.canShare(cfg, [n.tid, x.tid]) && canPair(n.key, x.key)) : [];
+                    const withH = mates.length ? `<div class="chips" style="margin-top:8px"><span class="small muted" style="min-width:70px">Or together with</span>${mates.map(x => `<button type="button" class="chip sm" data-pairw="${n.key}|${x.key}">${esc(gname(B.guestList[x.guest] || {}, x.guest))} · ${esc(nm(x))}</button>`).join('')}</div>` : '';
+                    const sl = E.slotsAhead(cfg, ix(), B, n, B.items || []), days = sl.filter(d => d.times.length);
+                    return `<div class="tpick-a"><b>${esc((E.tr(cfg, n.tid) || {}).name || n.tid)}</b> <span class="muted small">${n.min || (E.tr(cfg, n.tid) || {}).min} min · choose a time</span>${days.length ? days.map(d => `<div class="chips" style="margin-top:6px">${sl.length > 1 ? `<span class="small muted" style="min-width:70px">${fd(d.date)}</span>` : ''}${d.times.map(x => `<button type="button" class="chip sm" data-pick="${n.key}|${d.date}|${x.start}">${x.start}</button>`).join('')}</div>`).join('') : '<p class="small" style="color:var(--bad);margin-top:6px">No free time left for this treatment. Choose another day or session, or remove it.</p>'}${withH}</div>`; };
                   return `<div class="fld" style="margin-top:14px"><span>Times for ${esc(gname(g, i))}</span>${todo.map(picker).join('')}${mine.length ? `<div class="sched">${mine.map(itemRow).join('')}</div>` : ''}</div>`; })()}
                 ${B.guests > 1 ? `<div style="display:flex;justify-content:space-between;margin-top:14px">${i > 0 ? `<button type="button" class="btn sm" data-gtab="${i - 1}">${A.ic.left} Guest ${i}</button>` : '<span></span>'}${i < B.guests - 1 ? `<button type="button" class="btn sm" data-gtab="${i + 1}">Guest ${i + 2} ${A.ic.right}</button>` : '<span></span>'}</div>` : ''}
               </div>
@@ -679,6 +687,8 @@
       $$('[data-gf]', el).forEach(s => s.onchange = () => { B.guestList[+s.dataset.gi][s.dataset.gf] = s.value; if (s.dataset.gf === 'included') st.lock = false; re(); });
       $$('[data-addx]', el).forEach(s => s.onchange = () => { if (s.value) { B.guestList[+s.dataset.addx].extras.push(s.value); st.lock = false; re(); A.toast(A.tname(s.value) + ' added'); } });
       $$('[data-rmx]', el).forEach(b => b.onclick = () => { const [i, j] = b.dataset.rmx.split(':').map(Number); B.guestList[i].extras.splice(j, 1); st.lock = false; re(); });
+      $$('[data-pairw]', el).forEach(b => b.onclick = () => { const [k, w] = b.dataset.pairw.split('|'); B.pairs = { ...(B.pairs || {}), [k]: w }; delete B.times[k]; st.lock = false; re(); });
+      $$('[data-unpair]', el).forEach(b => b.onclick = () => { delete B.pairs[b.dataset.unpair]; st.lock = false; re(); });
       $$('[data-pick]', el).forEach(b => b.onclick = () => { const [k, d, tm] = b.dataset.pick.split('|'); B.times[k] = { date: d, start: tm }; st.lock = false; re(); });
       $$('[data-it]', el).forEach(s => s.onchange = () => { const it = B.items.find(x => x.key === s.dataset.it); it[s.dataset.fld] = s.value; if (s.dataset.fld === 'start' || s.dataset.fld === 'date') B.times[it.key] = { date: it.date || B.date, start: it.start }; if (s.dataset.fld === 'troom' || s.dataset.fld === 'staff') {} st.lock = true; re(); });
       const rp = $('#replan', el); if (rp) rp.onclick = () => { st.lock = false; re(); };

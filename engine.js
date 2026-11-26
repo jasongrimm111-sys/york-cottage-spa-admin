@@ -220,8 +220,8 @@
     if (q.date < today) return { ok: false, why: 'In the past' };
     // treatments only: not on a day the spa is booked exclusively (private spa, group, or the whole house) (user 2026-11-27)
     if (p.kind === 'treat') { const ph = E.productHours(cfg, q.product, q.date); if (ph && ph.on === false) return { ok: false, why: `${p.name} isn’t available on ${['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays'][dow(q.date)]}` }; }
-    // private spa and groups: never on any day of a whole-house stay, arrival to departure day (user 2026-11-27)
-    if (p.kind === 'private' || (p.exclusiveFrom != null && (q.guests || 0) >= p.exclusiveFrom) || q.product === 'group') {
+    // spa sessions, private spa and groups: never on any day of a whole-house stay, arrival to departure day (user 2026-11-27)
+    if (p.kind === 'private' || p.kind === 'session' || (p.exclusiveFrom != null && (q.guests || 0) >= p.exclusiveFrom) || q.product === 'group') {
       const hs = ix.house || {}, span = Array.from({ length: (q.nights || 0) + 1 }, (_, i) => addD(q.date, i));
       if (span.some(d => hs[d])) return { ok: false, why: 'The whole house is booked then' };
     }
