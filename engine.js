@@ -496,15 +496,35 @@
     if (((nx.troom[d] || {})[room.id] || []).filter(x => overlap(s, end, x[0], x[1])).length >= (room.beds || 1)) return `${room.name} is in use`;
     return '';
   };
+  // treatments that come with a booking type (each treatment lists the types it's included with)
+  E.includedFor = (cfg, product) => {
+    const list = cfg.treatments.filter(t => t.active !== false && (t.includedWith || []).includes(product));
+    if (list.length) return list;
+    const p = cfg.products[product] || {}; return (p.included || []).map(id => E.tr(cfg, id)).filter(Boolean);   // older saved settings
+  };
+  // 'one' = each guest chooses one of them; 'all' = every guest has all of them
+  E.includedPick = (cfg, product) => ((cfg.products[product] || {}).includedPick === 'all' ? 'all' : 'one');
+  // is this treatment sold on its own (as an extra, or treatments only)?
+  E.sellable = t => t && t.active !== false && t.sell !== false && !t.included;
+  // older settings had an 'Included' category: move to includedWith on each treatment
+  E.migrate = cfg => {
+    let n = 0;
+    for (const [k, p] of Object.entries(cfg.products || {})) {
+      for (const id of [...(p.included || []), ...(p.includedAll || [])]) { const t = E.tr(cfg, id); if (t) { t.includedWith = [...new Set([...(t.includedWith || []), k])]; n++; } }
+      if ((p.includedAll || []).length && !(p.included || []).length) p.includedPick = 'all';
+      if (!p.includedPick) p.includedPick = 'one';
+      delete p.included; delete p.includedAll;
+    }
+    for (const t of cfg.treatments || []) if (t.included || t.cat === 'Included') { t.sell = false; delete t.included; if (t.cat === 'Included') t.cat = /facial/i.test(t.name) ? 'Facials' : 'Massage'; n++; }
+    return n;
+  };
   // the list of treatments a booking needs scheduled (included + extras)
   E.treatmentNeeds = (cfg, b) => {
     const p = cfg.products[b.product], out = [];
     (b.guestList || []).forEach((g, i) => {
-      if (p.included && p.included.length) {
-        const tid = g.included || p.included[0], tr = E.tr(cfg, tid);
-        if (tr) out.push({ key: `g${i}-inc`, guest: i, tid, min: b.blueLight && cfg.rules.blueLight ? Math.max(tr.min, cfg.rules.blueLightMin) : tr.min, included: true });
-      }
-      (p.includedAll || []).forEach((tid, j) => { const tr = E.tr(cfg, tid); if (tr) out.push({ key: `g${i}-all${j}`, guest: i, tid, included: true }); });
+      const inc = E.includedFor(cfg, b.product), bl = tr => b.blueLight && cfg.rules.blueLight ? Math.max(tr.min, cfg.rules.blueLightMin) : tr.min;
+      if (inc.length && E.includedPick(cfg, b.product) === 'all') inc.forEach((tr, j) => out.push({ key: `g${i}-inc${j || ''}`, guest: i, tid: tr.id, min: bl(tr), included: true }));
+      else if (inc.length) { const tr = inc.find(t => t.id === g.included) || inc[0]; out.push({ key: `g${i}-inc`, guest: i, tid: tr.id, min: bl(tr), included: true }); }
       (g.extras || []).forEach((tid, j) => out.push({ key: `g${i}-x${j}`, guest: i, tid }));
     });
     return out;

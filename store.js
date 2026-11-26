@@ -80,6 +80,7 @@
     if (!db) { db = root.YCSeed.make(); db.audit = [{ at: new Date().toISOString(), by: 'System', what: 'Demo created with sample data' }]; db.outbox = []; }
     // settings added after a demo was saved
     db.cfg = deepFill(db.cfg, root.YC_DEFAULTS);
+    E.migrate(db.cfg);
     return db;
   }
   // add any settings missing from saved data (new features) without touching saved values
@@ -96,6 +97,7 @@
     let cfg = await get('config.json');
     const firstRun = !cfg;
     cfg = deepFill(cfg || JSON.parse(JSON.stringify(root.YC_DEFAULTS)), root.YC_DEFAULTS);
+    if (E.migrate(cfg)) S.dirty.add('config.json');
     const files = (await gh.list(R, 'bookings')).filter(f => /\.json$/.test(f.name));
     const months = await Promise.all(files.map(f => get('bookings/' + f.name)));
     const bookings = months.flatMap(m => m || []);

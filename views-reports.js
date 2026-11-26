@@ -54,7 +54,7 @@
     const availRN = roomsN * dl.filter(d => !E.closedAllDay(cfg, d, ['rooms'])).length;
     // treatments
     const items = live.flatMap(b => (b.items || []).map(i => ({ ...i, b })));
-    const extras = items.filter(i => !(E.tr(cfg, i.tid) || {}).included);
+    const extras = items.filter(i => !/-inc/.test(i.key));
     const trRev = live.reduce((a, b) => a + ((b.quote || {}).lines || []).filter(l => l.k === 'treat' || l.k === 'headoff').reduce((x, l) => x + l.amount, 0), 0);
     const attach = live.filter(b => cfg.products[b.product].kind !== 'treat').length ? pct(live.filter(b => cfg.products[b.product].kind !== 'treat' && (b.guestList || []).some(g => (g.extras || []).length)).length, live.filter(b => cfg.products[b.product].kind !== 'treat').length) : 0;
     const topT = Object.entries(extras.reduce((o, i) => (o[i.tid] = (o[i.tid] || 0) + 1, o), {})).map(([k, n]) => [A.tname(k), n]).sort((a, b) => b[1] - a[1]).slice(0, 10);

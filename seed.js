@@ -54,9 +54,9 @@
         for (let g = 0; g < guests; g++) {
           const extras = [];
           const extraP = product === 'treat' ? 1 : product === 'house' ? .25 : .3;
-          if (rnd() < extraP) extras.push(pick(cfg.treatments.filter(t => !t.included && t.active)).id);
+          if (rnd() < extraP) extras.push(pick(cfg.treatments.filter(t => E.sellable(t))).id);
           if (product === 'treat' && rnd() < .2) extras.push(pick(['tension', 'scalp', 'basics']));
-          b.guestList.push({ name: g ? '' : '', food: p.food && foods.length ? pick(foods).id : null, included: p.included && p.included.length ? pick(p.included) : null, extras: [...new Set(extras)], consult: off < 0 ? 'done' : rnd() < .5 ? 'done' : 'needed' });
+          b.guestList.push({ name: g ? '' : '', food: p.food && foods.length ? pick(foods).id : null, included: E.includedFor(cfg, product).length ? pick(E.includedFor(cfg, product)).id : null, extras: [...new Set(extras)], consult: off < 0 ? 'done' : rnd() < .5 ? 'done' : 'needed' });
         }
         if (product === 'treat') b.treatStart = pick(['10:00', '10:30', '11:00', '11:30', '13:00', '14:00', '14:30', '15:00', '16:00']);
         const sch = E.plan(cfg, ix, b);

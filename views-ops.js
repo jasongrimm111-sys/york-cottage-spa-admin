@@ -291,7 +291,7 @@
             ${(b.guestList || []).map((g, i) => { const its = (b.items || []).filter(x => x.guest === i).sort((a, c) => a.start.localeCompare(c.start));
               return `<div class="gcard"><div class="gcard-h"><span class="av" style="background:var(--sage)">${i + 1}</span><b style="flex:1">${esc(g.name || (i === 0 ? A.cust(b) : 'Guest ' + (i + 1)))}</b>${g.food ? `<span class="badge">${esc((cfg.foods.find(f => f.id === g.food) || {}).name || g.food)}</span>` : ''}
                 ${its.length ? `<label class="chk small"><input type="checkbox" data-consult="${i}" ${g.consult === 'done' ? 'checked' : ''}> Consultation form done</label>` : ''}</div>
-                ${its.map(it => `<div class="li" style="padding:6px 0"><span class="when">${it.start}</span><span class="grow"><b>${esc(A.tname(it.tid))}</b><span class="small muted">${it.min} min · ${it.staff ? `<span class="dot" style="background:${A.scol(it.staff)}"></span> ${esc(A.sname(it.staff))}` : '<span class="badge bad">No therapist</span>'} · ${esc((cfg.treatRooms.find(r => r.id === it.troom) || {}).name || '')}</span></span>${E.tr(cfg, it.tid) && !E.tr(cfg, it.tid).included ? `<span class="tnum">${gbp(E.tr(cfg, it.tid).price)}</span>` : '<span class="small muted">included</span>'}</div>`).join('') || '<p class="small muted">No treatments</p>'}</div>`; }).join('')}
+                ${its.map(it => `<div class="li" style="padding:6px 0"><span class="when">${it.start}</span><span class="grow"><b>${esc(A.tname(it.tid))}</b><span class="small muted">${it.min} min · ${it.staff ? `<span class="dot" style="background:${A.scol(it.staff)}"></span> ${esc(A.sname(it.staff))}` : '<span class="badge bad">No therapist</span>'} · ${esc((cfg.treatRooms.find(r => r.id === it.troom) || {}).name || '')}</span></span>${!/-inc/.test(it.key) && E.tr(cfg, it.tid) ? `<span class="tnum">${gbp(E.tr(cfg, it.tid).price)}</span>` : '<span class="small muted">included</span>'}</div>`).join('') || '<p class="small muted">No treatments</p>'}</div>`; }).join('')}
           </div>
           <div class="card"><div class="card-h"><h3>Payments</h3><span>${paid ? gbp(paid, 2) + ' paid' : 'Nothing paid yet'}</span></div>
             ${(b.payments || []).length ? `<table class="tbl"><tbody>${b.payments.map(x => `<tr><td>${ft(x.at)}</td><td>${x.amount < 0 ? 'Refund' : 'Payment'} · ${esc(x.method || '')}${x.note ? ' · ' + esc(x.note) : ''}${x.by ? `<br><span class="small muted">by ${esc(x.by)}</span>` : ''}</td><td class="r tnum"><b>${gbp(x.amount, 2)}</b></td></tr>`).join('')}</tbody></table>` : '<p class="muted">No payments recorded.</p>'}</div>
@@ -424,7 +424,8 @@
       while (B.guestList.length < B.guests) B.guestList.push({ name: '', food: null, included: null, extras: [], consult: 'needed' });
       B.guestList.length = B.guests;
       const foods = cfg.foods.filter(f => f.active !== false && f.products.includes(B.product));
-      B.guestList.forEach(g => { if (P.food && foods.length && !foods.some(f => f.id === g.food)) g.food = foods[0].id; if (!P.food) g.food = null; if (P.included && P.included.length && !P.included.includes(g.included)) g.included = P.included[0]; if (!P.included || !P.included.length) g.included = null; });
+      const inc = E.includedFor(cfg, B.product);
+      B.guestList.forEach(g => { if (P.food && foods.length && !foods.some(f => f.id === g.food)) g.food = foods[0].id; if (!P.food) g.food = null; if (inc.length && !inc.some(t => t.id === g.included)) g.included = inc[0].id; if (!inc.length) g.included = null; });
       if (P.kind === 'stay' && !(P.nights || []).includes(B.nights)) B.nights = (P.nights || [1])[0];
       if (P.kind === 'house' && !(B.nights >= P.minN)) B.nights = P.minN;
       if (P.kind !== 'stay' && P.kind !== 'house') B.nights = 0;
@@ -471,7 +472,7 @@
       }
       const sessions = pl.chk && pl.chk.sessions || (B.date && (P.kind === 'session' || P.kind === 'private') ? E.sessions(cfg, I, B.product, B.date, B.guests) : []);
       const foods = cfg.foods.filter(f => f.active !== false && f.products.includes(B.product));
-      const extrasAll = cfg.treatments.filter(x => !x.included && x.active !== false);
+      const extrasAll = cfg.treatments.filter(x => E.sellable(x)), incList = E.includedFor(cfg, B.product), incAll = E.includedPick(cfg, B.product) === 'all';
       const conflicts = pl.conflicts || [];
       const probs = pl.problems.concat(conflicts.map(c => c[1]));
       const itemRow = it => {
@@ -497,7 +498,7 @@
               ${P.kind === 'stay' ? `<div class="fld"><span>Nights</span><div class="seg">${(P.nights || [1]).map(n => `<button type="button" data-n="${n}" class="${B.nights === n ? 'on' : ''}">${n} night${n > 1 ? 's' : ''}</button>`).join('')}</div></div>` : ''}
               ${P.kind === 'house' ? `<div class="fld" style="max-width:140px"><span>Nights</span><input class="inp" type="number" id="hn" min="${P.minN}" max="${P.maxN}" value="${B.nights}"></div>` : ''}
               ${P.breakfast ? `<label class="sw"><input type="checkbox" id="bfast" ${B.breakfast ? 'checked' : ''}> Breakfast (£${cfg.breakfastPrice} pp per morning)</label>` : ''}
-              ${P.included && P.included.length && cfg.rules.blueLight ? `<label class="sw"><input type="checkbox" id="blue" ${B.blueLight ? 'checked' : ''}> Blue Light Card (30-minute treatments)</label>` : ''}
+              ${incList.length && cfg.rules.blueLight ? `<label class="sw"><input type="checkbox" id="blue" ${B.blueLight ? 'checked' : ''}> Blue Light Card (30-minute treatments)</label>` : ''}
             </div></div>
           <div class="card"><div class="card-h"><h3>3 · Date${P.kind === 'session' || P.kind === 'private' ? ' & session' : P.kind === 'treat' ? ' & time of day' : ''}</h3><label class="sw small"><input type="checkbox" id="ovr" ${st.override ? 'checked' : ''}> Ignore availability</label></div>
             <div style="display:flex;flex-wrap:wrap;gap:24px">
@@ -512,7 +513,7 @@
           <div class="card"><div class="card-h"><h3>4 · Each guest</h3>${B.guests > 1 ? '<button type="button" class="btn sm" id="sameAll">Same as guest 1 for everyone</button>' : ''}</div>
             ${B.guestList.map((g, i) => `<div class="gcard"><div class="gcard-h"><span class="av" style="background:var(--sage)">${i + 1}</span><input class="inp" data-gn="${i}" placeholder="${i === 0 ? 'Lead guest (from the contact below)' : 'Guest ' + (i + 1) + ' name (optional)'}" value="${esc(g.name)}" style="max-width:300px"></div>
               <div class="row">
-                ${P.included && P.included.length ? `<label class="fld"><span>Included treatment</span><select class="inp" data-gi="${i}" data-gf="included">${P.included.map(id => `<option value="${id}" ${g.included === id ? 'selected' : ''}>${esc(A.tname(id))}</option>`).join('')}</select></label>` : ''}
+                ${incList.length ? (incAll || incList.length === 1 ? `<div class="fld"><span>Included</span><span class="small" style="padding-top:9px">${incList.map(t => esc(t.name)).join(' + ')}</span></div>` : `<label class="fld"><span>Included treatment (choose one)</span><select class="inp" data-gi="${i}" data-gf="included">${incList.map(t => `<option value="${t.id}" ${g.included === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label>`) : ''}
                 ${P.food && foods.length ? `<label class="fld"><span>Food</span><select class="inp" data-gi="${i}" data-gf="food">${foods.map(f => `<option value="${f.id}" ${g.food === f.id ? 'selected' : ''}>${esc(f.name)}</option>`).join('')}</select></label>` : ''}
                 <label class="fld"><span>Add a treatment</span><select class="inp" data-addx="${i}"><option value="">Choose…</option>${[...new Set(extrasAll.map(x => x.cat))].map(c => `<optgroup label="${esc(c)}">${extrasAll.filter(x => x.cat === c).map(x => `<option value="${x.id}">${esc(x.name)} · ${x.min} min · £${x.price}</option>`).join('')}</optgroup>`).join('')}</select></label>
               </div>
