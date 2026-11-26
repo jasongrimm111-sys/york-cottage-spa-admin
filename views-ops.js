@@ -134,7 +134,7 @@
       const on = isToday ? items.filter(i => tState(i) === 'now') : [], up = isToday ? items.filter(i => E.T(i.start) > nowM).sort((a, b) => a.start.localeCompare(b.start))[0] : null;
       const live = isToday ? `<div class="td-live">${on.length ? `<span class="live-dot"></span><b>In treatment:</b> ${on.map(i => `<button type="button" class="linkbtn" data-it="${i.b.id}|${i.key}">${esc((i.b.guestList[i.guest] || {}).name || A.cust(i.b))}, ${esc(A.tname(i.tid))}</button>`).join(', ')}` : '<span class="muted">Nobody in treatment right now.</span>'}${up ? ` <span class="td-next">Next: <button type="button" class="linkbtn" data-it="${up.b.id}|${up.key}">${up.start} ${esc((up.b.guestList[up.guest] || {}).name || A.cust(up.b))}, ${esc(A.tname(up.tid))}</button></span>` : ''}</div>` : '';
       return `<div class="card td-day"><div class="card-h"><h3>The day</h3><span class="small muted">Click a treatment or lunch for its details · click a name for their day</span></div>${live}
-        <div class="rb"><div class="rb-hours"><span class="rb-gut"></span><div class="rb-scale">${hrsTicks.join('')}</div></div>${rows}${nowOn ? `<div class="rb-nowwrap"><span class="rb-gut"></span><div class="rb-nowtrack"><i class="rb-now" style="left:${pc(nowM)}"><em>${E.HM(nowM)}</em></i></div></div>` : ''}</div></div>`;
+        <div class="rb"><div class="rb-in"><div class="rb-hours"><span class="rb-gut"></span><div class="rb-scale">${hrsTicks.join('')}</div></div>${rows}${nowOn ? `<div class="rb-nowwrap"><span class="rb-gut"></span><div class="rb-nowtrack"><i class="rb-now" style="left:${pc(nowM)}"><em>${E.HM(nowM)}</em></i></div></div>` : ''}</div></div></div>`;
     })();
     const stat = (n, label, sub) => `<div class="td-stat"><b>${n}</b><span>${label}</span>${sub ? `<small>${sub}</small>` : ''}</div>`;
     return { html: `${asBar}<div class="vh td-head"><div><div class="eyebrow">${isToday ? fdy(t) : rel}</div><h1>${isToday ? greet : fdy(t)}</h1></div>${ahead ? `<div class="acts">${t > tmw ? `<a class="btn" href="#/ahead/${E.addD(t, -1)}${asQ ? '?as=' + asQ : ''}" title="Previous day">${A.ic.left}</a>` : `<span class="btn" aria-disabled="true" style="opacity:.35">${A.ic.left}</span>`}<input type="date" class="inp" id="todayPick" value="${t}" min="${tmw}" style="width:auto" aria-label="Choose a day"><a class="btn" href="#/ahead/${E.addD(t, 1)}${asQ ? '?as=' + asQ : ''}" title="Next day">${A.ic.right}</a>${t > tmw ? `<a class="btn" href="#/ahead">Tomorrow</a>` : ''}</div>` : ''}</div>
@@ -157,7 +157,10 @@
         </div>
       </div>`,
       wire: el => { A.wireMove(el); const tp = $('#todayPick', el); if (tp) tp.onchange = () => { if (tp.value) location.hash = '#/ahead/' + (tp.value > today() ? tp.value : E.addD(today(), 1)) + (asQ ? '?as=' + asQ : ''); }; A.wireArrive(el); A.wireMyDay(el); if (A.wireCalClicks) A.wireCalClicks(el);
-        asWire(el); } };
+        asWire(el);
+        // phones: the day's timeline scrolls sideways; start it with the current time in view (user, 2026-11-27)
+        const rb = $('.rb', el), nw = $('.rb-now', el);
+        if (rb && rb.scrollWidth > rb.clientWidth) { const x = nw ? nw.getBoundingClientRect().left - rb.getBoundingClientRect().left + rb.scrollLeft : 0; rb.scrollLeft = Math.max(0, x - rb.clientWidth * 0.35); } } };
   };
 
   // ============ CALENDAR (month) ============

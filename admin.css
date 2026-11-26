@@ -807,3 +807,5 @@ html{touch-action:manipulation}
 
 .tpick-a{border:1px dashed var(--stone);border-radius:10px;padding:10px 12px;margin:6px 0;background:#fffdf9}
 .tpick-a .chip{cursor:pointer}
+.rb-in{position:relative}
+@media (max-width:700px){.rb-in{min-width:620px}}
