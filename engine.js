@@ -531,7 +531,7 @@
   // can everyone's included treatments fit? (a session or stay that can't fit them isn't bookable)
   E.includedFit = (cfg, ix, q) => {
     const inc = E.includedFor(cfg, q.product); if (!inc.length) return '';
-    const g = Math.max(1, q.guests || 1), b = { product: q.product, date: q.date, nights: q.nights || 0, sessionId: q.sessionId, guests: g, guestList: Array.from({ length: g }, () => ({ included: inc[0].id, extras: [] })) };
+    const g = Math.max(1, q.guests || 1), b = { product: q.product, date: q.date, nights: q.nights || 0, sessionId: q.sessionId, guests: g, guestList: Array.from({ length: g }, () => ({ included: inc[0].id, food: (((cfg.products[q.product] || {}).foods) || [])[0] || ((cfg.foods || []).find(f => (f.products || []).includes(q.product)) || {}).id || (cfg.products[q.product] || {}).food ? 'food' : null, extras: [] })) };
     const r = E.plan(cfg, ix, b); return r.ok ? '' : 'Not enough therapist time for everyone’s included treatment';
   };
   // free start times for a treatments-only booking (the guest picks one)
