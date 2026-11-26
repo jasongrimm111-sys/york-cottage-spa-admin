@@ -183,7 +183,22 @@
   }
 
   // ---------- sign-in ----------
-  async function getVault() { try { const r = await fetch('vault.json?' + Date.now(), { cache: 'no-store' }); return r.ok ? r.json() : null; } catch (e) { return null; } }
+  /* vault.json (v2): { v:2, tokenBox:{iv,ct}, users:[{ id, name, role, staffId, added, box }] }
+     The GitHub key is encrypted once with a random master key (tokenBox). Each user's box holds that master key,
+     encrypted with their own email + password. So the GitHub key can be replaced without breaking anyone's login. */
+  const rawKey = async k => new Uint8Array(await crypto.subtle.exportKey('raw', k));
+  const importK = b => crypto.subtle.importKey('raw', unb64(b), 'AES-GCM', true, ['encrypt', 'decrypt']);
+  async function boxWith(kB64, obj) { const iv = crypto.getRandomValues(new Uint8Array(12)); const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await importK(kB64), te.encode(JSON.stringify(obj)))); return { iv: b64(iv), ct: b64(ct) }; }
+  async function openWith(kB64, box) { return JSON.parse(td.decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(box.iv) }, await importK(kB64), unb64(box.ct)))); }
+  async function newMaster() { return b64(await rawKey(await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']))); }
+  // the published copy (for signing in); when signed in, read it straight from GitHub so it's never out of date
+  async function getVault() {
+    if (S.gh && S.mode === 'live') { const r = await S.gh.get(CONF.adminRepo, 'vault.json').catch(() => null); if (r) return r.data; }
+    for (const u of ['vault.json?' + Date.now(), `https://raw.githubusercontent.com/${CONF.owner}/${CONF.adminRepo}/${CONF.branch}/vault.json?${Date.now()}`]) {
+      try { const r = await fetch(u, { cache: 'no-store' }); if (r.ok) return await r.json(); } catch (e) {}
+    }
+    return null;
+  }
   async function saveVault(v) {
     const gh = S.gh, cur = await gh.get(CONF.adminRepo, 'vault.json');
     await gh.put(CONF.adminRepo, 'vault.json', v, cur && cur.sha, 'Update sign-in vault (encrypted)');
@@ -193,13 +208,14 @@
     const id = await sha('u:' + norm(email)), u = (v.users || []).find(x => x.id === id);
     if (!u) throw new Error('That email or password isn’t right');
     let sec; try { sec = await unlock(email, pass, u.box); } catch (e) { throw new Error('That email or password isn’t right'); }
-    const sess = { token: sec.token, user: { id, email: norm(email), name: u.name, role: u.role, staffId: u.staffId || null } };
+    const token = sec.k ? (await openWith(sec.k, v.tokenBox)).token : sec.token;
+    const sess = { token, k: sec.k || null, user: { id, email: norm(email), name: u.name, role: u.role, staffId: u.staffId || null } };
     if (keep) await remember(sess); else sessionStorage.setItem('yc-admin-sess', JSON.stringify(sess));
     return start('live', sess);
   }
+  const sessNow = async () => { let s = null; try { s = JSON.parse(sessionStorage.getItem('yc-admin-sess') || 'null'); } catch (e) {} return s || await recall(); };
   async function resume() {
-    let sess = null; try { sess = JSON.parse(sessionStorage.getItem('yc-admin-sess') || 'null'); } catch (e) {}
-    sess = sess || await recall();
+    const sess = await sessNow();
     if (sess && sess.demo) return start('demo', sess);
     if (sess && sess.token) { try { return await start('live', sess); } catch (e) { await forget(); sessionStorage.removeItem('yc-admin-sess'); } }
     return null;
@@ -218,39 +234,55 @@
     return S;
   }
   async function signOut() { await forget(); sessionStorage.removeItem('yc-admin-sess'); location.hash = ''; location.reload(); }
-  // first set-up: checks the key reaches the repositories, then writes the encrypted vault
-  async function setup({ name, email, pass, token }) {
+  // a key must reach all three repositories and be allowed to save
+  async function checkToken(token) {
     const gh = GH(token);
     for (const r of [CONF.adminRepo, CONF.dataRepo, CONF.liveRepo]) {
       const info = await gh.repo(r).catch(e => { throw new Error('GitHub refused the key: ' + e.message); });
       if (!info) throw new Error(`The key can’t see the ${r} repository. Give it access to ${CONF.adminRepo}, ${CONF.dataRepo} and ${CONF.liveRepo}.`);
       if (info.permissions && !info.permissions.push) throw new Error(`The key can read ${r} but not save to it. Set Contents to “Read and write”.`);
     }
-    S.gh = gh;
-    const id = await sha('u:' + norm(email));
-    await saveVault({ v: 1, users: [{ id, name, role: 'owner', added: new Date().toISOString(), box: await lock(email, pass, { token }) }] });
-    sessionStorage.setItem('yc-admin-sess', JSON.stringify({ token, user: { id, email: norm(email), name, role: 'owner' } }));
-    return start('live', { token, user: { id, email: norm(email), name, role: 'owner' } });
+    return gh;
   }
-  // admin users (owner only): each user's own email + password unlocks the same key
-  async function users() { const v = S.mode === 'live' ? await getVault() : JSON.parse(localStorage.getItem('yc-admin-demo-users') || 'null') || { users: [{ id: 'demo', name: 'Demo manager', role: 'owner', added: new Date().toISOString() }] }; return v; }
+  // first set-up: the owner's login; the settings start from the York Cottage defaults (no sample bookings)
+  async function setup({ name, email, pass, token }) {
+    S.gh = await checkToken(token); S.mode = 'live';
+    if (await getVault()) throw new Error('This portal is already set up. Sign in instead.');
+    const k = await newMaster(), id = await sha('u:' + norm(email));
+    await saveVault({ v: 2, tokenBox: await boxWith(k, { token }), users: [{ id, name, role: 'owner', added: new Date().toISOString(), box: await lock(email, pass, { k }) }] });
+    const sess = { token, k, user: { id, email: norm(email), name, role: 'owner' } };
+    sessionStorage.setItem('yc-admin-sess', JSON.stringify(sess));
+    const st = await start('live', sess); audit('Portal set up by ' + name); return st;
+  }
+  // admin users (owner): each user's own email + password unlocks the master key
+  async function users() { return S.mode === 'live' ? (await getVault()) || { users: [] } : JSON.parse(localStorage.getItem('yc-admin-demo-users') || 'null') || { users: [{ id: 'demo', name: 'Demo manager', role: 'owner', added: new Date().toISOString() }] }; }
   async function addUser({ name, email, pass, role, staffId }) {
     if (S.mode === 'demo') { const v = await users(); v.users.push({ id: 'd' + Date.now(), name, email: norm(email), role, staffId: staffId || null, added: new Date().toISOString() }); localStorage.setItem('yc-admin-demo-users', JSON.stringify(v)); return; }
-    const v = await getVault(), token = S.gh && JSON.parse(sessionStorage.getItem('yc-admin-sess') || 'null')?.token || (await recall())?.token;
-    if (!token) throw new Error('Sign out and in again first');
+    const v = await getVault(), sess = await sessNow();
+    if (!sess || !sess.k) throw new Error('Sign out and in again, then add the user');
     const id = await sha('u:' + norm(email)); v.users = v.users.filter(u => u.id !== id);
-    v.users.push({ id, name, role, staffId: staffId || null, added: new Date().toISOString(), box: await lock(email, pass, { token }) });
+    v.users.push({ id, name, role, staffId: staffId || null, added: new Date().toISOString(), box: await lock(email, pass, { k: sess.k }) });
     await saveVault(v);
   }
   async function removeUser(id) {
     if (S.mode === 'demo') { const v = await users(); v.users = v.users.filter(u => u.id !== id); localStorage.setItem('yc-admin-demo-users', JSON.stringify(v)); return; }
-    const v = await getVault(); v.users = v.users.filter(u => u.id !== id); await saveVault(v);
+    const v = await getVault();
+    if (!v.users.some(u => u.id !== id && u.role === 'owner')) throw new Error('Keep at least one owner');
+    v.users = v.users.filter(u => u.id !== id); await saveVault(v);
   }
   async function changePassword(cur, next) {
     if (S.mode === 'demo') return;
     const v = await getVault(), u = v.users.find(x => x.id === S.user.id);
     const sec = await unlock(S.user.email, cur, u.box).catch(() => { throw new Error('Your current password isn’t right'); });
     u.box = await lock(S.user.email, next, sec); await saveVault(v);
+  }
+  // swap the GitHub key (e.g. before it expires); every login keeps working
+  async function replaceToken(token) {
+    if (S.mode !== 'live') throw new Error('Only in the live portal');
+    const sess = await sessNow(); if (!sess || !sess.k) throw new Error('Sign out and in again first');
+    const gh = await checkToken(token), v = await getVault();
+    v.tokenBox = await boxWith(sess.k, { token }); S.gh = gh; await saveVault(v);
+    sess.token = token; if (localStorage.getItem('yc-admin-keep')) await remember(sess); else sessionStorage.setItem('yc-admin-sess', JSON.stringify(sess));
   }
 
   // ---------- outbox: emails, payment links and refunds are carried out by the data repo's GitHub Action ----------
@@ -260,6 +292,6 @@
   }
   function audit(what, ref) { S.DB.audit.push({ at: new Date().toISOString(), by: S.user ? S.user.name : 'Admin', what, ref: ref || '' }); }
 
-  root.YCStore = { S, CONF, signIn, resume, startDemo, setup, signOut, users, addUser, removeUser, changePassword, touch, saveNow, publish, queue, audit, getVault, month, sha, loadDemo, DEMO_KEY,
+  root.YCStore = { S, CONF, signIn, resume, startDemo, setup, signOut, users, addUser, removeUser, changePassword, replaceToken, touch, saveNow, publish, queue, audit, getVault, month, sha, loadDemo, DEMO_KEY,
     onChange: f => S.listeners.push(f) };
 })(this);
