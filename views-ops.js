@@ -43,7 +43,7 @@
     const q = b.quote || E.quote(cfg, b), paid = E.paid(b);
     const vals = { first: (b.customer || {}).first || '', name: A.cust(b), ref: b.ref, product: A.pname(b.product), when: A.whenText(b), details: A.details(b), total: gbp(q.total, 2), paid: gbp(paid, 2),
       due: gbp(extra.amount != null ? extra.amount : due(b), 2), balanceLine: q.balance && paid < q.total ? `\nBalance ${gbp(q.total - paid, 2)} due by ${fdy(q.balanceDue)}` : '', payLink: extra.link || A.payURL(b, extra.amount != null ? extra.amount : due(b)),
-      dueDate: q.balanceDue ? fdy(q.balanceDue) : '', reviewLink: cfg.business.googleReviewUrl || cfg.business.website, consultLink: cfg.business.consultUrl || '(we’ll send your consultation form separately)', refundLine: extra.refund ? `\nWe’ve refunded ${gbp(extra.refund, 2)} to your original payment method.` : '', ...extra };
+      dueDate: q.balanceDue ? fdy(q.balanceDue) : '', reviewLink: cfg.business.googleReviewUrl || cfg.business.website, consultLink: A.consultURL ? (A.consultURL(b) || cfg.business.consultUrl || '(please fill it in when you arrive)') : cfg.business.consultUrl || '', refundLine: extra.refund ? `\nWe’ve refunded ${gbp(extra.refund, 2)} to your original payment method.` : '', ...extra };
     const fill = s => s.replace(/\{(\w+)\}/g, (m, k) => vals[k] != null ? vals[k] : m);
     return { to: (b.customer || {}).email, subject: fill(tp.subject), body: fill(tp.body) };
   };
@@ -283,10 +283,10 @@
             ${b.notes ? `<dt>Guest notes</dt><dd>${esc(b.notes)}</dd>` : ''}
             ${b.internal ? `<dt>Staff notes</dt><dd>${esc(b.internal)}</dd>` : ''}
             <dt>Source</dt><dd>${esc(b.source || 'admin')} · made ${ft(b.created)}</dd></dl></div>
-          <div class="card"><div class="card-h"><h3>Guests & treatments</h3><span class="small muted">Tick consultation forms as they come in</span></div>
+          <div class="card"><div class="card-h"><h3>Guests & treatments</h3>${A.consultURL(b) && E.addD(b.date, b.nights || 0) >= today() ? '<button class="btn sm ghost" id="cLink" title="Copy the guest’s online form link">Copy form link</button>' : ''}</div>
             ${(b.guestList || []).map((g, i) => { const its = (b.items || []).filter(x => x.guest === i).sort((a, c) => a.start.localeCompare(c.start));
               return `<div class="gcard"><div class="gcard-h"><span class="av" style="background:var(--sage)">${i + 1}</span><b style="flex:1">${esc(g.name || (i === 0 ? A.cust(b) : 'Guest ' + (i + 1)))}</b>${g.food ? `<span class="badge">${esc((cfg.foods.find(f => f.id === g.food) || {}).name || g.food)}</span>` : ''}
-                ${its.length ? `<label class="chk small"><input type="checkbox" data-consult="${i}" ${g.consult === 'done' ? 'checked' : ''}> Consultation form done</label>` : ''}</div>
+                ${its.length ? `<span class="cf-acts">${g.consult === 'done' ? `<span class="badge ok">Form done</span><button class="btn sm" data-cview="${i}">View form</button>` : `<span class="badge warn">Form needed</span>`}${b.status !== 'cancelled' && E.addD(b.date, b.nights || 0) >= today() ? `<button class="btn sm ${g.consult === 'done' ? 'ghost' : 'pri'}" data-cfill="${i}">${g.consult === 'done' ? 'Fill in again' : 'Fill in on the tablet'}</button>` : ''}<label class="chk small" title="Tick if the guest filled in a paper form"><input type="checkbox" data-consult="${i}" ${g.consult === 'done' ? 'checked' : ''}> Done on paper</label></span>` : ''}</div>
                 ${its.map(it => `<div class="li" style="padding:6px 0"><span class="when">${it.start}</span><span class="grow"><b>${esc(A.tname(it.tid))}</b><span class="small muted">${it.min} min · ${it.staff ? `<span class="dot" style="background:${A.scol(it.staff)}"></span> ${esc(A.sname(it.staff))}` : '<span class="badge bad">No therapist</span>'} · ${esc((cfg.treatRooms.find(r => r.id === it.troom) || {}).name || '')}</span></span>${!/-inc/.test(it.key) && E.tr(cfg, it.tid) ? `<span class="tnum">${gbp(E.tr(cfg, it.tid).price)}</span>` : '<span class="small muted">included</span>'}</div>`).join('') || '<p class="small muted">No treatments</p>'}</div>`; }).join('')}
           </div>
           <div class="card"><div class="card-h"><h3>Payments</h3><span>${paid ? gbp(paid, 2) + ' paid' : 'Nothing paid yet'}</span></div>
@@ -296,7 +296,7 @@
           <div class="card"><div class="card-h"><h3>History</h3></div><div class="list">${(b.history || []).slice().reverse().map(x => `<div class="li small"><span class="grow">${esc(x.what)}</span><span class="muted">${ft(x.at)} · ${esc(x.by || '')}</span></div>`).join('')}</div></div>
         </div>
         <div>
-          <div class="card be-sum"><div class="card-h"><h3>Price</h3></div><div class="lines">${q.lines.map(l => `<div><span>${esc(l.label)}</span><span class="tnum">${gbp(l.amount, 2)}</span></div>`).join('')}</div>
+          <div class="card be-sum static"><div class="card-h"><h3>Price</h3></div><div class="lines">${q.lines.map(l => `<div><span>${esc(l.label)}</span><span class="tnum">${gbp(l.amount, 2)}</span></div>`).join('')}</div>
             <div class="tot"><span>Total</span><b>${gbp(q.total, 2)}</b></div>
             <div class="lines" style="margin-top:6px"><div><span>Paid</span><span class="tnum">${gbp(paid, 2)}</span></div>${b.status !== 'cancelled' ? `<div><b>${owe < 0 ? 'Refund due' : 'Still to pay'}</b><b class="tnum">${gbp(Math.abs(owe), 2)}</b></div>` : ''}
               ${q.balance && q.balanceDue && owe > 0 ? `<div class="small muted"><span>${q.deposit < q.total ? `Deposit ${gbp(q.deposit)} · balance due ${fdy(q.balanceDue)}` : ''}</span></div>` : ''}${q.damage ? `<div class="small muted"><span>£${q.damage} damage deposit to pre-authorise before arrival</span></div>` : ''}</div>
@@ -311,6 +311,9 @@
       </div>`;
     return { html, wire: el => {
       const save = what => { b.updated = new Date().toISOString(); (b.history = b.history || []).push({ at: b.updated, by: St.S.user.name, what }); A.change('booking', b, what + ' · ' + b.ref); A.refresh(); };
+      $$('[data-cfill]', el).forEach(x => x.onclick = () => A.fillConsult(b, +x.dataset.cfill));
+      $$('[data-cview]', el).forEach(x => x.onclick = () => A.viewConsults(b, +x.dataset.cview));
+      const cl = $('#cLink', el); if (cl) cl.onclick = () => { navigator.clipboard.writeText(A.consultURL(b)); A.toast('Link copied'); };
       $$('[data-consult]', el).forEach(c => c.onchange = () => { b.guestList[+c.dataset.consult].consult = c.checked ? 'done' : 'needed'; save(`Consultation form ${c.checked ? 'done' : 'not done'} for guest ${+c.dataset.consult + 1}`); });
       A.wireArrive(el);
       const ns = $('#noShowT', el); if (ns) ns.onchange = () => { b.noShow = ns.checked; save(ns.checked ? 'Marked as a no-show' : 'No-show removed'); };

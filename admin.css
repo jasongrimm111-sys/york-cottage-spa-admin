@@ -356,3 +356,7 @@ a.btn.pri{color:#fff}
 .vh{align-items:center}
 .vh > div:first-child{min-width:0}
 .card > .inp + select.inp,.card > select.inp{height:38px}
+
+.be-sum.static{position:static}
+.cf-acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end}
+.gcard-h{flex-wrap:wrap}

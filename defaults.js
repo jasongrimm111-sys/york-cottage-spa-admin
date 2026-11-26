@@ -99,7 +99,9 @@
       { id: 'lunch', name: 'Spa lunch service', start: '13:00', end: '14:00', products: ['day', 'private'], staff: 1, active: true, byDay: {} },
       { id: 'grazing', name: 'Grazing board service', start: '18:00', end: '18:30', products: ['break', 'group'], staff: 1, active: true, byDay: { 0: { start: '16:30', end: '17:00' } } }
     ],
-    serviceAssign: {},           // pinned people: { '2026-12-01': { lunch: ['s2'] } }
+    serviceAssign: {},
+    // Consultation form: questions (null = the standard set), online receiving address, how long to keep forms, public key
+    consult: { questions: null, endpoint: '', retentionMonths: 24, publicKey: null },           // pinned people: { '2026-12-01': { lunch: ['s2'] } }
     foods: [
       { id: 'tea', name: 'Afternoon tea', desc: 'Sweet & savoury treats', products: ['day', 'private', 'group'], vegan: true, active: true },
       { id: 'grazing', name: 'Sweet & savoury grazing board', desc: 'Meats, cheese & sweet treats · vegan available', products: ['day', 'private', 'group', 'break'], vegan: true, active: true }

@@ -169,6 +169,7 @@
     c.staff = c.staff.map(s => ({ id: s.id, active: s.active, treatments: s.treatments, duties: s.duties, pattern: s.pattern, shifts: s.shifts, maxHands: s.maxHands, breakRules: s.breakRules, off: (s.off || []).map(o => ({ from: o.from, to: o.to, start: o.start, end: o.end })) }));
     c.promos = await Promise.all((c.promos || []).filter(p => p.active !== false).map(async p => { const o = { ...p, hash: await sha('yc:' + String(p.code).trim().toUpperCase()) }; delete o.code; delete o.used; if (p.banner && p.banner.on) o.show = p.code; return o; }));
     delete c.emails;
+    if (c.consult) c.consult = { questions: c.consult.questions, endpoint: c.consult.endpoint, publicKey: c.consult.publicKey };
     c.business = { ...c.business, vatNumber: undefined };
     return c;
   }
@@ -287,6 +288,36 @@
     sess.token = token; if (localStorage.getItem('yc-admin-keep')) await remember(sess); else sessionStorage.setItem('yc-admin-sess', JSON.stringify(sess));
   }
 
+  // ---------- consultation forms (encrypted end to end) ----------
+  // the private key lives inside the sign-in vault, locked with the master key; demo: this browser only
+  async function consultKey() {
+    if (S.mode === 'demo') { try { return JSON.parse(localStorage.getItem('yc-admin-demo-ckey') || 'null'); } catch (e) { return null; } }
+    const v = await getVault(), sess = await sessNow(); if (!v || !v.consultBox || !sess || !sess.k) return null;
+    return (await openWith(sess.k, v.consultBox)).privateJwk;
+  }
+  async function makeConsultKey() {
+    const keys = await root.YCConsult.genKeys();
+    if (S.mode === 'demo') localStorage.setItem('yc-admin-demo-ckey', JSON.stringify(keys.privateJwk));
+    else { const v = await getVault(), sess = await sessNow(); if (!sess || !sess.k) throw new Error('Sign out and in again first'); v.consultBox = await boxWith(sess.k, { privateJwk: keys.privateJwk }); await saveVault(v); }
+    return keys.publicJwk;
+  }
+  const cpath = (b, g) => `consult/${month(b)}/${b.ref}-g${g}-${Date.now().toString(36)}.json`;
+  async function saveConsult(b, g, sealed, via) {
+    const rec = { ref: b.ref, bookingId: b.id, g, via, at: new Date().toISOString(), by: S.user.name, sealed };
+    if (S.mode === 'demo') { (S.DB.consults = S.DB.consults || []).push({ path: cpath(b, g), ...rec }); localStorage.setItem(DEMO_KEY, JSON.stringify(S.DB)); return; }
+    await S.gh.put(CONF.dataRepo, cpath(b, g), rec, null, `Consultation form for ${b.ref} (encrypted)`);
+  }
+  // forms for a booking: filed ones for its month + any still in the online inbox
+  async function listConsults(b) {
+    if (S.mode === 'demo') return (S.DB.consults || []).filter(c => c.ref === b.ref);
+    const out = [];
+    for (const dir of ['consult/' + month(b), 'consult/inbox']) {
+      const files = (await S.gh.list(CONF.dataRepo, dir).catch(() => [])).filter(f => f.name.startsWith(b.ref + '-'));
+      for (const f of files) { const r = await S.gh.get(CONF.dataRepo, dir + '/' + f.name).catch(() => null); if (r && (!r.data.t || r.data.t === b.consultToken || dir !== 'consult/inbox')) out.push({ path: dir + '/' + f.name, ...r.data }); }
+    }
+    return out.sort((a, c) => (a.at || '').localeCompare(c.at || ''));
+  }
+
   // ---------- outbox: emails, payment links and refunds are carried out by the data repo's GitHub Action ----------
   function queue(job) {
     const o = { id: 'o' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at: new Date().toISOString(), by: S.user.name, status: S.mode === 'demo' ? 'demo' : 'queued', ...job };
@@ -294,6 +325,6 @@
   }
   function audit(what, ref) { if (!what) return; S.DB.audit.push({ at: new Date().toISOString(), by: S.user ? S.user.name : 'Admin', what, ref: ref || '' }); }
 
-  root.YCStore = { S, CONF, signIn, resume, startDemo, setup, signOut, users, addUser, removeUser, changePassword, replaceToken, touch, saveNow, publish, queue, audit, getVault, month, sha, loadDemo, DEMO_KEY,
+  root.YCStore = { S, CONF, signIn, resume, startDemo, setup, signOut, users, addUser, removeUser, changePassword, replaceToken, consultKey, makeConsultKey, saveConsult, listConsults, touch, saveNow, publish, queue, audit, getVault, month, sha, loadDemo, DEMO_KEY,
     onChange: f => S.listeners.push(f) };
 })(this);
