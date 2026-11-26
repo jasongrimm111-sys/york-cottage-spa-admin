@@ -605,7 +605,8 @@
     let keep = rule.keepDeposit ? Math.min(paid, q.deposit < q.total ? q.deposit : q.total / 2) : q.total * (rule.keepPct || 0) / 100;
     keep = Math.min(paid, Math.round(keep * 100) / 100);
     const canMove = p.cancel && p.cancel.moveDays != null && days >= p.cancel.moveDays;
-    const text = rule.keepDeposit ? `${days} days before: the deposit is kept` : rule.keepPct === 0 ? `${days} days before: full refund` : rule.keepPct === 100 ? `${days} days before: no refund under the terms` : `${days} days before: ${rule.keepPct}% kept`;
+    const when = days < 0 ? 'The visit has passed' : days === 0 ? 'Cancelling on the day' : `Cancelling ${days} day${days === 1 ? '' : 's'} before`;
+    const text = days < 0 ? when : rule.keepDeposit ? `${when}: the deposit is kept` : rule.keepPct === 0 ? `${when}: full refund` : rule.keepPct === 100 ? `${when}: no refund under the terms` : `${when}: ${rule.keepPct}% kept`;
     return { days, keep, refund: Math.max(0, Math.round((paid - keep) * 100) / 100), canMove, text: text + (canMove ? ' · the guest may move their date instead' : '') };
   };
 

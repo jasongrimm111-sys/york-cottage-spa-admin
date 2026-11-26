@@ -181,7 +181,7 @@
       const off = (st.off || []).find(o => o.from <= d && d <= (o.to || o.from) && !o.start), over = st.shifts && d in st.shifts;
       if (!day) return `<td class="off" data-cell="${st.id}|${d}">${off ? `<span class="badge">${esc(off.kind)}</span>` : 'Off'}${list.length ? '<br><span class="badge bad">Has bookings!</span>' : ''}</td>`;
       const cap = st.maxHands || cfg.rules.maxHandsOn;
-      return `<td data-cell="${st.id}|${d}" style="cursor:pointer"><span class="sh">${day.spans.map(s => E.HM(s[0]) + '–' + E.HM(s[1])).join('<br>')}</span>${over ? ' <span class="badge info" title="Changed for this day">changed</span>' : ''}
+      return `<td data-cell="${st.id}|${d}" class="${d < t ? 'past' : ''}" style="cursor:pointer" title="${d < t ? 'This day has passed' : 'Change hours for this day'}"><span class="sh">${day.spans.map(s => E.HM(s[0]) + '–' + E.HM(s[1])).join('<br>')}</span>${over ? ' <span class="badge info" title="Changed for this day">changed</span>' : ''}
         <span class="ld"><i style="width:${Math.min(100, hands / cap * 100)}%;background:${hands > cap * .9 ? 'var(--warn)' : st.colour}"></i></span><span class="small muted">${hrs(hands)} treatments${duty.length ? ' · food service' : ''}</span></td>`;
     };
     return { html: `<div class="vh"><div><div class="eyebrow">Team</div><h1>Rota</h1><p>Week of ${fdy(mon)}. ${me ? '' : 'Click a day to change someone’s hours just for that day.'}</p></div>
@@ -200,6 +200,7 @@
   };
   // change one person's hours for one date (or give them the day off)
   A.dayShift = async (st, d) => {
+    if (d < today()) { A.toast('That day has passed. Hours can only be changed for today and later.'); return; }
     const cfg = A.cfg(), cur = st.shifts && d in st.shifts ? st.shifts[d] : (st.pattern || {})[E.dow(d)];
     const tmp = { pattern: { [E.dow(d)]: cur } };
     const r = await A.modal({ title: `${esc(st.name)} · ${fdy(d)}`, size: 'wide', ok: 'Save this day', body: `<div class="seg" id="mode"><button type="button" data-m="work" class="${cur && E.shiftsOf(cur).length ? 'on' : ''}">Working</button><button type="button" data-m="off" class="${!cur || !E.shiftsOf(cur).length ? 'on' : ''}">Day off</button>${st.shifts && d in st.shifts ? '<button type="button" data-m="reset">Back to their usual week</button>' : ''}</div>
