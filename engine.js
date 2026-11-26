@@ -615,6 +615,7 @@
   // how many minutes a same-kind extra adds to an included treatment that is already `have` minutes long: the whole
   // treatment is capped at rules.combineMax (55 min, user 2026-11-27), and the extra is charged only for what it adds
   E.combineMax = cfg => +((cfg.rules || {}).combineMax) || 55;
+  E.extendPrice = cfg => { const v = (cfg.rules || {}).extendPrice; return v === 0 || v ? +v : 55; };
   E.extendBy = (cfg, have, tr) => Math.max(0, Math.min((tr && tr.min) || 0, E.combineMax(cfg) - have));
   // what each guest's extras cost, with the same-kind ones prorated to the minutes they add: [{ guest, tid, price, full, mins }]
   E.extraCharges = (cfg, b) => {
@@ -622,7 +623,7 @@
     (b.guestList || []).forEach((g, i) => {
       const incTr = inc.length ? (inc.find(t => t.id === g.included) || inc[0]) : null; let have = incTr ? bl(incTr) : 0;
       (g.extras || []).forEach(tid => { const t = E.tr(cfg, tid); if (!t) return;
-        if (comb && incTr && E.includedPick(cfg, b.product) !== 'all' && t.cat === incTr.cat) { const add = out.some(x => x.guest === i && x.extends) ? 0 : E.extendBy(cfg, have, t); have += add; out.push({ guest: i, tid, mins: add, full: t.price, price: add >= t.min ? t.price : Math.round(t.price * add / t.min / 5) * 5, extends: true }); }
+        if (comb && incTr && E.includedPick(cfg, b.product) !== 'all' && t.cat === incTr.cat) { const add = out.some(x => x.guest === i && x.extends) ? 0 : E.extendBy(cfg, have, t); have += add; out.push({ guest: i, tid, mins: add, full: t.price, price: add >= t.min ? t.price : E.extendPrice(cfg), extends: true }); }
         else out.push({ guest: i, tid, mins: t.min, full: t.price, price: t.price });
       });
     });
