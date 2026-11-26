@@ -243,16 +243,17 @@
       <div class="card"><div class="list">${timeline.map(x => x.kind === 'treat' ? `<div class="li" style="align-items:flex-start"><span class="when">${x.i.start}</span><span class="dot" style="background:${PCOL[x.i.b.product]};margin-top:6px"></span>
           <span class="grow"><b>${esc(A.tname(x.i.tid))} · ${x.i.min} min</b><span class="small muted" style="display:block">${esc((x.i.b.guestList[x.i.guest] || {}).name || (x.i.guest === 0 ? A.cust(x.i.b) : 'Guest ' + (x.i.guest + 1) + ' of ' + A.cust(x.i.b)))} · ${A.pname(x.i.b.product)} · ${esc((cfg.treatRooms.find(r => r.id === x.i.troom) || {}).name || '')} · ends ${E.HM(x.e)}${x.i.buffer ? `, room ready ${E.HM(x.e + x.i.buffer)}` : ''}</span>
           ${(x.i.b.tags || []).length ? (x.i.b.tags || []).map(t => `<span class="badge ${/Pregnant|Access/.test(t) ? 'warn' : ''}">${esc(t)}</span>`).join(' ') + ' ' : ''}${(x.i.b.guestList[x.i.guest] || {}).consult === 'done' ? '<span class="badge ok">Consultation done</span>' : '<span class="badge warn">Consultation form needed</span>'}${x.i.b.notes ? `<span class="small" style="display:block;margin-top:4px">Note: ${esc(x.i.b.notes)}</span>` : ''}</span>
-          ${canEdit ? `<button class="btn sm" data-move="${x.i.b.id}|${x.i.key}">Move or hand over</button>` : ''}</div>`
+          ${canEdit && (x.i.date || x.i.b.date) >= today() ? `<button class="btn sm" data-move="${x.i.b.id}|${x.i.key}">Move or hand over</button>` : ''}</div>`
         : x.kind === 'duty' ? `<div class="li"><span class="when">${E.HM(x.s)}</span><span class="dot" style="background:var(--clay)"></span><span class="grow"><b>${esc((E.service(cfg, x.sv, d) || {}).name || 'Food service')}</b><span class="small muted">until ${E.HM(x.e)} · ${((ix.food[d] || {})[x.sv]) || 0} guests</span></span></div>`
         : `<div class="li"><span class="when">${E.HM(x.s)}</span><span class="dot" style="background:var(--stone)"></span><span class="grow"><b>${x.label}</b><span class="small muted">until ${E.HM(x.e)}${x.fixed ? '' : ' (suggested: a free gap)'}</span></span></div>`).join('') || '<div class="empty"><b>Nothing booked</b></div>'}</div></div>
-      <p class="small muted" style="margin-top:10px">You can move a treatment to any free time inside the guest’s visit, or hand it to a colleague who’s free. The guest is emailed the new time.</p>`,
+      <p class="small muted" style="margin-top:10px">${d >= today() ? 'You can move a treatment to any free time inside the guest’s visit, or hand it to a colleague who’s free. The guest is emailed the new time.' : 'This day has passed, so its treatments can’t be moved.'}</p>`,
       wire: el => {
         const w = $('#who', el); if (w) w.onchange = () => location.hash = `#/staffday/${w.value}/${d}`;
         $$('[data-move]', el).forEach(b => b.onclick = () => { const [bid, key] = b.dataset.move.split('|'); A.moveItem(DB.bookings.find(x => x.id === bid), key); });
       } };
   };
   A.moveItem = async (b, key) => {
+    if ((b.items.find(i => i.key === key) || {}).date < today()) { A.toast('That treatment has already happened, so it can’t be moved'); return; }
     const cfg = A.cfg(), it = b.items.find(i => i.key === key), ix = E.index(cfg, A.DB().bookings, b.id), step = cfg.rules.slotStep || 15;
     const wins = E.windows(cfg, b);
     const freeTimes = (date, staff) => { const w = wins.find(x => x[0] === date); if (!w) return []; const out = []; for (let m = E.T(w[1]); m + it.min <= E.T(w[2]); m += step) { const r = cfg.treatRooms.find(r => !E.itemCheck(cfg, ix, b, it, { date, start: E.HM(m), staff, troom: r.id })); if (r) out.push([E.HM(m), r.id]); } return out; };

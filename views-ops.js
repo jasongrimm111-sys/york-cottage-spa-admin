@@ -84,7 +84,7 @@
     const next7 = Array.from({ length: 7 }, (_, i) => E.addD(t, i)).map(d => ({ d, n: arrivals(d).reduce((a, b) => a + b.guests, 0) + inHouse(d).filter(b => b.date !== d).reduce((a, b) => a + b.guests, 0) }));
     const mx = Math.max(1, ...next7.map(x => x.n));
     const closedToday = E.closures(cfg, t, ['all', 'spa', 'rooms', 'treatments']);
-    const row = b => `<a class="li" href="#/booking/${b.id}"><span class="when">${arriveTime(b) || '—'}</span>${A.prodDot(b.product)}<span class="grow"><b>${esc(A.cust(b))} · ${b.guests} guest${b.guests > 1 ? 's' : ''}</b><span class="small muted">${A.pname(b.product)}${b.rooms && b.rooms.length ? ' · ' + b.rooms.map(r => (cfg.rooms.find(x => x.id === r) || {}).name).join(', ') : ''}${b.notes ? ' · ' + esc(b.notes.slice(0, 60)) : ''}</span></span>${consultDue(b) ? `<span class="badge warn" title="Consultation forms still to complete">${consultDue(b)} form${consultDue(b) > 1 ? 's' : ''}</span>` : ''}${A.statusBadge(b)}<button class="btn sm ${b.arrived ? 'dark' : ''}" data-arr="${b.id}">${b.arrived ? '✓ Arrived' : 'Arrived'}</button></a>`;
+    const row = b => `<a class="li" href="#/booking/${b.id}"><span class="when">${arriveTime(b) || '—'}</span>${A.prodDot(b.product)}<span class="grow"><b>${esc(A.cust(b))} · ${b.guests} guest${b.guests > 1 ? 's' : ''}</b><span class="small muted">${A.pname(b.product)}${b.rooms && b.rooms.length ? ' · ' + b.rooms.map(r => (cfg.rooms.find(x => x.id === r) || {}).name).join(', ') : ''}${b.notes ? ' · ' + esc(b.notes.slice(0, 60)) : ''}</span></span>${consultDue(b) ? `<span class="badge warn" title="Consultation forms still to complete">${consultDue(b)} form${consultDue(b) > 1 ? 's' : ''}</span>` : ''}${A.statusBadge(b)}${A.arrivalCell(b, t)}</a>`;
     return { html: `<div class="vh"><div><div class="eyebrow">${rel}</div><h1>${isToday ? 'Today' : fdy(t)}</h1>${isToday ? `<p>${fdy(t)}</p>` : ''}</div><div class="acts"><a class="btn" href="#/today/${E.addD(t, -1)}" title="Previous day">${A.ic.left}</a><input type="date" class="inp" id="todayPick" value="${t}" style="width:auto" aria-label="Choose a day"><a class="btn" href="#/today/${E.addD(t, 1)}" title="Next day">${A.ic.right}</a>${isToday ? '' : `<a class="btn" href="#/today">Back to today</a>`}<a class="btn" href="#/day/${t}">${A.ic.cal} Day view</a><a class="btn" href="#/day/${t}/print">${A.ic.print} Run sheet</a></div></div>
       ${closedToday.length ? `<div class="note warn" style="margin-bottom:14px">Closed ${isToday ? 'today' : 'this day'}: ${closedToday.map(c => esc(c.reason || 'closure')).join(', ')}</div>` : ''}
       <div class="grid g4" style="margin-bottom:14px">
@@ -101,7 +101,7 @@
           <div class="card"><div class="card-h"><h3>Treatments</h3><a class="btn sm" href="#/day/${t}">Timeline</a></div>
             ${staffToday.length ? staffToday.map(s => { const mine = items.filter(i => i.staff === s.id).sort((a, b) => a.start.localeCompare(b.start)), d = E.staffDay(cfg, s, t);
               return `<div style="margin-bottom:12px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span class="av" style="background:${s.colour}">${A.initials(s.name)}</span><b>${esc(s.name)}</b><span class="muted small">${d.spans.map(x => E.HM(x[0]) + '–' + E.HM(x[1])).join(', ')} · ${mine.length} treatment${mine.length === 1 ? '' : 's'}</span><a class="btn sm ghost" style="margin-left:auto" href="#/staffday/${s.id}/${t}">Their day</a></div>
-                ${mine.length ? mine.map(i => `<a class="li" href="#/booking/${i.b.id}" style="padding:6px 0 6px 38px"><span class="when">${i.start}</span><span class="grow"><b>${esc(A.tname(i.tid))}</b><span class="small muted">${esc((i.b.guestList[i.guest] || {}).name || A.cust(i.b))} · ${i.min} min · ${(cfg.treatRooms.find(r => r.id === i.troom) || {}).name || ''}</span></span><button class="btn sm" data-mv="${i.b.id}|${i.key}" title="Move to another time or hand to another therapist">Move or hand over</button></a>`).join('') : '<p class="muted small" style="padding-left:38px">Nothing booked yet</p>'}</div>`; }).join('') : `<div class="empty"><b>No therapists working ${isToday ? 'today' : 'that day'}</b></div>`}
+                ${mine.length ? mine.map(i => `<a class="li" href="#/booking/${i.b.id}" style="padding:6px 0 6px 38px"><span class="when">${i.start}</span><span class="grow"><b>${esc(A.tname(i.tid))}</b><span class="small muted">${esc((i.b.guestList[i.guest] || {}).name || A.cust(i.b))} · ${i.min} min · ${(cfg.treatRooms.find(r => r.id === i.troom) || {}).name || ''}</span></span>${(i.date || i.b.date) >= today() ? `<button class="btn sm" data-mv="${i.b.id}|${i.key}" title="Move to another time or hand to another therapist">Move or hand over</button>` : ''}</a>`).join('') : '<p class="muted small" style="padding-left:38px">Nothing booked yet</p>'}</div>`; }).join('') : `<div class="empty"><b>No therapists working ${isToday ? 'today' : 'that day'}</b></div>`}
           </div>
         </div>
         <div>
@@ -114,7 +114,7 @@
             ${next7.map(x => `<a class="hbar" href="#/day/${x.d}" style="text-decoration:none"><span>${fd(x.d)}</span><span class="bar"><i style="width:${x.n / mx * 100}%"></i></span><b>${x.n}</b></a>`).join('')}<p class="small muted">Guests visiting or staying each day</p></div>
         </div>
       </div>`,
-      wire: el => { A.wireMove(el); const tp = $('#todayPick', el); if (tp) tp.onchange = () => { if (tp.value) location.hash = '#/today/' + tp.value; }; $$('[data-arr]', el).forEach(btn => btn.onclick = e => { e.preventDefault(); const b = findB(btn.dataset.arr); b.arrived = !b.arrived; A.change('booking', b, (b.arrived ? 'Marked arrived: ' : 'Unmarked arrival: ') + b.ref); A.refresh(); }); } };
+      wire: el => { A.wireMove(el); const tp = $('#todayPick', el); if (tp) tp.onchange = () => { if (tp.value) location.hash = '#/today/' + tp.value; }; A.wireArrive(el); } };
   };
 
   // ============ CALENDAR (month) ============
@@ -191,7 +191,7 @@
         if (last < t1) o += `<div class="tl-off" style="top:${y(last)}px;height:${(t1 - last) * PX}px"></div>`;
         c.day.breaks.forEach(b => o += `<div class="tl-brk" style="top:${y(b[0])}px;height:${(b[1] - b[0]) * PX}px">Break</div>`);
       } else if (c.s.id) o += `<div class="tl-off" style="top:0;height:${H}px"></div>`;
-      c.items.forEach(i => { const s = E.T(i.start); o += `<a class="tl-ev" href="#/booking/${i.b.id}" style="top:${y(s)}px;height:${(i.min + (i.buffer || 0)) * PX - 2}px;${colEv(i.b.product)}" title="${esc(A.tname(i.tid))} · ${esc(A.cust(i.b))}"><b>${i.start} ${esc(A.tname(i.tid))}</b>${esc((i.b.guestList[i.guest] || {}).name || A.cust(i.b))} · ${i.min} min<span class="buf" style="height:${(i.buffer || 0) * PX}px"></span><button class="tl-mv" data-mv="${i.b.id}|${i.key}" title="Move or hand over" aria-label="Move or hand over">⇄</button></a>`; });
+      c.items.forEach(i => { const s = E.T(i.start); o += `<a class="tl-ev" href="#/booking/${i.b.id}" style="top:${y(s)}px;height:${(i.min + (i.buffer || 0)) * PX - 2}px;${colEv(i.b.product)}" title="${esc(A.tname(i.tid))} · ${esc(A.cust(i.b))}"><b>${i.start} ${esc(A.tname(i.tid))}</b>${esc((i.b.guestList[i.guest] || {}).name || A.cust(i.b))} · ${i.min} min<span class="buf" style="height:${(i.buffer || 0) * PX}px"></span>${(i.date || i.b.date) >= today() ? `<button class="tl-mv" data-mv="${i.b.id}|${i.key}" title="Move or hand over" aria-label="Move or hand over">⇄</button>` : ''}</a>`; });
       return o;
     };
     const tl = cols.length ? `<div class="tl"><div class="tl-grid" style="grid-template-columns:56px repeat(${cols.length},minmax(150px,1fr))">
@@ -310,7 +310,7 @@
           <div class="card"><div class="card-h"><h3>Guest</h3>${b.customer && b.customer.email ? `<a class="btn sm ghost" href="#/customer/${encodeURIComponent(b.customer.email.toLowerCase())}">Profile</a>` : ''}</div>
             <dl class="kv" style="grid-template-columns:70px 1fr"><dt>Name</dt><dd>${esc(A.cust(b))}</dd><dt>Email</dt><dd>${b.customer && b.customer.email ? `<a href="mailto:${esc(b.customer.email)}">${esc(b.customer.email)}</a>` : '—'}</dd><dt>Phone</dt><dd>${b.customer && b.customer.phone ? `<a href="tel:${esc(b.customer.phone)}">${esc(b.customer.phone)}</a>` : '—'}</dd></dl>
             ${other.length ? `<p class="small muted" style="margin-top:8px">${other.length} other booking${other.length > 1 ? 's' : ''} with this guest</p>` : ''}</div>
-          ${b.status !== 'cancelled' ? `<div class="card"><label class="sw"><input type="checkbox" id="arrivedT" ${b.arrived ? 'checked' : ''}> Arrived / checked in</label>
+          ${b.status !== 'cancelled' ? `<div class="card"><div class="fld"><span>Arrival</span><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${A.arrivalCell(b)}</div></div>
             ${b.date <= today() && !b.arrived ? `<label class="sw" style="margin-top:10px"><input type="checkbox" id="noShowT" ${b.noShow ? 'checked' : ''}> Didn’t turn up (no-show)</label><p class="small muted" style="margin-top:4px">Keeps the payment under the terms and shows in the reports.</p>` : ''}
             ${q.damage ? `<div class="hr"></div><div class="fld"><span>£${q.damage} damage deposit</span><select class="inp" id="dmgS"><option value="">Not taken yet</option><option value="held" ${(b.damage || {}).status === 'held' ? 'selected' : ''}>Pre-authorised on their card</option><option value="released" ${(b.damage || {}).status === 'released' ? 'selected' : ''}>Released after check-out</option><option value="charged" ${(b.damage || {}).status === 'charged' ? 'selected' : ''}>Charged (damage)</option></select><small>Release within 48 hours of check-out.</small></div>` : ''}</div>` : ''}
         </div>
@@ -318,7 +318,7 @@
     return { html, wire: el => {
       const save = what => { b.updated = new Date().toISOString(); (b.history = b.history || []).push({ at: b.updated, by: St.S.user.name, what }); A.change('booking', b, what + ' · ' + b.ref); A.refresh(); };
       $$('[data-consult]', el).forEach(c => c.onchange = () => { b.guestList[+c.dataset.consult].consult = c.checked ? 'done' : 'needed'; save(`Consultation form ${c.checked ? 'done' : 'not done'} for guest ${+c.dataset.consult + 1}`); });
-      const at = $('#arrivedT', el); if (at) at.onchange = () => { b.arrived = at.checked; if (at.checked) b.noShow = false; save(at.checked ? 'Marked arrived' : 'Arrival unmarked'); };
+      A.wireArrive(el);
       const ns = $('#noShowT', el); if (ns) ns.onchange = () => { b.noShow = ns.checked; save(ns.checked ? 'Marked as a no-show' : 'No-show removed'); };
       const dm = $('#dmgS', el); if (dm) dm.onchange = () => { b.damage = { status: dm.value, at: new Date().toISOString() }; save('Damage deposit: ' + (dm.selectedOptions[0].textContent)); };
       const tp = $('#takePay', el); if (tp) tp.onclick = () => A.takePayment(b);
@@ -335,6 +335,15 @@
     } };
   };
 
+  // arrival: a clear status, and one button that says what it does
+  A.arrivalCell = (b, day) => {
+    const t = today();
+    if (b.noShow) return '<span class="arr-st bad">No-show</span>';
+    if (b.arrived) return `<span class="arr-st ok">✓ Arrived${b.arrivedAt ? ' ' + new Date(b.arrivedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''}</span>${(day || b.date) >= E.addD(t, -1) ? `<button class="btn sm ghost" data-arr="${b.id}" title="Mark as not arrived">Undo</button>` : ''}`;
+    if (b.date > t) return '<span class="arr-st">Due ' + fd(b.date) + '</span>';
+    return `<span class="arr-st wait">Not arrived yet</span><button class="btn sm pri" data-arr="${b.id}">Mark as arrived</button>`;
+  };
+  A.wireArrive = el => $$('[data-arr]', el).forEach(btn => btn.onclick = e => { e.preventDefault(); e.stopPropagation(); const b = findB(btn.dataset.arr); b.arrived = !b.arrived; b.arrivedAt = b.arrived ? new Date().toISOString() : null; if (b.arrived) b.noShow = false; (b.history = b.history || []).push({ at: new Date().toISOString(), by: St.S.user.name, what: b.arrived ? 'Marked as arrived' : 'Arrival undone' }); A.change('booking', b, (b.arrived ? 'Arrived: ' : 'Arrival undone: ') + b.ref); A.refresh(); });
   // move / hand over buttons on Today, the day timeline and day sheets
   A.wireMove = el => $$('[data-mv]', el).forEach(btn => btn.onclick = e => { e.preventDefault(); e.stopPropagation(); const [bid, key] = btn.dataset.mv.split('|'); A.moveItem(A.DB().bookings.find(x => x.id === bid), key); });
 
