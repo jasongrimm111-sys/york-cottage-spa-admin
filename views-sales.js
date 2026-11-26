@@ -190,6 +190,9 @@
     if (tab === 'roles') { const x = A.rolesSettings(); body = x.html; wire = x.wire; }
     if (tab === 'consult') { const x = A.consultSettings(); body = x.html; wire = x.wire; }
     if (tab === 'log') { const list = A.DB().audit.slice().reverse().slice(0, 400); body = `<div class="card flush"><table class="tbl"><thead><tr><th>When</th><th>Who</th><th>What</th></tr></thead><tbody>${list.map(a => `<tr><td class="small">${ft(a.at)}</td><td>${esc(a.by)}</td><td>${esc(a.what)}</td></tr>`).join('')}</tbody></table></div>`; }
-    return { html: `<div class="vh"><div><div class="eyebrow">Set-up</div><h1>Settings</h1></div></div>${T}${body}`, wire };
+    // a list down the side instead of a row of tabs that scrolls sideways (user, 2026-11-26); on phones the list wraps
+    const GROUPS = [['Your spa', ['business', 'rules', 'breaks', 'consult']], ['People', ['users', 'roles']], ['System', ['connect', 'data', 'log']]];
+    const side = `<nav class="set-nav" aria-label="Settings">${GROUPS.map(([h, ks]) => { const its = allTabs.filter(([k]) => ks.includes(k)); return its.length ? `<div class="set-h">${h}</div>` + its.map(([k, t]) => `<a href="#/settings/${k}" class="${k === tab ? 'on' : ''}">${t}</a>`).join('') : ''; }).join('')}</nav>`;
+    return { html: `<div class="vh"><div><div class="eyebrow">Set-up</div><h1>Settings</h1></div></div><div class="set-wrap">${side}<div class="set-body">${body}</div></div>`, wire };
   };
 })();

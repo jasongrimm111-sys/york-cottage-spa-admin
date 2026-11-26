@@ -41,19 +41,19 @@
 
   // ---------- shared toolbar (mail-app style) ----------
   function toolbar(mode, d, title) {
-    const step = mode === 'day' ? 1 : mode === 'week' ? 7 : 0;
+    const step = mode === 'day' ? 1 : mode === '3day' ? 3 : mode === 'week' ? 7 : 0;
     const prev = mode === 'month' ? ymOf(E.addD(d.slice(0, 8) + '01', -1)) + '-01' : E.addD(d, -step);
     const next = mode === 'month' ? ymOf(E.addD(d.slice(0, 8) + '01', 32)) + '-01' : E.addD(d, step);
     const prods = Object.entries(A.cfg().products), f = fl();
     const tog = k => { const n = f.includes(k) ? f.filter(x => x !== k) : f.concat([k]); return `#/calendar/${mode}/${d}${n.length ? '?p=' + n.join(',') : ''}`; };
     return `<div class="cal-bar"><div class="cal-bar-l"><a class="btn" href="#/calendar/${mode}/${today()}${qs()}">Today</a><a class="icon-btn" href="#/calendar/${mode}/${prev}${qs()}" title="Previous" aria-label="Previous">${A.ic.left}</a><a class="icon-btn" href="#/calendar/${mode}/${next}${qs()}" title="Next" aria-label="Next">${A.ic.right}</a><h1 class="cal-title">${title}</h1></div>
-      <div class="seg cal-modes">${[['day', 'Day'], ['week', 'Week'], ['month', 'Month']].map(([m, t]) => `<a href="#/calendar/${m}/${d}${qs()}" class="${m === mode ? 'on' : ''}">${t}</a>`).join('')}</div></div>
+      <div class="seg cal-modes">${[['day', 'Day'], ['3day', '3 days'], ['week', 'Week'], ['month', 'Month']].map(([m, t]) => `<a href="#/calendar/${m}/${d}${qs()}" class="${m === mode ? 'on' : ''}">${t}</a>`).join('')}</div></div>
       <div class="chips cal-filter"><span class="small muted">Show:</span><a class="chip sm ${!f.length ? 'on' : ''}" href="#/calendar/${mode}/${d}">Everything</a>${prods.map(([k, p]) => `<a class="chip sm ${f.includes(k) ? 'on' : ''}" href="${tog(k)}">${A.prodDot(k)} ${esc(p.name)}</a>`).join('')}</div>`;
   }
   // little month on the left
   function mini(d, mode) {
     const first = d.slice(0, 8) + '01', sw = (E.dow(first) + 6) % 7, dim = new Date(+d.slice(0, 4), +d.slice(5, 7), 0).getDate(), t = today();
-    const wk = mon(d), inWeek = x => mode === 'week' && x >= wk && x <= E.addD(wk, 6);
+    const wk = mon(d), inWeek = x => (mode === 'week' && x >= wk && x <= E.addD(wk, 6)) || (mode === '3day' && x >= d && x <= E.addD(d, 2));
     let h = ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(x => `<span class="dw">${x}</span>`).join('') + '<span></span>'.repeat(sw);
     for (let i = 1; i <= dim; i++) { const x = first.slice(0, 8) + String(i).padStart(2, '0'), busy = live().some(b => b.date === x && show(b.product)); h += `<a href="#/calendar/${mode === 'month' ? 'day' : mode}/${x}${qs()}" class="${x === t ? 'today' : ''} ${x === d && mode === 'day' ? 'on' : ''} ${inWeek(x) ? 'wk' : ''}">${i}${busy ? '<i></i>' : ''}</a>`; }
     const pm = ymOf(E.addD(first, -1)) + '-01', nm = ymOf(E.addD(first, 32)) + '-01';
@@ -112,11 +112,12 @@
   const old = V.calendar;
   V.calendar = (mode, d) => {
     if (mode && /^\d{4}-\d\d$/.test(mode)) { d = mode + '-01'; mode = 'month'; }   // old links
-    mode = ['day', 'week', 'month'].includes(mode) ? mode : (narrow() ? 'day' : 'week');
+    mode = ['day', '3day', 'week', 'month'].includes(mode) ? mode : (narrow() ? 'day' : '3day');   // the next 3 days by default (user, 2026-11-26): room for each booking
     d = /^\d{4}-\d\d-\d\d$/.test(d || '') ? d : today();
     let title, body;
     if (mode === 'day') { title = (d === today() ? 'Today · ' : '') + fdy(d); body = timeGrid([d], 'day') + `<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><a class="btn sm" href="#/day/${d}">Therapist timeline for this day</a><a class="btn sm" href="#/today/${d}">This day’s dashboard</a></div>`; }
     if (mode === 'week') { const m = mon(d), days = Array.from({ length: 7 }, (_, i) => E.addD(m, i)); title = `${fd(m, { day: 'numeric', month: 'short' })} – ${fd(days[6], { day: 'numeric', month: 'short', year: 'numeric' })}`; body = narrow() ? agenda(days) : timeGrid(days, 'week'); }
+    if (mode === '3day') { const days = [0, 1, 2].map(i => E.addD(d, i)); title = `${fd(d, { day: 'numeric', month: 'short' })} – ${fd(days[2], { day: 'numeric', month: 'short', year: 'numeric' })}`; body = narrow() ? agenda(days) : timeGrid(days, 'day'); }
     if (mode === 'month') { title = monthName(d); body = month(d); }
     return { html: `<div class="cal-wrap"><aside class="cal-side">${mini(d, mode)}</aside><div class="cal-main">${toolbar(mode, d, title)}${body}</div></div>`,
       wire: el => { $$('.tg-col', el).forEach(c => c.addEventListener('dblclick', e => { if (e.target.closest('.tg-ev')) return; const dd = c.dataset.day; if (dd >= today()) location.hash = '#/new?date=' + dd; })); } };

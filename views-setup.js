@@ -229,6 +229,39 @@
   };
 
   // ============ A THERAPIST'S DAY (therapists can move and hand over their own treatments) ============
+
+  // ---------- a therapist's own to-do list for a day (user, 2026-11-26) ----------
+  // food service called out first, then "pick up <guest> for <treatment> in <room>" in time order. Ticks are saved
+  // with the team's tasks (tasks.json, under ticks), so they're the same on every device.
+  A.myDay = (sid, d) => {
+    const cfg = A.cfg(), DB = A.DB(), st = cfg.staff.find(s => s.id === sid); if (!st) return null;
+    const ix = E.index(cfg, DB.bookings), list = (ix.staff[d] || {})[sid] || [];
+    const duty = list.filter(x => x[3] === 'duty').map(x => { const sv = E.service(cfg, x[4], d) || {}; return { key: 'duty-' + x[4], s: x[0], e: x[1], name: sv.name || 'Food service', guests: ((ix.food[d] || {})[x[4]]) || 0 }; });
+    const room = id => (cfg.treatRooms.find(r => r.id === id) || {}).name || 'the treatment room';
+    const who = i => (i.b.guestList[i.guest] || {}).name || (i.guest === 0 ? A.cust(i.b) : `Guest ${i.guest + 1} of ${A.cust(i.b)}`);
+    const treats = DB.bookings.filter(E.live).flatMap(b => (b.items || []).filter(i => i.staff === sid && (i.date || b.date) === d).map(i => ({ ...i, b })));
+    const todo = [
+      ...duty.map(x => ({ key: x.key, at: x.s, text: `${x.name}: serve ${x.guests} guest${x.guests === 1 ? '' : 's'}, ${E.HM(x.s)}–${E.HM(x.e)}`, food: true })),
+      ...treats.map(i => ({ key: i.b.id + '|' + i.key, at: E.T(i.start), text: `Pick up ${who(i)} for ${A.tname(i.tid)} in ${room(i.troom)}`, sub: `${i.min} min${(i.b.guestList[i.guest] || {}).consult === 'done' ? '' : ' · consultation form needed'}${(i.b.tags || []).length ? ' · ' + i.b.tags.join(', ') : ''}`, bid: i.b.id })),
+    ].sort((a, b) => a.at - b.at);
+    const T = DB.tasks = DB.tasks || { items: [], hidden: {} }; T.ticks = T.ticks || {};
+    return { st, duty, todo, ticks: T.ticks[sid + '|' + d] || {} };
+  };
+  A.myDayCard = (sid, d, { self = false } = {}) => {
+    const m = A.myDay(sid, d); if (!m) return '';
+    const you = self ? 'You’re' : `${esc(m.st.name)} is`, left = m.todo.filter(x => !m.ticks[x.key]).length;
+    return `${m.duty.length ? `<div class="note warn food-call" style="margin-bottom:12px"><b>🍽 ${you} on food service ${d === today() ? 'today' : 'this day'}:</b> ${m.duty.map(x => `${esc(x.name)} ${E.HM(x.s)}–${E.HM(x.e)} for ${x.guests} guest${x.guests === 1 ? '' : 's'}`).join('; ')}. No treatments are booked for ${self ? 'you' : 'them'} during it.</div>` : ''}
+      <div class="card myday" data-myday="${sid}|${d}"><div class="card-h"><h3>${self ? 'My to-do list' : `${esc(m.st.name)}’s to-do list`}</h3><span class="muted small">${m.todo.length ? `${left} of ${m.todo.length} left` : ''}</span></div>
+        ${m.todo.length ? `<div class="list">${m.todo.map(x => `<label class="li md-item ${m.ticks[x.key] ? 'done' : ''} ${x.food ? 'food' : ''}"><input type="checkbox" data-tick="${esc(x.key)}" ${m.ticks[x.key] ? 'checked' : ''}><span class="when">${E.HM(x.at)}</span><span class="grow"><b>${esc(x.text)}</b>${x.sub ? `<span class="small muted" style="display:block">${esc(x.sub)}</span>` : ''}</span>${x.bid ? `<a class="btn sm ghost" href="#/booking/${x.bid}">Booking</a>` : ''}</label>`).join('')}</div>`
+          : `<div class="empty"><b>Nothing to do ${d === today() ? 'today' : 'this day'}</b>No treatments or food service.</div>`}</div>`;
+  };
+  A.wireMyDay = el => $$('[data-myday]', el).forEach(card => { const [sid, d] = card.dataset.myday.split('|');
+    $$('[data-tick]', card).forEach(c => c.onchange = () => { const T = A.DB().tasks; T.ticks = T.ticks || {}; const k = sid + '|' + d; T.ticks[k] = T.ticks[k] || {};
+      if (c.checked) T.ticks[k][c.dataset.tick] = new Date().toISOString(); else delete T.ticks[k][c.dataset.tick];
+      // keep only the last 60 days of ticks
+      const old = E.addD(today(), -60); Object.keys(T.ticks).forEach(x => { if (x.split('|')[1] < old) delete T.ticks[x]; });
+      A.change('tasks', null, ''); A.refresh(); }); });
+
   V.staffday = (sid, d) => {
     const cfg = A.cfg(), DB = A.DB(); d = d || today();
     if (A.isTher() && sid !== St.S.user.staffId) sid = St.S.user.staffId;
@@ -243,7 +276,8 @@
       <div class="acts"><a class="btn" href="#/staffday/${st.id}/${E.addD(d, -1)}">${A.ic.left}</a><a class="btn" href="#/staffday/${st.id}/${today()}">Today</a><a class="btn" href="#/staffday/${st.id}/${E.addD(d, 1)}">${A.ic.right}</a><button class="btn" onclick="print()">${A.ic.print} Print</button>
         ${!A.isTher() ? `<select class="inp" id="who" style="width:auto">${cfg.staff.map(s => `<option value="${s.id}" ${s.id === st.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select>` : ''}</div></div>
       ${!day ? '<div class="note">Not working this day.</div>' : ''}
-      <div class="card"><div class="list">${timeline.map(x => x.kind === 'treat' ? `<div class="li" style="align-items:flex-start"><span class="when">${x.i.start}</span><span class="dot" style="background:${PCOL[x.i.b.product]};margin-top:6px"></span>
+      ${day ? A.myDayCard(st.id, d, { self: St.S.user && St.S.user.staffId === st.id }) : ''}
+      <div class="card"><div class="card-h"><h3>Timeline</h3></div><div class="list">${timeline.map(x => x.kind === 'treat' ? `<div class="li" style="align-items:flex-start"><span class="when">${x.i.start}</span><span class="dot" style="background:${PCOL[x.i.b.product]};margin-top:6px"></span>
           <span class="grow"><b>${esc(A.tname(x.i.tid))} · ${x.i.min} min</b><span class="small muted" style="display:block">${esc((x.i.b.guestList[x.i.guest] || {}).name || (x.i.guest === 0 ? A.cust(x.i.b) : 'Guest ' + (x.i.guest + 1) + ' of ' + A.cust(x.i.b)))} · ${A.pname(x.i.b.product)} · ${esc((cfg.treatRooms.find(r => r.id === x.i.troom) || {}).name || '')} · ends ${E.HM(x.e)}${x.i.buffer ? `, room ready ${E.HM(x.e + x.i.buffer)}` : ''}</span>
           ${(x.i.b.tags || []).length ? (x.i.b.tags || []).map(t => `<span class="badge ${/Pregnant|Access/.test(t) ? 'warn' : ''}">${esc(t)}</span>`).join(' ') + ' ' : ''}${(x.i.b.guestList[x.i.guest] || {}).consult === 'done' ? `<span class="badge ok">Consultation done</span> <button class="btn sm ghost" data-cview="${x.i.b.id}|${x.i.guest}">View form</button>` : '<span class="badge warn">Consultation form needed</span>'}${x.i.b.notes ? `<span class="small" style="display:block;margin-top:4px">Note: ${esc(x.i.b.notes)}</span>` : ''}</span>
           ${canEdit && (x.i.date || x.i.b.date) >= today() ? `<button class="btn sm" data-move="${x.i.b.id}|${x.i.key}">Move or hand over</button>` : ''}</div>`
@@ -251,7 +285,7 @@
         : `<div class="li"><span class="when">${E.HM(x.s)}</span><span class="dot" style="background:var(--stone)"></span><span class="grow"><b>${x.label}</b><span class="small muted">until ${E.HM(x.e)}${x.fixed ? '' : ' (suggested: a free gap)'}</span></span></div>`).join('') || '<div class="empty"><b>Nothing booked</b></div>'}</div></div>
       <p class="small muted" style="margin-top:10px">${d >= today() ? 'You can move a treatment to any free time inside the guest’s visit, or hand it to a colleague who’s free. The guest is emailed the new time.' : 'This day has passed, so its treatments can’t be moved.'}</p>`,
       wire: el => {
-        const w = $('#who', el); if (w) w.onchange = () => location.hash = `#/staffday/${w.value}/${d}`;
+        const w = $('#who', el); if (w) w.onchange = () => location.hash = `#/staffday/${w.value}/${d}`; A.wireMyDay(el);
         $$('[data-cview]', el).forEach(b => b.onclick = () => { const [bid, g] = b.dataset.cview.split('|'); A.viewConsults(DB.bookings.find(x => x.id === bid), +g); });
         $$('[data-move]', el).forEach(b => b.onclick = () => { const [bid, key] = b.dataset.move.split('|'); A.moveItem(DB.bookings.find(x => x.id === bid), key); });
       } };

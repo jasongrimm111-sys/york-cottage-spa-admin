@@ -562,3 +562,28 @@ html{touch-action:manipulation}
 .rota .need.yes{color:var(--ok)}
 .rota td.notneeded{background:#fbfaf7}
 .rota .need-row td{background:var(--paper)}
+
+/* Today: view as a therapist; a therapist's to-do list */
+.viewas{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-4px 0 14px}
+.food-call b{font-weight:700}
+.myday .md-item{cursor:pointer;align-items:flex-start}
+.myday .md-item input{margin-top:3px;width:18px;height:18px;flex:none;accent-color:var(--ok)}
+.myday .md-item.done b{text-decoration:line-through;color:var(--muted)}
+.myday .md-item.food{background:#fbf3ea}
+
+/* Settings: sections listed down the side, no sideways-scrolling tab row */
+.set-wrap{display:grid;grid-template-columns:200px minmax(0,1fr);gap:22px;align-items:start}
+.set-nav{position:sticky;top:12px;display:flex;flex-direction:column;gap:2px}
+.set-nav .set-h{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:12px 10px 4px}
+.set-nav .set-h:first-child{margin-top:0}
+.set-nav a{padding:8px 10px;border-radius:8px;color:var(--ink);font-weight:600;text-decoration:none}
+.set-nav a:hover{background:var(--paper)}
+.set-nav a.on{background:var(--paper);box-shadow:inset 3px 0 0 var(--clay)}
+.set-body{min-width:0}
+@media (max-width:860px){
+  .set-wrap{grid-template-columns:minmax(0,1fr);gap:12px}
+  .set-nav{position:static;flex-direction:row;flex-wrap:wrap;gap:6px}
+  .set-nav .set-h{display:none}
+  .set-nav a{border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:14px;background:#fff}
+  .set-nav a.on{background:var(--ink);color:#fff;box-shadow:none;border-color:var(--ink)}
+}
