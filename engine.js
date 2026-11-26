@@ -218,6 +218,8 @@
     const p = cfg.products[q.product]; if (!p || p.active === false) return { ok: false, why: 'Not available' };
     const today = q.today || localISO();
     if (q.date < today) return { ok: false, why: 'In the past' };
+    // treatments only: not on a day the spa is booked exclusively (private spa, group, or the whole house) (user 2026-11-27)
+    if (p.kind === 'treat') { if ((ix.house || {})[q.date]) return { ok: false, why: 'The whole house is booked that day' }; if (((ix.spa || {})[q.date] || []).some(x => x[3])) return { ok: false, why: 'The spa is booked exclusively that day' }; }
     if (!q.admin) {
       if (between(today, q.date) > cfg.rules.bookAheadDays) return { ok: false, why: 'Too far ahead' };
       if (between(today, q.date) * 24 < cfg.rules.minNoticeHours) return { ok: false, why: 'Too soon to book online' };
