@@ -26,11 +26,11 @@
 
   // ---------- icons ----------
   const I = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
-  // the same day, four ways: switching keeps the date (and the person, on a therapist's day)
+  // the same day, three ways (user, 2026-11-26: the 'By therapist' page is gone): switching keeps the date (and the person, on a therapist's day)
   A.dayTabs = (d, cur, sid) => {
     if (!St.S.user || (A.isTher && A.isTher())) return '';
     const cfg = A.cfg(), who = sid || (cfg.staff.find(s => s.active !== false) || {}).id;
-    const tabs = [['today', 'Overview', `#/today/${d}`], ['calendar', 'Calendar', `#/calendar/day/${d}`], ['timeline', 'By therapist', `#/day/${d}`], ['person', 'One person', `#/today/${d}?as=${who}`]];
+    const tabs = [['today', 'Overview', `#/today/${d}`], ['calendar', 'Calendar', `#/calendar/day/${d}`], ['person', 'Staff view', `#/today/${d}?as=${who}`]];
     return `<nav class="day-tabs" aria-label="Ways to see this day">${tabs.map(([k, t, h]) => `<a href="${h}" class="${k === cur ? 'on' : ''}">${t}</a>`).join('')}</nav>`;
   };
   A.ic = {

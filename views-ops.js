@@ -69,7 +69,7 @@
     const real = today(), t = /^\d{4}-\d\d-\d\d$/.test(d || '') ? d : real, DB = A.DB(), cfg = A.cfg(), isToday = t === real;
     // "View as": ?as=<staff id> in the link; someone who is also a therapist sees their own list by default
     const asQ = new URLSearchParams((location.hash.split('?')[1] || '')).get('as'), asId = asQ === 'all' ? '' : (asQ || '');
-    const asBar = `<div class="viewas"><label class="small muted" for="viewAs">View as</label><select class="inp" id="viewAs" style="width:auto"><option value="">Everyone (whole day)</option>${cfg.staff.filter(s => s.active !== false).sort(E.byPriority).map(s => `<option value="${s.id}" ${s.id === asId ? 'selected' : ''}>${esc(s.name)}${E.staffDay(cfg, s, t) ? '' : ' (not working)'}</option>`).join('')}</select>${asId ? `<button class="btn sm" id="asPortal">See the whole portal as ${esc(A.sname(asId))}</button>` : ''}</div>`;
+    const asBar = `<div class="viewas"><label class="small muted" for="viewAs">Staff view for</label><select class="inp" id="viewAs" style="width:auto"><option value="">Everyone (whole day)</option>${cfg.staff.filter(s => s.active !== false).sort(E.byPriority).map(s => `<option value="${s.id}" ${s.id === asId ? 'selected' : ''}>${esc(s.name)}${E.staffDay(cfg, s, t) ? '' : ' (not working)'}</option>`).join('')}</select>${asId ? `<button class="btn sm" id="asPortal">See the whole portal as ${esc(A.sname(asId))}</button>` : ''}</div>`;
     const asWire = el => { const va = $('#viewAs', el); if (va) va.onchange = () => { location.hash = `#/today/${t}${va.value ? '?as=' + va.value : ''}`; };
       const ap = $('#asPortal', el); if (ap) ap.onclick = () => { const S = St.S; S.realUser = S.realUser || S.user; S.user = { ...S.realUser, name: S.realUser.name + ' (viewing as ' + A.sname(asId) + ')', role: 'therapist', staffId: asId }; A.reshell(); location.hash = '#/staffday/' + asId + '/' + t; }; };
     // viewing as one person: their whole day, as they'd see it (user, 2026-11-26), not extra cards on top of everyone's
@@ -134,7 +134,7 @@
             ${Object.keys(foods).length || bfast ? `<div class="list">${Object.entries(foods).map(([f, n]) => `<div class="li"><span class="grow">${esc((cfg.foods.find(x => x.id === f) || {}).name || f)}</span><b class="tnum">${n}</b></div>`).join('')}${bfast ? `<div class="li"><span class="grow">Continental breakfast</span><b class="tnum">${bfast}</b></div>` : ''}</div>` : '<p class="muted">No food orders.</p>'}
             <a class="btn sm" style="margin-top:10px" href="#/reports/food">Food orders for the next 2 weeks</a></div>
           <div class="card"><div class="card-h"><h3>The next 7 days</h3><a class="btn sm ghost" href="#/calendar">Calendar</a></div>
-            ${next7.map(x => `<a class="hbar" href="#/day/${x.d}" style="text-decoration:none"><span>${fd(x.d)}</span><span class="bar"><i style="width:${x.n / mx * 100}%"></i></span><b>${x.n}</b></a>`).join('')}<p class="small muted">Guests visiting or staying each day</p></div>
+            ${next7.map(x => `<a class="hbar" href="#/today/${x.d}" style="text-decoration:none"><span>${fd(x.d)}</span><span class="bar"><i style="width:${x.n / mx * 100}%"></i></span><b>${x.n}</b></a>`).join('')}<p class="small muted">Guests visiting or staying each day</p></div>
         </div>
       </div>`,
       wire: el => { A.wireMove(el); const tp = $('#todayPick', el); if (tp) tp.onchange = () => { if (tp.value) location.hash = '#/today/' + tp.value + (asQ ? '?as=' + asQ : ''); }; A.wireArrive(el); A.wireMyDay(el); if (A.wireCalClicks) A.wireCalClicks(el);
@@ -183,6 +183,7 @@
 
   // ============ DAY ============
   V.day = (d, mode) => {
+    if (mode !== 'print') { setTimeout(() => { location.hash = '#/calendar/day/' + (d || today()); }, 0); return '<div class="empty"><b>Opening the calendar…</b></div>'; }
     const cfg = A.cfg(), DB = A.DB(); d = d || today();
     const ix = E.index(cfg, DB.bookings), arr = arrivals(d), house = inHouse(d), dep = departs(d);
     const prevD = E.addD(d, -1), nextD = E.addD(d, 1);
