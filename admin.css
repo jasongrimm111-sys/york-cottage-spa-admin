@@ -345,3 +345,14 @@ a.btn.pri{color:#fff}
 .li.todo a.grow{text-decoration:none;color:inherit}
 .li.todo a.grow b{white-space:normal}
 .li.todo a.grow:hover b{color:var(--clay)}
+
+/* panels in a grid line up at the top (the stacked-panel gap only applies outside grids) */
+.grid > .card + .card,.grid > .kpi + .kpi{margin-top:0}
+.grid > div > .card:first-child{margin-top:0}
+/* tables that repeat per group keep the same columns */
+.tbl.tr-tbl{table-layout:fixed}
+.tbl.tr-tbl td{overflow-wrap:anywhere}
+/* page header: actions line up with the title's baseline area, filters sit evenly */
+.vh{align-items:center}
+.vh > div:first-child{min-width:0}
+.card > .inp + select.inp,.card > select.inp{height:38px}
