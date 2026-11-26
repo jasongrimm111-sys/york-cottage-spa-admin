@@ -789,3 +789,17 @@ html{touch-action:manipulation}
 /* long values (emails, links) wrap instead of running out of their box */
 .kv dd{min-width:0;overflow-wrap:anywhere;word-break:break-word}
 .sp-text,.sp-snip,.tk-text{overflow-wrap:anywhere}
+
+/* whose day: picture buttons (Today / Future days) */
+.who-pick{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.who-pick a{display:flex;align-items:center;gap:9px;padding:6px 14px 6px 6px;border:1px solid var(--line);border-radius:999px;background:#fff;text-decoration:none;color:inherit;transition:border-color .15s,box-shadow .15s}
+.who-pick a:hover{border-color:var(--stone)}
+.who-pick a.on{border-color:var(--forest);box-shadow:0 0 0 2px var(--forest) inset;background:#f3f6f1}
+.who-pick a.off{opacity:.6}
+.who-pick .av{width:30px;height:30px;font-size:11px;flex:none}
+.who-pick .av.all{background:var(--forest);color:#fff;display:grid;place-items:center}
+.who-pick .av.all svg{width:16px;height:16px}
+.who-pick b{display:block;font-size:13.5px;line-height:1.15}
+.who-pick small{display:block;font-size:11.5px;color:var(--muted)}
+.td-bar{align-items:flex-start}
+@media (max-width:700px){.who-pick{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}.who-pick a{flex:none}}
