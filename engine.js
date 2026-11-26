@@ -534,6 +534,18 @@
     const g = Math.max(1, q.guests || 1), b = { product: q.product, date: q.date, nights: q.nights || 0, sessionId: q.sessionId, guests: g, guestList: Array.from({ length: g }, () => ({ included: inc[0].id, food: (((cfg.products[q.product] || {}).foods) || [])[0] || ((cfg.foods || []).find(f => (f.products || []).includes(q.product)) || {}).id || (cfg.products[q.product] || {}).food ? 'food' : null, extras: [] })) };
     const r = E.plan(cfg, ix, b); return r.ok ? '' : 'Not enough therapist time for everyone’s included treatment';
   };
+  // how much extra treatment time is left once everyone's included treatment (and lunch) is planned: the longest of
+  // 60/45/30 minutes one guest could still add. 0 = included treatments only (user 2026-11-27: show this on the calendar)
+  E.treatRoom = (cfg, ix, q) => {
+    const inc = E.includedFor(cfg, q.product), g = Math.max(1, q.guests || 1), p = cfg.products[q.product] || {};
+    const food = (p.foods || [])[0] || ((cfg.foods || []).find(f => (f.products || []).includes(q.product)) || {}).id || (p.food ? 'food' : null);
+    const b = { product: q.product, date: q.date, nights: q.nights || 0, sessionId: q.sessionId, guests: g, guestList: Array.from({ length: g }, () => ({ included: inc.length ? inc[0].id : null, food, extras: [] })) };
+    const base = E.treatmentNeeds(cfg, b); if (!E.plan(cfg, ix, b, { needs: base }).ok) return -1;
+    const probe = (cfg.treatments || []).filter(t => t.sell !== false && !/^inc/.test(t.id)).sort((x, y) => y.min - x.min)[0]; if (!probe) return 0;
+    for (const m of [60, 45, 30]) if (E.plan(cfg, ix, b, { needs: base.concat({ key: 'probe', guest: 0, tid: probe.id, min: m }) }).ok) return m;
+    return 0;
+  };
+  E.roomLevel = m => m < 0 ? 'full' : m >= 60 ? 'plenty' : m > 0 ? 'some' : 'none';
   // free start times for a treatments-only booking (the guest picks one)
   E.treatSlots = (cfg, ix, b) => {
     const h = E.hours(cfg, b.date); if (!h) return [];
