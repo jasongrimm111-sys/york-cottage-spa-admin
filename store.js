@@ -80,7 +80,7 @@
     if (!db) { db = root.YCSeed.make(); db.audit = [{ at: new Date().toISOString(), by: 'System', what: 'Demo created with sample data' }]; db.outbox = []; }
     // settings added after a demo was saved
     db.cfg = deepFill(db.cfg, root.YC_DEFAULTS);
-    E.migrate(db.cfg);
+    E.migrate(db.cfg); db.tasks = db.tasks || { items: [], hidden: {} };
     return db;
   }
   // add any settings missing from saved data (new features) without touching saved values
@@ -101,8 +101,8 @@
     const files = (await gh.list(R, 'bookings')).filter(f => /\.json$/.test(f.name));
     const months = await Promise.all(files.map(f => get('bookings/' + f.name)));
     const bookings = months.flatMap(m => m || []);
-    const [customers, vouchers, waitlist, audit, outbox] = await Promise.all(['customers.json', 'vouchers.json', 'waitlist.json', 'audit.json', 'outbox.json'].map(get));
-    const db = { cfg, bookings, customers: customers || {}, vouchers: vouchers || [], waitlist: waitlist || [], audit: audit || [], outbox: outbox || [] };
+    const [customers, vouchers, waitlist, audit, outbox, tasks] = await Promise.all(['customers.json', 'vouchers.json', 'waitlist.json', 'audit.json', 'outbox.json', 'tasks.json'].map(get));
+    const db = { cfg, bookings, customers: customers || {}, vouchers: vouchers || [], waitlist: waitlist || [], audit: audit || [], outbox: outbox || [], tasks: tasks || { items: [], hidden: {} } };
     if (firstRun) { S.dirty.add('config.json'); }
     return db;
   }
@@ -292,7 +292,7 @@
     const o = { id: 'o' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at: new Date().toISOString(), by: S.user.name, status: S.mode === 'demo' ? 'demo' : 'queued', ...job };
     S.DB.outbox.push(o); S.DB.outbox = S.DB.outbox.slice(-1500); touch('outbox'); return o;
   }
-  function audit(what, ref) { S.DB.audit.push({ at: new Date().toISOString(), by: S.user ? S.user.name : 'Admin', what, ref: ref || '' }); }
+  function audit(what, ref) { if (!what) return; S.DB.audit.push({ at: new Date().toISOString(), by: S.user ? S.user.name : 'Admin', what, ref: ref || '' }); }
 
   root.YCStore = { S, CONF, signIn, resume, startDemo, setup, signOut, users, addUser, removeUser, changePassword, replaceToken, touch, saveNow, publish, queue, audit, getVault, month, sha, loadDemo, DEMO_KEY,
     onChange: f => S.listeners.push(f) };

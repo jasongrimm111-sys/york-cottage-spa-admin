@@ -70,15 +70,6 @@
     const foods = {}; arr.forEach(b => (b.guestList || []).forEach(g => { if (g.food) foods[g.food] = (foods[g.food] || 0) + 1; }));
     arr.filter(b => cfg.products[b.product].foodsIncluded).forEach(b => cfg.products[b.product].foodsIncluded.forEach(f => foods[f] = (foods[f] || 0) + b.guests));
     const bfast = departs(t).concat(house.filter(b => b.date !== t)).filter(b => b.breakfast).reduce((n, b) => n + b.guests, 0);
-    // needs attention
-    const att = [];
-    pend.filter(b => b.payLink && E.between((b.payLink.sent || b.created || '').slice(0, 10) || t, t) >= 2).forEach(b => att.push(['warn', `<b>${esc(A.cust(b))}</b> hasn’t paid the link sent ${fd((b.payLink.sent || '').slice(0, 10))}`, b]));
-    live().filter(b => (b.quote || {}).balance && due(b) > 0 && b.status !== 'pending' && b.quote.balanceDue && E.between(t, b.quote.balanceDue) <= 14 && b.date >= t).forEach(b => att.push(['info', `Balance ${gbp(due(b))} due ${fd(b.quote.balanceDue)} · <b>${esc(A.cust(b))}</b>`, b]));
-    live().filter(b => b.date >= t && b.date <= E.addD(t, 3) && consultDue(b)).forEach(b => att.push(['info', `${consultDue(b)} consultation form${consultDue(b) > 1 ? 's' : ''} missing · <b>${esc(A.cust(b))}</b> ${fd(b.date)}`, b]));
-    live().filter(b => b.date >= t && (b.items || []).some(i => !i.staff)).forEach(b => att.push(['bad', `Treatment with no therapist · <b>${esc(A.cust(b))}</b> ${fd(b.date)}`, b]));
-    const ix = E.index(cfg, DB.bookings);
-    DB.waitlist.filter(w => w.status === 'waiting' && w.date >= t && E.dateCheck(cfg, ix, { product: w.product, date: w.date, guests: w.guests, nights: w.nights, admin: true }).ok).forEach(w => att.push(['ok', `Space now free for <b>${esc(w.name)}</b> on the waitlist (${A.pname(w.product)}, ${fd(w.date)})`, null, '#/waitlist']));
-    DB.vouchers.filter(v => v.status === 'active' && v.balance > 0 && v.expires >= t && v.expires <= E.addD(t, 30)).forEach(v => att.push(['info', `Gift voucher ${v.code} (${gbp(v.balance)} left) expires ${fd(v.expires)}`, null, '#/vouchers']));
     // staff today
     const staffToday = cfg.staff.filter(s => E.staffDay(cfg, s, t));
     const next7 = Array.from({ length: 7 }, (_, i) => E.addD(t, i)).map(d => ({ d, n: arrivals(d).reduce((a, b) => a + b.guests, 0) + inHouse(d).filter(b => b.date !== d).reduce((a, b) => a + b.guests, 0) }));
@@ -105,8 +96,7 @@
           </div>
         </div>
         <div>
-          <div class="card"><div class="card-h"><h3>Needs attention</h3><span class="badge ${att.length ? 'warn' : 'ok'}">${att.length}</span></div>
-            ${att.length ? `<div class="list">${att.slice(0, 14).map(([k, h, b, href]) => `<a class="li" href="${b ? '#/booking/' + b.id : href}"><span class="dot" style="background:var(--${k === 'ok' ? 'ok' : k === 'bad' ? 'bad' : k === 'warn' ? 'warn' : 'info'})"></span><span class="grow small" style="white-space:normal">${h}</span></a>`).join('')}</div>${att.length > 14 ? `<p class="small muted">+ ${att.length - 14} more</p>` : ''}` : '<p class="muted">All clear.</p>'}</div>
+          ${(() => { const td = A.todoItems(), n = A.todoCount(); return `<div class="card"><div class="card-h"><h3>To do</h3><a class="badge ${n ? 'warn' : 'ok'}" href="#/todo">${n}</a></div>${td.length ? `<div class="list">${td.slice(0, 5).map(x => `<a class="li" href="${x.href}"><span class="dot" style="background:var(--${x.level === 'ok' ? 'ok' : x.level === 'bad' ? 'bad' : x.level === 'warn' ? 'warn' : 'info'})"></span><span class="grow small"><b>${esc(x.title)}</b></span></a>`).join('')}</div>` : '<p class="muted">Nothing needs attention.</p>'}<a class="btn sm" style="margin-top:10px" href="#/todo">Open the to-do list</a></div>`; })()}
           <div class="card"><div class="card-h"><h3>Food ${isToday ? 'today' : 'that day'}</h3></div>
             ${Object.keys(foods).length || bfast ? `<div class="list">${Object.entries(foods).map(([f, n]) => `<div class="li"><span class="grow">${esc((cfg.foods.find(x => x.id === f) || {}).name || f)}</span><b class="tnum">${n}</b></div>`).join('')}${bfast ? `<div class="li"><span class="grow">Continental breakfast</span><b class="tnum">${bfast}</b></div>` : ''}</div>` : '<p class="muted">No food orders.</p>'}
             <a class="btn sm" style="margin-top:10px" href="#/reports/food">Food orders for the next 2 weeks</a></div>
@@ -122,12 +112,15 @@
     const cfg = A.cfg(), t = today(); ym = ym || t.slice(0, 7);
     const [y, m] = ym.split('-').map(Number), first = new Date(y, m - 1, 1), startW = (first.getDay() + 6) % 7, dim = new Date(y, m, 0).getDate();
     const prev = new Date(y, m - 2, 1), next = new Date(y, m, 1), ymS = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const filt = (location.hash.split('?')[1] || '').split('=')[1];
+    // filter by any mix of booking types (?p=day,break)
+    const fl = ((location.hash.split('?p=')[1]) || '').split(',').filter(k => A.cfg().products[k]);
+    const show = k => !fl.length || fl.includes(k);
+    const toggle = k => { const n = fl.includes(k) ? fl.filter(x => x !== k) : fl.concat([k]); return `#/calendar/${ym}${n.length ? '?p=' + n.join(',') : ''}`; };
     const roomsAll = cfg.rooms.filter(r => r.active !== false).length;
     let cells = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => `<div class="dw">${d}</div>`).join('');
     for (let i = 0; i < startW; i++) cells += '<div class="d out"></div>';
     for (let i = 1; i <= dim; i++) {
-      const d = `${ym}-${String(i).padStart(2, '0')}`, arr = arrivals(d).filter(b => !filt || b.product === filt), house = inHouse(d);
+      const d = `${ym}-${String(i).padStart(2, '0')}`, arr = arrivals(d).filter(b => show(b.product)), house = inHouse(d).filter(b => show(b.product));
       const closed = E.closedAllDay(cfg, d, ['all']) || !E.hours(cfg, d);
       const cls = E.closures(cfg, d, ['all', 'spa', 'rooms', 'treatments']);
       const evs = [];
@@ -148,8 +141,8 @@
     const tail = (7 - (startW + dim) % 7) % 7; for (let i = 0; i < tail; i++) cells += '<div class="d out"></div>';
     const prods = Object.entries(cfg.products);
     return { html: `<div class="vh"><div><div class="eyebrow">Calendar</div><h1>${first.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</h1></div>
-      <div class="acts"><a class="btn" href="#/calendar/${ymS(prev)}">${A.ic.left}</a><a class="btn" href="#/calendar/${t.slice(0, 7)}">This month</a><a class="btn" href="#/calendar/${ymS(next)}">${A.ic.right}</a><a class="btn" href="#/rooms/planner">${A.ic.bed} Room planner</a><a class="btn" href="#/rota">${A.ic.rota} Rota</a></div></div>
-      <div class="chips" style="margin-bottom:12px"><a class="chip ${!filt ? 'on' : ''}" href="#/calendar/${ym}">Everything</a>${prods.map(([k, p]) => `<a class="chip ${filt === k ? 'on' : ''}" href="#/calendar/${ym}?p=${k}">${A.prodDot(k)} ${esc(p.name)}</a>`).join('')}</div>
+      <div class="acts"><a class="btn" href="#/calendar/${ymS(prev)}${fl.length ? '?p=' + fl.join(',') : ''}">${A.ic.left}</a><a class="btn" href="#/calendar/${t.slice(0, 7)}${fl.length ? '?p=' + fl.join(',') : ''}">This month</a><a class="btn" href="#/calendar/${ymS(next)}${fl.length ? '?p=' + fl.join(',') : ''}">${A.ic.right}</a><a class="btn" href="#/rooms/planner">${A.ic.bed} Room planner</a><a class="btn" href="#/rota">${A.ic.rota} Rota</a></div></div>
+      <div class="chips" style="margin-bottom:12px;align-items:center"><span class="small muted" style="margin-right:4px">Show:</span><a class="chip ${!fl.length ? 'on' : ''}" href="#/calendar/${ym}">Everything</a>${prods.map(([k, p]) => `<a class="chip ${fl.includes(k) ? 'on' : ''}" href="${toggle(k)}" title="${fl.includes(k) ? 'Hide' : 'Show'} ${esc(p.name)}">${A.prodDot(k)} ${esc(p.name)}</a>`).join('')}${fl.length ? '<span class="small muted" style="margin-left:6px">Tap a type to add or remove it</span>' : ''}</div>
       <div class="mcal">${cells}</div>
       <div class="legend"><span><i style="background:var(--sage)"></i>Day Spa places used</span><span><i style="background:#9d8fc0"></i>Bedrooms used</span><span><i style="background:var(--forest)"></i>Exclusive use</span><span><i style="background:var(--bad-bg);border:1px solid var(--bad)"></i>Closure</span></div>` };
   };
