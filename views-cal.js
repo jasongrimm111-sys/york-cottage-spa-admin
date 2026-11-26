@@ -157,6 +157,7 @@
     if (r) location.hash = '#/booking/' + b.id;
   };
   A.wireCalClicks = el => el.addEventListener('click', e => {
+    if (e.target.closest('[data-mv], [data-move], [data-cview], [data-arr], [data-tick], input, select')) return;   // their own buttons keep working
     const tr = e.target.closest('[data-it]'), fo = e.target.closest('[data-food]'), bk = e.target.closest('[data-bk]');
     if (tr) { e.preventDefault(); e.stopPropagation(); const [bid, key] = tr.dataset.it.split('|'); A.calTreatment(bid, key); return; }
     if (fo) { e.preventDefault(); e.stopPropagation(); const [d, sid] = fo.dataset.food.split('|'); A.calFood(d, sid); return; }

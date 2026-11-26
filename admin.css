@@ -677,3 +677,8 @@ html{touch-action:manipulation}
 .backbar:hover{color:var(--ink);background:#fff;border-color:var(--line)}
 .backbar svg{width:16px;height:16px}
 .day-tabs{display:none}
+
+.ns-link{all:unset;cursor:pointer;display:block}
+.ns-link:hover{text-decoration:underline}
+.tr-row,.tl-click{cursor:pointer}
+.tl-click:hover{background:var(--paper)}
