@@ -436,7 +436,15 @@
   /* When a booking's treatments may happen: [[date, start, end], ...]
      spa sessions: during the session · treatments only: from the chosen start (or the chosen part of the day)
      stays & whole house: any time from check-in to check-out, on any day of the stay, within spa hours */
+  // Treatment hours (user, 2026-11-26): which days treatments happen and between which times, for every booking type.
+  // cfg.treatHours = { 0..6 (Sunday = 0): { on, from, to } }; not set = treatments whenever the spa is open
+  E.treatHours = (cfg, date) => { const h = cfg.treatHours && cfg.treatHours[dow(date)]; return h ? h : null; };
   E.windows = (cfg, b) => {
+    const clip = w => { const h = E.treatHours(cfg, w[0]); if (!h) return w; if (h.on === false) return null;
+      const s = Math.max(T(w[1]), T(h.from || '00:00')), e = Math.min(T(w[2]), T(h.to || '23:59')); return e - s >= 20 ? [w[0], HM(s), HM(e)] : null; };
+    return E._windows(cfg, b).map(clip).filter(Boolean);
+  };
+  E._windows = (cfg, b) => {
     const p = cfg.products[b.product]; if (!p || !b.date) return [];
     if (p.kind === 'session' || p.kind === 'private') { const s = E.session(cfg, b.sessionId); return s ? [[b.date, s.start, s.end]] : []; }
     if (p.kind === 'treat') {

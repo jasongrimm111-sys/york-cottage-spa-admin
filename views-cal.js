@@ -75,11 +75,16 @@
     const head = all.map(x => `<a class="tg-dh ${x.d === t ? 'today' : ''}" href="#/calendar/day/${x.d}${qs()}"><small>${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][E.dow(x.d)]}</small><b>${+x.d.slice(8)}</b></a>`).join('');
     const allDay = all.map(x => `<div class="tg-ad ${x.d === t ? 'today' : ''}">${x.stays.map(s => `<a class="ev-ad" href="#/booking/${s.b.id}" style="${evStyle(s.b.product)}" title="${esc(A.pname(s.b.product))} · ${esc(A.cust(s.b))}">${s.leaving ? '↩ ' : s.first ? '' : '· '}${esc(A.cust(s.b))}${s.first ? ' · arrives' : s.leaving ? ' leaves' : ''}</a>`).join('')}</div>`).join('');
     const lines = []; for (let m = t0; m <= t1; m += 60) lines.push(`<div class="tl-line" style="top:${y(m)}px"></div>`);
-    const cols = all.map(x => `<div class="tg-col ${x.d === t ? 'today' : ''}" data-day="${x.d}" style="height:${H}px">${lines.join('')}
+    // food service (user, 2026-11-26): lunch and the other services on the calendar, click for who's eating what
+    const FIX = E.index(cfg, A.DB().bookings);
+    const foodBand = d => Object.entries((FIX.food || {})[d] || {}).map(([sid, n]) => { const sv = E.service(cfg, sid, d); if (!sv || !n) return '';
+      const st = ((FIX.duty || {})[d] || {})[sid] || [];
+      return `<div class="tg-food" style="top:${y(E.T(sv.start))}px;height:${Math.max(16, (E.T(sv.end) - E.T(sv.start)) * PX)}px"><button type="button" class="tg-food-chip" data-food="${d}|${sid}" title="${esc(sv.name)}: ${n} guests">🍽 ${esc(sv.name.replace(/ service$/i, ''))} · ${n}${st.length ? ' · ' + st.map(x => A.initials(A.sname(x))).join(', ') : ''}</button></div>`; }).join('');
+    const cols = all.map(x => `<div class="tg-col ${x.d === t ? 'today' : ''}" data-day="${x.d}" style="height:${H}px">${lines.join('')}${foodBand(x.d)}
       ${x.evs.map(ev => { const grp = ev.list && ev.list.length > 1, n = grp ? ev.list.reduce((a, b) => a + b.guests, 0) : ev.b.guests, ses = E.session(cfg, ev.b.sessionId);
         const its = (grp ? ev.list : [ev.b]).flatMap(b => (b.items || []).filter(i => (i.date || b.date) === x.d).map(i => ({ ...i, b })));
-        const tick = its.map(i => { const top = (E.T(i.start) - ev.s) * PX; return `<span class="tg-tr" style="top:${top}px;height:${Math.max(10, i.min * PX - 1)}px" title="${i.start} ${esc(A.tname(i.tid))} · ${esc(A.sname(i.staff))}${grp ? ' · ' + esc(A.cust(i.b)) : ''}"><em>${i.start}</em> ${esc(A.tname(i.tid).replace(/^20-minute /, '20m '))}<i>${A.initials(A.sname(i.staff))}</i></span>`; }).join('');
-        return `<a class="tg-ev ${its.length ? 'has-tr' : ''}" href="${grp ? `#/calendar/day/${x.d}${qs()}` : '#/booking/' + ev.b.id}" style="top:${y(ev.s)}px;height:${Math.max(22, (ev.e - ev.s) * PX - 2)}px;left:calc(${ev.lane / ev.lanes * 100}% + 2px);width:calc(${100 / ev.lanes}% - 4px);${evStyle(ev.b.product)}" title="${esc(A.pname(ev.b.product))}${grp ? ` · ${ev.list.length} bookings` : ' · ' + esc(A.cust(ev.b))}"><b>${E.HM(ev.s)} ${grp ? `${n} guests` : esc(label(ev.b))}</b><span>${esc(A.pname(ev.b.product))}${ses ? ' · ' + esc(ses.name) : ''}${grp ? ` · ${ev.list.length} bookings` : ''}</span><span class="tg-trs">${tick}</span></a>`; }).join('')}
+        const tick = its.map(i => { const top = (E.T(i.start) - ev.s) * PX; return `<span class="tg-tr" data-it="${i.b.id}|${i.key}" style="top:${top}px;height:${Math.max(10, i.min * PX - 1)}px" title="${i.start} ${esc(A.tname(i.tid))} · ${esc(A.sname(i.staff))}${grp ? ' · ' + esc(A.cust(i.b)) : ''}"><em>${i.start}</em> ${esc(A.tname(i.tid).replace(/^20-minute /, '20m '))}<i>${A.initials(A.sname(i.staff))}</i></span>`; }).join('');
+        return `<a class="tg-ev ${its.length ? 'has-tr' : ''}" ${grp ? '' : `data-bk="${ev.b.id}"`} href="${grp ? `#/calendar/day/${x.d}${qs()}` : '#/booking/' + ev.b.id}" style="top:${y(ev.s)}px;height:${Math.max(22, (ev.e - ev.s) * PX - 2)}px;left:calc(${ev.lane / ev.lanes * 100}% + 2px);width:calc(${100 / ev.lanes}% - 4px);${evStyle(ev.b.product)}" title="${esc(A.pname(ev.b.product))}${grp ? ` · ${ev.list.length} bookings` : ' · ' + esc(A.cust(ev.b))}"><b>${E.HM(ev.s)} ${grp ? `${n} guests` : esc(label(ev.b))}</b><span>${esc(A.pname(ev.b.product))}${ses ? ' · ' + esc(ses.name) : ''}${grp ? ` · ${ev.list.length} bookings` : ''}</span><span class="tg-trs">${tick}</span></a>`; }).join('')}
       ${x.d === t && nowM >= t0 && nowM <= t1 ? `<div class="tl-now" style="top:${y(nowM)}px"></div>` : ''}</div>`).join('');
     return `<div class="tg" style="--n:${days.length}"><div class="tg-head"><div class="tg-gut"></div>${head}</div>
       <div class="tg-allday"><div class="tg-gut small muted">Stays</div>${allDay}</div>
@@ -109,6 +114,52 @@
   }
 
   // #/calendar/<day|week|month>/<date>
+  // ---------- details when something on the calendar is clicked ----------
+  const room = id => (A.cfg().treatRooms.find(r => r.id === id) || {}).name || '—';
+  const bedroom = id => (A.cfg().rooms.find(r => r.id === id) || {}).name || id;
+  const guestName = (b, g) => ((b.guestList || [])[g] || {}).name || (g === 0 ? A.cust(b) : `Guest ${g + 1} (with ${A.cust(b)})`);
+  const dl = rows => `<dl class="kv cal-dl">${rows.filter(r => r && r[1] !== '' && r[1] != null).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
+  A.calTreatment = async (bid, key) => {
+    const b = A.DB().bookings.find(x => x.id === bid); if (!b) return; const i = (b.items || []).find(x => x.key === key); if (!i) return;
+    const gl = (b.guestList || [])[i.guest] || {}, end = E.HM(E.T(i.start) + i.min);
+    const r = await A.modal({ title: esc(A.tname(i.tid)), size: '', ok: 'Open the booking', cancel: 'Close',
+      foot: (i.date || b.date) >= today() && A.can('bookings.edit') ? '<button class="btn" data-mvx style="margin-right:auto">Move or hand over</button>' : '',
+      body: dl([['Guest', `<b>${esc(guestName(b, i.guest))}</b>`], ['When', `${fdy(i.date || b.date)}, ${i.start}–${end} (${i.min} min)`], ['Therapist', esc(A.sname(i.staff))], ['Room', esc(room(i.troom))],
+        ['Booking', `${esc(A.pname(b.product))} · ${esc(b.ref)} · ${b.guests} guest${b.guests > 1 ? 's' : ''}`], ['Included?', i.key.endsWith('-inc') ? 'Included in the booking' : 'Extra treatment'],
+        ['Consultation', gl.consult === 'done' ? '<span class="badge ok">Form done</span>' : '<span class="badge warn">Form needed</span>'],
+        ['Notes', [...(b.tags || []).map(t => `<span class="badge">${esc(t)}</span>`), b.notes ? esc(b.notes) : ''].filter(Boolean).join(' ')]]),
+      onOpen: ov => { const m = ov.querySelector('[data-mvx]'); if (m) m.onclick = () => { ov.querySelector('[data-x]').click(); setTimeout(() => A.moveItem(b, key), 50); }; } });
+    if (r) location.hash = '#/booking/' + b.id;
+  };
+  A.calFood = async (d, sid) => {
+    const cfg = A.cfg(), sv = E.service(cfg, sid, d) || { name: 'Food service' }, ix = E.index(cfg, A.DB().bookings);
+    const bs = A.DB().bookings.filter(E.live).filter(b => E.servicesFor(cfg, b).some(x => x.id === sid && x.date === d));
+    const food = f => (cfg.foods.find(x => x.id === f || x.name === f) || {}).name || f || 'Not chosen yet';
+    const rows = bs.flatMap(b => (b.guestList && b.guestList.length ? b.guestList : Array.from({ length: b.guests }, () => ({}))).map((g, n) => ({ b, n, g })));
+    const tally = {}; rows.forEach(r => { const k = food(r.g.food || (cfg.products[r.b.product].foodsIncluded || [])[0]); tally[k] = (tally[k] || 0) + 1; });
+    const staff = ((ix.duty || {})[d] || {})[sid] || [];
+    await A.modal({ title: '🍽 ' + esc(sv.name), size: 'wide', ok: 'Close', cancel: '',
+      body: `${dl([['When', `${fdy(d)}, ${sv.start}–${sv.end}`], ['Serving', staff.length ? staff.map(x => esc(A.sname(x))).join(', ') : '<span class="badge warn">Nobody assigned</span>'], ['Guests', `<b>${rows.length}</b>`], ['Food', Object.entries(tally).map(([k, n]) => `${esc(k)} <b>× ${n}</b>`).join('<br>')]])}
+        <div class="tbl-wrap" style="margin-top:12px"><table class="tbl"><thead><tr><th>Guest</th><th>Booking</th><th>Having</th><th>Dietary needs</th></tr></thead><tbody>
+        ${rows.map(r => `<tr><td><b>${esc(guestName(r.b, r.n))}</b></td><td><a href="#/booking/${r.b.id}" onclick="document.querySelector('.ov [data-x]').click()">${esc(A.pname(r.b.product))} · ${esc(r.b.ref)}</a></td><td>${esc(food(r.g.food || (cfg.products[r.b.product].foodsIncluded || [])[0]))}${r.g.vegan ? ' <span class="badge">vegan</span>' : ''}</td><td>${esc(r.g.diet || r.g.allergies || r.g.dietary || '') || '<span class="muted">—</span>'}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">Nobody booked yet</td></tr>'}
+        </tbody></table></div>` });
+  };
+  A.calBooking = async bid => {
+    const b = A.DB().bookings.find(x => x.id === bid); if (!b) return; const cfg = A.cfg(), ses = E.session(cfg, b.sessionId);
+    const its = (b.items || []).slice().sort((x, y) => ((x.date || b.date) + x.start).localeCompare((y.date || b.date) + y.start));
+    const r = await A.modal({ title: esc(A.cust(b)), size: 'wide', ok: 'Open the booking', cancel: 'Close',
+      body: `${dl([['Booking', `${esc(A.pname(b.product))}${ses ? ' · ' + esc(ses.name) : ''} · ${esc(b.ref)}`], ['When', `${fdy(b.date)}${b.nights ? ` · ${b.nights} night${b.nights > 1 ? 's' : ''}` : ''}`], ['Guests', String(b.guests)],
+        ['Rooms', b.product === 'house' ? 'Whole house' : (b.rooms || []).map(bedroom).join(', ')], ['Status', esc(b.status)]])}
+        ${its.length ? `<h3 style="margin:14px 0 6px;font-size:15px">Treatments</h3><div class="list">${its.map(i => `<div class="li"><span class="when">${i.start}</span><span class="grow"><b>${esc(A.tname(i.tid))}</b><span class="small muted" style="display:block">${esc(guestName(b, i.guest))} · ${esc(A.sname(i.staff))} · ${esc(room(i.troom))}${b.nights ? ' · ' + fd(i.date || b.date) : ''} · ${i.min} min</span></span></div>`).join('')}</div>` : ''}` });
+    if (r) location.hash = '#/booking/' + b.id;
+  };
+  A.wireCalClicks = el => el.addEventListener('click', e => {
+    const tr = e.target.closest('[data-it]'), fo = e.target.closest('[data-food]'), bk = e.target.closest('[data-bk]');
+    if (tr) { e.preventDefault(); e.stopPropagation(); const [bid, key] = tr.dataset.it.split('|'); A.calTreatment(bid, key); return; }
+    if (fo) { e.preventDefault(); e.stopPropagation(); const [d, sid] = fo.dataset.food.split('|'); A.calFood(d, sid); return; }
+    if (bk) { e.preventDefault(); A.calBooking(bk.dataset.bk); }
+  });
+
   const old = V.calendar;
   V.calendar = (mode, d) => {
     if (mode && /^\d{4}-\d\d$/.test(mode)) { d = mode + '-01'; mode = 'month'; }   // old links
@@ -120,7 +171,7 @@
     if (mode === '3day') { const days = [0, 1, 2].map(i => E.addD(d, i)); title = `${fd(d, { day: 'numeric', month: 'short' })} – ${fd(days[2], { day: 'numeric', month: 'short', year: 'numeric' })}`; body = narrow() ? agenda(days) : timeGrid(days, 'day'); }
     if (mode === 'month') { title = monthName(d); body = month(d); }
     return { html: `<div class="cal-wrap"><aside class="cal-side">${mini(d, mode)}</aside><div class="cal-main">${toolbar(mode, d, title)}${body}</div></div>`,
-      wire: el => { $$('.tg-col', el).forEach(c => c.addEventListener('dblclick', e => { if (e.target.closest('.tg-ev')) return; const dd = c.dataset.day; if (dd >= today()) location.hash = '#/new?date=' + dd; })); } };
+      wire: el => { A.wireCalClicks(el); $$('.tg-col', el).forEach(c => c.addEventListener('dblclick', e => { if (e.target.closest('.tg-ev')) return; const dd = c.dataset.day; if (dd >= today()) location.hash = '#/new?date=' + dd; })); } };
   };
 
   // ---------- Room calendar: rooms down the side, nights across ----------

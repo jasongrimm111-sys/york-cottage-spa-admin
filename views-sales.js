@@ -141,8 +141,8 @@
   V.settings = (tab = 'business') => {
     const cfg = A.cfg(), S = St.S;
     // each tab follows the role: settings, users & roles, data
-    const TP = { business: 'settings', rules: 'settings', breaks: 'settings', consult: 'settings', users: null, roles: 'users', connect: 'settings', data: 'data', log: 'settings' };
-    const allTabs = [['business', 'Business'], ['rules', 'Booking rules'], ['breaks', 'Breaks'], ['consult', 'Consultation form'], ['users', A.can('users') ? 'Users' : 'My account'], ['roles', 'Roles'], ['connect', 'Website & payments'], ['data', 'Backup & data'], ['log', 'Activity log']].filter(([k]) => !TP[k] || A.can(TP[k]));
+    const TP = { business: 'settings', rules: 'settings', treathours: 'settings', breaks: 'settings', consult: 'settings', users: null, roles: 'users', connect: 'settings', data: 'data', log: 'settings' };
+    const allTabs = [['business', 'Business'], ['rules', 'Booking rules'], ['treathours', 'Treatment hours'], ['breaks', 'Breaks'], ['consult', 'Consultation form'], ['users', A.can('users') ? 'Users' : 'My account'], ['roles', 'Roles'], ['connect', 'Website & payments'], ['data', 'Backup & data'], ['log', 'Activity log']].filter(([k]) => !TP[k] || A.can(TP[k]));
     if (!allTabs.some(([k]) => k === tab)) tab = allTabs[0][0];
     const T = tabs('settings', allTabs, tab);
     let body = '', wire = () => {};
@@ -156,6 +156,17 @@
       <div class="hr"></div>${A.f.sw('groupTogether', 'Groups: treat guests at the same time where possible, with different therapists', r.groupTogether)}<div class="row r3" style="margin-top:8px">${A.f.num('groupTogetherFrom', '…for bookings of this many guests or more', r.groupTogetherFrom)}</div>
       <div class="hr"></div>${A.f.sw('blueLight', 'Offer the Blue Light Card upgrade', r.blueLight)}<p class="small muted" style="margin-top:12px">The booking system always picks the earliest free times. Each booking type can override the “same time” setting. Changes apply to new bookings and re-planned ones; existing times stay as they are.</p></div>`;
       wire = el => $('#rSave', el).onclick = async () => { const v = A.read(el); v.slotStep = +v.slotStep || 30; const cfg2 = clone(cfg); Object.assign(cfg2.rules, v); if (!(await A.handleImpacts(cfg2, 'Changing the booking rules'))) return; Object.assign(cfg.rules, v); A.change('cfg', null, 'Booking rules saved'); A.toast('Saved'); }; }
+    if (tab === 'treathours') {
+      const DAYS = [[1, 'Monday'], [2, 'Tuesday'], [3, 'Wednesday'], [4, 'Thursday'], [5, 'Friday'], [6, 'Saturday'], [0, 'Sunday']];
+      const cur = i => (cfg.treatHours || {})[i] || { on: !!cfg.hours[i], from: (cfg.hours[i] || {}).start || '10:00', to: (cfg.hours[i] || {}).end || '18:00' };
+      body = `<div class="card" style="max-width:820px"><div class="card-h"><h3>Treatment hours</h3><button class="btn pri" id="thSave">Save</button></div>
+        <p class="muted" style="margin-bottom:12px">The days treatments can happen, and the times they can run between. This applies to every booking: spa days, treatments only, stays and the whole house. For example, switch Saturday and Sunday off, or start Friday treatments at 14:00 so guests checking in for a stay aren’t offered them straight away. Each treatment’s own earliest and latest start times still apply too.</p>
+        <table class="tbl th-tbl"><thead><tr><th>Day</th><th>Treatments</th><th>From</th><th>Until</th><th class="muted small">Spa open</th></tr></thead><tbody>
+        ${DAYS.map(([i, n]) => { const h = cur(i), o = cfg.hours[i]; return `<tr><td><b>${n}</b></td><td>${A.f.sw('on' + i, '', h.on !== false)}</td><td>${A.f.time('from' + i, '', h.from)}</td><td>${A.f.time('to' + i, '', h.to)}</td><td class="small muted">${o ? o.start + '–' + o.end : 'Closed'}</td></tr>`; }).join('')}
+        </tbody></table><p class="small muted" style="margin-top:10px">Treatments must also finish by the “Until” time. Times outside the spa’s opening hours are never offered.</p></div>`;
+      wire = el => $('#thSave', el).onclick = async () => { const v = A.read(el), th = {};
+        for (const [i] of DAYS) { if (v['on' + i] && v['from' + i] >= v['to' + i]) { A.toast('“From” must be before “Until”'); return; } th[i] = { on: !!v['on' + i], from: v['from' + i], to: v['to' + i] }; }
+        const cfg2 = clone(cfg); cfg2.treatHours = th; if (!(await A.handleImpacts(cfg2, 'Changing the treatment hours'))) return; cfg.treatHours = th; A.change('cfg', null, 'Treatment hours saved'); A.toast('Saved'); A.refresh(); }; }
     if (tab === 'breaks') { const b = E.breakRules(cfg, null); body = `<div class="card" style="max-width:900px"><div class="card-h"><h3>Lunch and breaks</h3><button class="btn pri" id="brSave">Save</button></div><p class="muted" style="margin-bottom:12px">The booking system leaves room for these in everyone’s day. Each person can have their own (Staff → Edit). UK law: a break of at least 20 minutes on days over 6 hours, and 11 hours between shifts.</p>
       <div class="row r4">${A.f.num('lunchMin', 'Lunch: shortest (minutes)', b.lunchMin)}${A.f.num('lunchMax', 'Lunch: longest (minutes)', b.lunchMax)}${A.f.time('lunchFrom', 'Lunch between', b.lunchFrom)}${A.f.time('lunchTo', 'and', b.lunchTo)}</div>
       <div class="row r4" style="margin-top:12px">${A.f.num('lunchIfOver', 'Lunch needed on days over (minutes)', b.lunchIfOver)}${A.f.num('breakMin', 'Breaks: shortest (minutes)', b.breakMin)}${A.f.num('breakMax', 'Breaks: longest (minutes)', b.breakMax)}${A.f.num('maxWithoutBreak', 'Most time without a break (minutes)', b.maxWithoutBreak)}</div></div>`;
@@ -191,7 +202,7 @@
     if (tab === 'consult') { const x = A.consultSettings(); body = x.html; wire = x.wire; }
     if (tab === 'log') { const list = A.DB().audit.slice().reverse().slice(0, 400); body = `<div class="card flush"><table class="tbl"><thead><tr><th>When</th><th>Who</th><th>What</th></tr></thead><tbody>${list.map(a => `<tr><td class="small">${ft(a.at)}</td><td>${esc(a.by)}</td><td>${esc(a.what)}</td></tr>`).join('')}</tbody></table></div>`; }
     // a list down the side instead of a row of tabs that scrolls sideways (user, 2026-11-26); on phones the list wraps
-    const GROUPS = [['Your spa', ['business', 'rules', 'breaks', 'consult']], ['People', ['users', 'roles']], ['System', ['connect', 'data', 'log']]];
+    const GROUPS = [['Your spa', ['business', 'rules', 'treathours', 'breaks', 'consult']], ['People', ['users', 'roles']], ['System', ['connect', 'data', 'log']]];
     const side = `<nav class="set-nav" aria-label="Settings">${GROUPS.map(([h, ks]) => { const its = allTabs.filter(([k]) => ks.includes(k)); return its.length ? `<div class="set-h">${h}</div>` + its.map(([k, t]) => `<a href="#/settings/${k}" class="${k === tab ? 'on' : ''}">${t}</a>`).join('') : ''; }).join('')}</nav>`;
     return { html: `<div class="vh"><div><div class="eyebrow">Set-up</div><h1>Settings</h1></div></div><div class="set-wrap">${side}<div class="set-body">${body}</div></div>`, wire };
   };
