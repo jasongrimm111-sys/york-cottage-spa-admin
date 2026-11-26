@@ -181,7 +181,7 @@
       arr.filter(b => cfg.products[b.product].kind === 'private' || b.product === 'group').forEach(b => evs.push(`<span class="ev" style="${colEv(b.product)}">${A.pname(b.product)} · ${b.guests}</span>`));
       const spaG = arr.filter(b => ['session'].includes(cfg.products[b.product].kind)).reduce((n, b) => n + b.guests, 0);
       if (spaG) evs.push(`<span class="ev">${spaG} spa guest${spaG > 1 ? 's' : ''}</span>`);
-      const stays = arr.filter(b => b.product === 'break').length; if (stays) evs.push(`<span class="ev stay">${stays} break${stays > 1 ? 's' : ''} arriving</span>`);
+      const stays = arr.filter(b => /^break/.test(b.product)).length; if (stays) evs.push(`<span class="ev stay">${stays} break${stays > 1 ? 's' : ''} arriving</span>`);
       const tr = arr.filter(b => b.product === 'treat').length; if (tr) evs.push(`<span class="ev" style="background:#ebe8f8;color:#3c3290">${tr} treatment booking${tr > 1 ? 's' : ''}</span>`);
       cls.forEach(c => evs.push(`<span class="ev cl">${esc(c.reason || 'Closed')}${c.start ? ' ' + c.start + '–' + c.end : ''}</span>`));
       const roomsUsed = new Set(house.flatMap(b => b.product === 'house' ? cfg.rooms.map(r => r.id) : b.rooms || [])).size;

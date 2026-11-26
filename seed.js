@@ -32,7 +32,7 @@
     ];
     const today = E.localISO(), bookings = [], cust = {};
     const ref = () => 'YC-' + Math.floor(rnd() * 36 ** 6).toString(36).toUpperCase().padStart(6, '0');
-    const mix = [['day', 34], ['access', 14], ['break', 20], ['treat', 12], ['private', 5], ['group', 3], ['house', 2]];
+    const mix = [['day', 34], ['access', 14], ['break', 12], ['break2', 8], ['treat', 12], ['private', 5], ['group', 3], ['house', 2]];
     const W = mix.reduce((a, x) => a + x[1], 0);
     const prodPick = () => { let r = rnd() * W; for (const [k, w] of mix) { if ((r -= w) < 0) return k; } return 'day'; };
     const days = opts.days || [-90, 60];

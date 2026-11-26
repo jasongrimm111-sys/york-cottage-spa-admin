@@ -68,10 +68,17 @@
         blurb: 'The spa just for your group, with food, drinks and a 20-minute massage or luxury facial each.',
         policy: 'Spa days are paid in full and are non-refundable. You can move your visit (subject to availability) by emailing us at least 30 days before.',
         pay: { deposit: 100 }, cancel: { moveDays: 30, rules: [{ minDays: 0, keepPct: 100 }] } },
-      break: { name: 'Overnight Spa Break', kind: 'stay', priceN: { 1: 145, 2: 220 }, perPerson: true, min: 2, max: 6, nights: [1, 2],
-        arriveDays: { 1: [0, 1, 2, 3, 4], 2: [0, 1, 2, 3] }, food: false, foodsIncluded: ['grazing'], breakfast: true,
+      break: { name: '1-Night Spa Break', kind: 'stay', priceN: { 1: 145 }, perPerson: true, min: 2, max: 6, nights: [1],
+        arriveDays: { 1: [0, 1, 2, 3, 4] }, food: false, foodsIncluded: ['grazing'], breakfast: true,
         exclusiveFrom: 6, benefits: ['King ensuite room', 'Spa access', 'Sweet & savoury grazing board', 'Towel & robe'], includedPick: 'one', active: true, online: true,
-        blurb: '1 night from £145 or 2 nights from £220 per person, based on 2 sharing. King ensuite room, grazing board, 20-minute aromatherapy massage each, spa access.',
+        blurb: 'One night from £145 per person, based on 2 sharing. King ensuite room, grazing board, 20-minute aromatherapy massage each, spa access.',
+        times: { default: { checkIn: '13:30', spa: ['14:00', '18:00'], food: '18:00', checkOut: '11:00' }, 0: { checkIn: '14:00', spa: ['18:00', '22:30'], spa2: ['17:30', '22:00'], food: '16:30', checkOut: '11:00' } },
+        policy: 'Spa breaks can be refunded if you cancel at least 30 days before arrival. With less notice the full cost is charged, and there are no refunds for leaving early.',
+        pay: { deposit: 100 }, cancel: { rules: [{ minDays: 30, keepPct: 0 }, { minDays: 0, keepPct: 100 }] } },
+      break2: { name: '2-Night Spa Break', kind: 'stay', priceN: { 2: 220 }, perPerson: true, min: 2, max: 6, nights: [2],
+        arriveDays: { 2: [0, 1, 2, 3] }, food: false, foodsIncluded: ['grazing'], breakfast: true,
+        exclusiveFrom: 6, benefits: ['King ensuite room', 'Spa access', 'Sweet & savoury grazing board', 'Towel & robe'], includedPick: 'one', active: true, online: true,
+        blurb: 'Two nights from £220 per person, based on 2 sharing. King ensuite room, grazing board, 20-minute aromatherapy massage each, spa access.',
         times: { default: { checkIn: '13:30', spa: ['14:00', '18:00'], food: '18:00', checkOut: '11:00' }, 0: { checkIn: '14:00', spa: ['18:00', '22:30'], spa2: ['17:30', '22:00'], food: '16:30', checkOut: '11:00' } },
         policy: 'Spa breaks can be refunded if you cancel at least 30 days before arrival. With less notice the full cost is charged, and there are no refunds for leaving early.',
         pay: { deposit: 100 }, cancel: { rules: [{ minDays: 30, keepPct: 0 }, { minDays: 0, keepPct: 100 }] } },
@@ -98,7 +105,7 @@
     // Morning and afternoon spa guests eat together, between the two sessions.
     services: [
       { id: 'lunch', name: 'Spa lunch service', start: '13:00', end: '14:00', products: ['day', 'private'], staff: 1, active: true, byDay: {} },
-      { id: 'grazing', name: 'Grazing board service', start: '18:00', end: '18:30', products: ['break', 'group'], staff: 1, active: true, byDay: { 0: { start: '16:30', end: '17:00' } } }
+      { id: 'grazing', name: 'Grazing board service', start: '18:00', end: '18:30', products: ['break', 'break2', 'group'], staff: 1, active: true, byDay: { 0: { start: '16:30', end: '17:00' } } }
     ],
     serviceAssign: {},
     roles: null,                 // set in Settings → Roles (null = the standard roles)
@@ -106,10 +113,10 @@
     consult: { questions: null, endpoint: '', retentionMonths: 24, publicKey: null },           // pinned people: { '2026-12-01': { lunch: ['s2'] } }
     foods: [
       { id: 'tea', name: 'Afternoon tea', desc: 'Sweet & savoury treats', products: ['day', 'private', 'group'], vegan: true, active: true },
-      { id: 'grazing', name: 'Sweet & savoury grazing board', desc: 'Meats, cheese & sweet treats · vegan available', products: ['day', 'private', 'group', 'break'], vegan: true, active: true }
+      { id: 'grazing', name: 'Sweet & savoury grazing board', desc: 'Meats, cheese & sweet treats · vegan available', products: ['day', 'private', 'group', 'break', 'break2'], vegan: true, active: true }
     ],
     treatments: [
-      { id: 'inc-massage', cat: 'Massage', name: '20-minute aromatherapy massage', min: 20, buffer: 10, price: 0, sell: false, includedWith: ['day', 'private', 'break', 'group'], active: true, desc: 'A relaxing back, neck and shoulder massage with aromatherapy oils.' },
+      { id: 'inc-massage', cat: 'Massage', name: '20-minute aromatherapy massage', min: 20, buffer: 10, price: 0, sell: false, includedWith: ['day', 'private', 'break', 'break2', 'group'], active: true, desc: 'A relaxing back, neck and shoulder massage with aromatherapy oils.' },
       { id: 'inc-facial', cat: 'Facials', name: '20-minute aromatherapy facial', min: 20, buffer: 10, price: 0, sell: false, includedWith: ['day'], active: true, desc: 'A short aromatherapy facial.' },
       { id: 'inc-lux-facial', cat: 'Facials', name: '20-minute luxury facial', min: 20, buffer: 10, price: 0, sell: false, includedWith: ['private'], active: true, desc: 'A short luxury facial.' },
       { id: 'basics', cat: 'Facials', name: 'Back to Basics Facial', min: 30, buffer: 15, price: 50, active: true, desc: 'Aromatherapy facial with double cleanse, exfoliation, shoulder massage, serum and moisturiser.' },
