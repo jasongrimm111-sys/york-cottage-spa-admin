@@ -501,6 +501,14 @@
   };
   /* The times one treatment could start, for the guest to pick: [{ date, times:[{ start, staff }] }]
      others = treatments already picked in this booking (they hold their therapist, room and the guest's time) */
+  // like slotsFor, but a time is only offered if every other treatment in the booking can still be fitted around it
+  // (2026-11-26: guests picked times one by one and the last guests could end up with no time at all)
+  E.slotsAhead = (cfg, ix0, b, need, others = []) => {
+    const sl = E.slotsFor(cfg, ix0, b, need, others);
+    const rest = E.treatmentNeeds(cfg, b).filter(n => n.key !== need.key && !(b.times || {})[n.key]);
+    if (!rest.length) return sl;
+    return sl.map(d => ({ ...d, times: d.times.filter(x => { const b2 = { ...b, times: { ...(b.times || {}), [need.key]: { date: d.date, start: x.start } } }; return E.plan(cfg, ix0, b2, { needs: E.treatmentNeeds(cfg, b2) }).ok; }) }));
+  };
   E.slotsFor = (cfg, ix0, b, need, others = []) => {
     const tr = E.tr(cfg, need.tid); if (!tr) return [];
     const min = need.min || tr.min, buf = E.buf(cfg, tr), step = cfg.rules.slotStep || 15, out = [];
