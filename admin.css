@@ -621,8 +621,8 @@ html{touch-action:manipulation}
 .th-tbl td{vertical-align:middle}.th-tbl .fld{margin:0}.th-tbl .fld>span:first-child:empty{display:none}
 
 /* calendar: food service band, clickable treatments */
-.tg-food{position:absolute;left:0;right:0;background:repeating-linear-gradient(135deg,rgba(176,118,74,.10) 0 6px,rgba(176,118,74,.04) 6px 12px);border-top:1px dashed rgba(176,118,74,.55);border-bottom:1px dashed rgba(176,118,74,.55);z-index:0;pointer-events:none}
-.tg-food-chip{pointer-events:auto;position:absolute;left:3px;top:2px;z-index:6;background:#fff;border:1px solid rgba(176,118,74,.5);color:#7a4a28;border-radius:999px;font-size:10.5px;font-weight:700;padding:1px 7px;white-space:nowrap;max-width:calc(100% - 6px);overflow:hidden;text-overflow:ellipsis;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.tg-food{position:absolute;left:0;right:0;background:repeating-linear-gradient(135deg,rgba(176,118,74,.10) 0 6px,rgba(176,118,74,.04) 6px 12px);border-top:1px dashed rgba(176,118,74,.55);border-bottom:1px dashed rgba(176,118,74,.55);pointer-events:none}
+.tg-food-chip{pointer-events:auto;position:absolute;right:3px;top:50%;transform:translateY(-50%);z-index:6;background:#fff;border:1px solid rgba(176,118,74,.5);color:#7a4a28;border-radius:999px;font-size:10.5px;font-weight:700;padding:1px 7px;white-space:nowrap;max-width:calc(100% - 6px);overflow:hidden;text-overflow:ellipsis;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.08)}
 .tg-food-chip:hover{background:#fbf3ea}
 .tg-ev{z-index:1}
 .tg-tr{pointer-events:auto;cursor:pointer}

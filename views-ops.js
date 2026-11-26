@@ -107,7 +107,7 @@
         <div class="kpi kpi-ic k1"><i class="kic">${A.ic.staff}</i><small>Guests ${isToday ? 'today' : 'this day'}</small><b>${guests}</b><span>${arr.length} arrival${arr.length === 1 ? '' : 's'} · ${dep.length} departure${dep.length === 1 ? '' : 's'}</span></div>
         <div class="kpi kpi-ic k2"><i class="kic">${A.ic.treat}</i><small>Treatments ${isToday ? 'today' : 'this day'}</small><b>${items.length}</b><span>${staffToday.length} therapist${staffToday.length === 1 ? '' : 's'} working</span></div>
         <div class="kpi kpi-ic k3"><i class="kic">${A.ic.bed}</i><small>Rooms ${isToday ? 'tonight' : 'that night'}</small><b>${roomsUsed}<span style="font-size:20px;color:var(--muted)"> / ${roomsAll}</span></b><span>${Math.round(roomsUsed / roomsAll * 100)}% occupied</span></div>
-        <div class="kpi kpi-ic k4"><i class="kic">${A.ic.money}</i><small>Taken ${isToday ? 'today' : 'that day'}</small><b>${gbp(takings)}</b><span>${pend.length} booking${pend.length === 1 ? '' : 's'} awaiting payment</span></div>
+        <div class="kpi kpi-ic k4"><i class="kic">${A.ic.price}</i><small>Taken ${isToday ? 'today' : 'that day'}</small><b>${gbp(takings)}</b><span>${pend.length} booking${pend.length === 1 ? '' : 's'} awaiting payment</span></div>
       </div>
       <div class="grid g-side">
         <div>
