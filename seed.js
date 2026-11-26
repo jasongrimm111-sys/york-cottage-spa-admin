@@ -72,6 +72,7 @@
         b.customer = { first, last, email, phone: '07700 9' + String(Math.floor(rnd() * 99999)).padStart(5, '0') };
         // every guest has a name (user, 2026-11-26): the booker first, made-up names for the others
         b.guestList.forEach((g, i) => { g.name = i === 0 ? `${first} ${last}` : `${pick(FIRST)} ${rnd() < .3 ? last : pick(LAST)}`; });
+        { const rs = b.product === 'house' ? cfg.rooms.filter(r => r.active !== false).map(r => r.id) : (b.rooms || []); if (rs.length) b.guestList.forEach((g, i) => { g.room = rs[Math.min(rs.length - 1, Math.floor(i / 2))]; }); }
         if (!opts.cfg && rnd() < .08) b.promo = { code: 'THANKYOU10', type: 'amt', value: 10, on: 'all' };
         if (rnd() < .05) b.discount = { type: 'pct', value: 10, reason: 'Birthday' };
         b.quote = E.quote(cfg, b, E.addD(date, -30));

@@ -26,6 +26,13 @@
 
   // ---------- icons ----------
   const I = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+  // the same day, four ways: switching keeps the date (and the person, on a therapist's day)
+  A.dayTabs = (d, cur, sid) => {
+    if (!St.S.user || (A.isTher && A.isTher())) return '';
+    const cfg = A.cfg(), who = sid || (cfg.staff.find(s => s.active !== false) || {}).id;
+    const tabs = [['today', 'Overview', `#/today/${d}`], ['calendar', 'Calendar', `#/calendar/day/${d}`], ['timeline', 'By therapist', `#/day/${d}`], ['person', 'One person', `#/today/${d}?as=${who}`]];
+    return `<nav class="day-tabs" aria-label="Ways to see this day">${tabs.map(([k, t, h]) => `<a href="${h}" class="${k === cur ? 'on' : ''}">${t}</a>`).join('')}</nav>`;
+  };
   A.ic = {
     today: I('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
     cal: I('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'),

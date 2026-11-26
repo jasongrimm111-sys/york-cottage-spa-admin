@@ -169,11 +169,11 @@
     mode = ['day', '3day', 'week', 'month'].includes(mode) ? mode : (narrow() ? 'day' : '3day');   // the next 3 days by default (user, 2026-11-26): room for each booking
     d = /^\d{4}-\d\d-\d\d$/.test(d || '') ? d : today();
     let title, body;
-    if (mode === 'day') { title = (d === today() ? 'Today · ' : '') + fdy(d); body = timeGrid([d], 'day') + `<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><a class="btn sm" href="#/day/${d}">Therapist timeline for this day</a><a class="btn sm" href="#/today/${d}">This day’s dashboard</a></div>`; }
+    if (mode === 'day') { title = (d === today() ? 'Today · ' : '') + fdy(d); body = timeGrid([d], 'day'); }
     if (mode === 'week') { const m = mon(d), days = Array.from({ length: 7 }, (_, i) => E.addD(m, i)); title = `${fd(m, { day: 'numeric', month: 'short' })} – ${fd(days[6], { day: 'numeric', month: 'short', year: 'numeric' })}`; body = narrow() ? agenda(days) : timeGrid(days, 'week'); }
     if (mode === '3day') { const days = [0, 1, 2].map(i => E.addD(d, i)); title = `${fd(d, { day: 'numeric', month: 'short' })} – ${fd(days[2], { day: 'numeric', month: 'short', year: 'numeric' })}`; body = narrow() ? agenda(days) : timeGrid(days, 'day'); }
     if (mode === 'month') { title = monthName(d); body = month(d); }
-    return { html: `<div class="cal-wrap"><aside class="cal-side">${mini(d, mode)}</aside><div class="cal-main">${toolbar(mode, d, title)}${body}</div></div>`,
+    return { html: `${mode === 'day' ? A.dayTabs(d, 'calendar') : ''}<div class="cal-wrap"><aside class="cal-side">${mini(d, mode)}</aside><div class="cal-main">${toolbar(mode, d, title)}${body}</div></div>`,
       wire: el => { A.wireCalClicks(el); $$('.tg-col', el).forEach(c => c.addEventListener('dblclick', e => { if (e.target.closest('.tg-ev')) return; const dd = c.dataset.day; if (dd >= today()) location.hash = '#/new?date=' + dd; })); } };
   };
 
