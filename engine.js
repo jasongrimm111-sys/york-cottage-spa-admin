@@ -219,6 +219,7 @@
     const today = q.today || localISO();
     if (q.date < today) return { ok: false, why: 'In the past' };
     // treatments only: not on a day the spa is booked exclusively (private spa, group, or the whole house) (user 2026-11-27)
+    if (p.kind === 'treat') { const ph = E.productHours(cfg, q.product, q.date); if (ph && ph.on === false) return { ok: false, why: `${p.name} isn’t available on ${['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays'][dow(q.date)]}` }; }
     if (p.kind === 'treat') { if ((ix.house || {})[q.date]) return { ok: false, why: 'The whole house is booked that day' }; if (((ix.spa || {})[q.date] || []).some(x => x[3])) return { ok: false, why: 'The spa is booked exclusively that day' }; }
     if (!q.admin) {
       if (between(today, q.date) > cfg.rules.bookAheadDays) return { ok: false, why: 'Too far ahead' };
@@ -444,14 +445,16 @@
   // Treatment hours (user, 2026-11-26): which days treatments happen and between which times, for every booking type.
   // cfg.treatHours = { 0..6 (Sunday = 0): { on, from, to } }; not set = treatments whenever the spa is open
   E.treatHours = (cfg, date) => { const h = cfg.treatHours && cfg.treatHours[dow(date)]; return h ? h : null; };
+  // a booking type's own days and times (Settings → Treatment hours → Treatments only): products[k].dayHours = { 0..6: { on, from, to } }
+  E.productHours = (cfg, product, date) => { const p = cfg.products[product]; const h = p && p.dayHours && p.dayHours[dow(date)]; return h || null; };
   // the most beds of a room in use at any one moment between s and e (2026-11-26: counting every booking that touches
   // the time over-counted, e.g. one before and one after a long treatment never share the room with each other)
   E.bedsInUse = (list, s, e) => { const on = list.filter(x => x[0] < e && s < x[1]); if (!on.length) return 0;
     return Math.max(...[s, ...on.map(x => x[0]).filter(p => p > s && p < e)].map(p => on.filter(x => x[0] <= p && p < x[1]).length)); };
   E.windows = (cfg, b) => {
-    const clip = w => { const h = E.treatHours(cfg, w[0]); if (!h) return w; if (h.on === false) return null;
+    const clip = (w, h) => { if (!w || !h) return w; if (h.on === false) return null;
       const s = Math.max(T(w[1]), T(h.from || '00:00')), e = Math.min(T(w[2]), T(h.to || '23:59')); return e - s >= 20 ? [w[0], HM(s), HM(e)] : null; };
-    return E._windows(cfg, b).map(clip).filter(Boolean);
+    return E._windows(cfg, b).map(w => clip(clip(w, E.treatHours(cfg, w[0])), E.productHours(cfg, b.product, w[0]))).filter(Boolean);
   };
   E._windows = (cfg, b) => {
     const p = cfg.products[b.product]; if (!p || !b.date) return [];
@@ -556,7 +559,8 @@
   E.treatSlots = (cfg, ix, b) => {
     const h = E.hours(cfg, b.date); if (!h) return [];
     const tt = E.treatTimes(cfg, b.date), step = cfg.rules.slotStep || 15, out = [];
-    for (let t = Math.max(T(h.start), T(tt.first)); t <= Math.min(T(tt.last), T(h.end) - 20); t += step) {
+    const ph = E.productHours(cfg, b.product, b.date); if (ph && ph.on === false) return [];
+    for (let t = Math.max(T(h.start), T(tt.first), ph ? T(ph.from || '00:00') : 0); t <= Math.min(T(tt.last), T(h.end) - 20, ph ? T(ph.to || '23:59') - 20 : 1440); t += step) {
       const r = E.plan(cfg, ix, { ...b, treatStart: HM(t) });
       if (r.ok && r.items.some(i => T(i.start) === t)) out.push({ time: HM(t), end: HM(Math.max(...r.items.map(i => T(i.start) + i.min))), items: r.items });
     }
