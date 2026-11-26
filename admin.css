@@ -686,5 +686,5 @@ html{touch-action:manipulation}
 /* no boxes that scroll inside the page (user, 2026-11-26): the page itself scrolls; wide tables only scroll sideways */
 .tg-body{max-height:none!important;overflow:visible!important}
 .tg{overflow:visible}
-.tg-head{position:sticky;top:var(--top-h,56px);z-index:8;background:var(--cream)}
+.tg-head{position:sticky;top:var(--top,56px);z-index:8;background:var(--paper)}
 .tl,.planner,.rota,.roomcal{overflow-x:auto;overflow-y:visible}
