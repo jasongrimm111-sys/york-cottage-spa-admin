@@ -688,3 +688,10 @@ html{touch-action:manipulation}
 .tg{overflow:visible}
 .tg-head{position:sticky;top:var(--top,56px);z-index:8;background:var(--paper)}
 .tl,.planner,.rota,.roomcal{overflow-x:auto;overflow-y:visible}
+
+/* calendar: full width */
+.cal-wrap.cal-full{display:block}
+.cal-full .cal-main{width:100%;min-width:0}
+.cal-bar-r{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.cal-jump{width:auto;padding:6px 8px;font-size:13px;margin-left:6px}
+@media (max-width:700px){.cal-jump{display:none}}

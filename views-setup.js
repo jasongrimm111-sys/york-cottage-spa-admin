@@ -275,7 +275,7 @@
     const duty = list.filter(x => x[3] === 'duty'), hands = mine.reduce((a, i) => a + i.min, 0), cap = st.maxHands || cfg.rules.maxHandsOn;
     const breaks = E.suggestBreaks(cfg, st, d, ix);
     const timeline = [...mine.map(i => ({ s: E.T(i.start), e: E.T(i.start) + i.min, kind: 'treat', i })), ...duty.map(x => ({ s: x[0], e: x[1], kind: 'duty', sv: x[4] })), ...breaks.filter(b => b.kind !== 'Free').map(b => ({ ...b, kind: 'break', label: b.kind }))].sort((a, b) => a.s - b.s);
-    const canEdit = true, dayLink = x => opt.fromToday ? `#/today/${x}?as=${st.id}` : `#/staffday/${st.id}/${x}`;
+    const canEdit = true, dayLink = x => opt.fromToday ? (x <= today() ? `#/today?as=${st.id}` : `#/ahead/${x}?as=${st.id}`) : `#/staffday/${st.id}/${x}`;
     return { html: `${opt.fromToday ? '' : A.dayTabs(d, 'person', st.id)}<div class="vh"><div><div class="eyebrow">${opt.fromToday ? `Staff view · ${esc(st.name)}` : A.isTher() ? 'My day' : 'Day sheet'}</div><h1>${esc(st.name)}</h1><p>${fdy(d)} · ${day ? day.spans.map(s => E.HM(s[0]) + '–' + E.HM(s[1])).join(' and ') : 'Not working'} · ${mine.length} treatment${mine.length === 1 ? '' : 's'}, ${hrs(hands)} hands-on of ${hrs(cap)}</p></div>
       <div class="acts"><a class="btn" href="${dayLink(E.addD(d, -1))}">${A.ic.left}</a><a class="btn" href="${dayLink(today())}">Today</a><a class="btn" href="${dayLink(E.addD(d, 1))}">${A.ic.right}</a><button class="btn" onclick="print()">${A.ic.print} Print</button>
         ${!A.isTher() && !opt.fromToday ? `<select class="inp" id="who" style="width:auto">${cfg.staff.map(s => `<option value="${s.id}" ${s.id === st.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select>` : ''}</div></div>

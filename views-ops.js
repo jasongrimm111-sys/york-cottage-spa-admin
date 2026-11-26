@@ -65,15 +65,17 @@
   };
 
   // ============ TODAY ============
-  V.today = (d) => {
-    const real = today(), t = /^\d{4}-\d\d-\d\d$/.test(d || '') ? d : real, DB = A.DB(), cfg = A.cfg(), isToday = t === real;
+  V.ahead = (d) => V.today(d, { ahead: true });
+  V.today = (d, opt = {}) => {
+    const real = today(), tmw = E.addD(real, 1), ahead = !!opt.ahead, base = ahead ? 'ahead' : 'today';
+    const t = ahead ? (/^\d{4}-\d\d-\d\d$/.test(d || '') && d >= tmw ? d : tmw) : real, DB = A.DB(), cfg = A.cfg(), isToday = t === real;
     // "View as": ?as=<staff id> in the link; someone who is also a therapist sees their own list by default
     const asQ = new URLSearchParams((location.hash.split('?')[1] || '')).get('as'), asId = asQ === 'all' ? '' : (asQ || '');
     const asBar = `<div class="viewas"><label class="small muted" for="viewAs">Staff view for</label><select class="inp" id="viewAs" style="width:auto"><option value="">Everyone (whole day)</option>${cfg.staff.filter(s => s.active !== false).sort(E.byPriority).map(s => `<option value="${s.id}" ${s.id === asId ? 'selected' : ''}>${esc(s.name)}${E.staffDay(cfg, s, t) ? '' : ' (not working)'}</option>`).join('')}</select>${asId ? `<button class="btn sm" id="asPortal">See the whole portal as ${esc(A.sname(asId))}</button>` : ''}</div>`;
-    const asWire = el => { const va = $('#viewAs', el); if (va) va.onchange = () => { location.hash = `#/today/${t}${va.value ? '?as=' + va.value : ''}`; };
+    const asWire = el => { const va = $('#viewAs', el); if (va) va.onchange = () => { location.hash = `#/${base}/${ahead ? t : ''}${va.value ? '?as=' + va.value : ''}`.replace('//?', '/?').replace(/\/$/, ''); };
       const ap = $('#asPortal', el); if (ap) ap.onclick = () => { const S = St.S; S.realUser = S.realUser || S.user; S.user = { ...S.realUser, name: S.realUser.name + ' (viewing as ' + A.sname(asId) + ')', role: 'therapist', staffId: asId }; A.reshell(); location.hash = '#/staffday/' + asId + '/' + t; }; };
     // viewing as one person: their whole day, as they'd see it (user, 2026-11-26), not extra cards on top of everyone's
-    if (asId && cfg.staff.some(s => s.id === asId)) { const sd = V.staffday(asId, t, { fromToday: true }); return { html: A.dayTabs(t, 'person', asId) + asBar + sd.html, wire: el => { sd.wire(el); asWire(el); } }; }
+    if (asId && cfg.staff.some(s => s.id === asId)) { const sd = V.staffday(asId, t, { fromToday: true, base }); return { html: A.dayTabs(t, 'person', asId) + asBar + sd.html, wire: el => { sd.wire(el); asWire(el); } }; }
     const rel = isToday ? 'Today' : t < real ? (E.between(t, real) === 1 ? 'Yesterday' : `${E.between(t, real)} days ago`) : (E.between(real, t) === 1 ? 'Tomorrow' : `In ${E.between(real, t)} days`);
     const arr = arrivals(t).sort((a, b) => arriveTime(a).localeCompare(arriveTime(b)));
     const dep = departs(t), house = inHouse(t);
@@ -106,7 +108,7 @@
         ${pill('In treatment', on.length ? on.map(i => `${esc((i.b.guestList[i.guest] || {}).name || A.cust(i.b))} · ${esc(A.tname(i.tid))} <em>until ${E.HM(E.T(i.start) + i.min)}</em>`).join('<br>') : 'Nobody right now', on.length ? 'live' : 'quiet')}
         ${pill('Next treatment', up ? `<button type="button" class="ns-link" data-it="${up.b.id}|${up.key}">${up.start} · ${esc((up.b.guestList[up.guest] || {}).name || A.cust(up.b))} · ${esc(A.tname(up.tid))} <em>${esc(A.sname(up.staff))}, ${esc((cfg.treatRooms.find(r => r.id === up.troom) || {}).name || '')}</em></button>` : 'None left today')}
         ${pill('Next arrival', nextArr ? `${arriveTime(nextArr)} · ${esc(A.cust(nextArr))} <em>${nextArr.guests} guest${nextArr.guests > 1 ? 's' : ''} · ${esc(A.pname(nextArr.product))}</em>` : 'No more arrivals')}</div>`; })();
-    return { html: `${A.dayTabs(t, 'today')}<div class="vh"><div><div class="eyebrow">${isToday ? fdy(t) : rel}</div><h1>${isToday ? greet : fdy(t)}</h1>${isToday ? `<p>Here’s how today looks at York Cottage.</p>` : ''}</div><div class="acts"><a class="btn" href="#/today/${E.addD(t, -1)}${asQ ? '?as=' + asQ : ''}" title="Previous day">${A.ic.left}</a><input type="date" class="inp" id="todayPick" value="${t}" style="width:auto" aria-label="Choose a day"><a class="btn" href="#/today/${E.addD(t, 1)}${asQ ? '?as=' + asQ : ''}" title="Next day">${A.ic.right}</a>${isToday ? '' : `<a class="btn" href="#/today">Back to today</a>`}</div></div>
+    return { html: `${A.dayTabs(t, 'today')}<div class="vh"><div><div class="eyebrow">${isToday ? fdy(t) : rel}</div><h1>${isToday ? greet : fdy(t)}</h1>${isToday ? `<p>Here’s how today looks at York Cottage.</p>` : ''}</div>${ahead ? `<div class="acts">${t > tmw ? `<a class="btn" href="#/ahead/${E.addD(t, -1)}${asQ ? '?as=' + asQ : ''}" title="Previous day">${A.ic.left}</a>` : `<span class="btn" aria-disabled="true" style="opacity:.35">${A.ic.left}</span>`}<input type="date" class="inp" id="todayPick" value="${t}" min="${tmw}" style="width:auto" aria-label="Choose a day"><a class="btn" href="#/ahead/${E.addD(t, 1)}${asQ ? '?as=' + asQ : ''}" title="Next day">${A.ic.right}</a>${t > tmw ? `<a class="btn" href="#/ahead">Tomorrow</a>` : ''}</div>` : ''}</div>
       ${asBar}
       ${nowStrip}
       ${closedToday.length ? `<div class="note warn" style="margin-bottom:14px">Closed ${isToday ? 'today' : 'this day'}: ${closedToday.map(c => esc(c.reason || 'closure')).join(', ')}</div>` : ''}
@@ -134,10 +136,10 @@
             ${Object.keys(foods).length || bfast ? `<div class="list">${Object.entries(foods).map(([f, n]) => `<div class="li"><span class="grow">${esc((cfg.foods.find(x => x.id === f) || {}).name || f)}</span><b class="tnum">${n}</b></div>`).join('')}${bfast ? `<div class="li"><span class="grow">Continental breakfast</span><b class="tnum">${bfast}</b></div>` : ''}</div>` : '<p class="muted">No food orders.</p>'}
             <a class="btn sm" style="margin-top:10px" href="#/reports/food">Food orders for the next 2 weeks</a></div>
           <div class="card"><div class="card-h"><h3>The next 7 days</h3><a class="btn sm ghost" href="#/calendar">Calendar</a></div>
-            ${next7.map(x => `<a class="hbar" href="#/today/${x.d}" style="text-decoration:none"><span>${fd(x.d)}</span><span class="bar"><i style="width:${x.n / mx * 100}%"></i></span><b>${x.n}</b></a>`).join('')}<p class="small muted">Guests visiting or staying each day</p></div>
+            ${next7.map(x => `<a class="hbar" href="${x.d === real ? '#/today' : '#/ahead/' + x.d}" style="text-decoration:none"><span>${fd(x.d)}</span><span class="bar"><i style="width:${x.n / mx * 100}%"></i></span><b>${x.n}</b></a>`).join('')}<p class="small muted">Guests visiting or staying each day</p></div>
         </div>
       </div>`,
-      wire: el => { A.wireMove(el); const tp = $('#todayPick', el); if (tp) tp.onchange = () => { if (tp.value) location.hash = '#/today/' + tp.value + (asQ ? '?as=' + asQ : ''); }; A.wireArrive(el); A.wireMyDay(el); if (A.wireCalClicks) A.wireCalClicks(el);
+      wire: el => { A.wireMove(el); const tp = $('#todayPick', el); if (tp) tp.onchange = () => { if (tp.value) location.hash = '#/ahead/' + (tp.value > today() ? tp.value : E.addD(today(), 1)) + (asQ ? '?as=' + asQ : ''); }; A.wireArrive(el); A.wireMyDay(el); if (A.wireCalClicks) A.wireCalClicks(el);
         asWire(el); } };
   };
 

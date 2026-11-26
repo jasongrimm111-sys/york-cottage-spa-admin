@@ -46,8 +46,8 @@
     const next = mode === 'month' ? ymOf(E.addD(d.slice(0, 8) + '01', 32)) + '-01' : E.addD(d, step);
     const prods = Object.entries(A.cfg().products), f = fl();
     const tog = k => { const n = f.includes(k) ? f.filter(x => x !== k) : f.concat([k]); return `#/calendar/${mode}/${d}${n.length ? '?p=' + n.join(',') : ''}`; };
-    return `<div class="cal-bar"><div class="cal-bar-l"><a class="btn" href="#/calendar/${mode}/${today()}${qs()}">Today</a><a class="icon-btn" href="#/calendar/${mode}/${prev}${qs()}" title="Previous" aria-label="Previous">${A.ic.left}</a><a class="icon-btn" href="#/calendar/${mode}/${next}${qs()}" title="Next" aria-label="Next">${A.ic.right}</a><h1 class="cal-title">${title}</h1></div>
-      <div class="seg cal-modes">${[['day', 'Day'], ['3day', '3 days'], ['week', 'Week'], ['month', 'Month']].map(([m, t]) => `<a href="#/calendar/${m}/${d}${qs()}" class="${m === mode ? 'on' : ''}">${t}</a>`).join('')}</div></div>
+    return `<div class="cal-bar"><div class="cal-bar-l"><a class="btn" href="#/calendar/${mode}/${today()}${qs()}">Today</a><a class="icon-btn" href="#/calendar/${mode}/${prev}${qs()}" title="Previous" aria-label="Previous">${A.ic.left}</a><a class="icon-btn" href="#/calendar/${mode}/${next}${qs()}" title="Next" aria-label="Next">${A.ic.right}</a><h1 class="cal-title">${title}</h1><input type="date" class="inp cal-jump" id="calJump" value="${d}" aria-label="Go to a date" title="Go to a date"></div>
+      <div class="cal-bar-r"><div class="seg cal-modes">${[['day', 'Day'], ['3day', '3 days'], ['week', 'Week'], ['month', 'Month']].map(([m, t]) => `<a href="#/calendar/${m}/${d}${qs()}" class="${m === mode ? 'on' : ''}">${t}</a>`).join('')}</div><a class="btn pri" href="#/new?date=${d >= today() ? d : today()}">${A.ic.plus} New booking</a></div></div>
       <details class="cal-filter-dd"><summary>${A.ic.list} ${f.length ? `Showing ${f.length} type${f.length > 1 ? 's' : ''}` : 'Showing everything'}</summary><div class="cal-filter-menu"><a class="chip sm ${!f.length ? 'on' : ''}" href="#/calendar/${mode}/${d}">Everything</a>${prods.map(([k, p]) => `<a class="chip sm ${f.includes(k) ? 'on' : ''}" href="${tog(k)}">${A.prodDot(k)} ${esc(p.name)}</a>`).join('')}</div></details>`;
   }
   // little month on the left
@@ -174,8 +174,8 @@
     if (mode === 'week') { const m = mon(d), days = Array.from({ length: 7 }, (_, i) => E.addD(m, i)); title = `${fd(m, { day: 'numeric', month: 'short' })} – ${fd(days[6], { day: 'numeric', month: 'short', year: 'numeric' })}`; body = narrow() ? agenda(days) : timeGrid(days, 'week'); }
     if (mode === '3day') { const days = [0, 1, 2].map(i => E.addD(d, i)); title = `${fd(d, { day: 'numeric', month: 'short' })} – ${fd(days[2], { day: 'numeric', month: 'short', year: 'numeric' })}`; body = narrow() ? agenda(days) : timeGrid(days, 'day'); }
     if (mode === 'month') { title = monthName(d); body = month(d); }
-    return { html: `${mode === 'day' ? A.dayTabs(d, 'calendar') : ''}<div class="cal-wrap"><aside class="cal-side">${mini(d, mode)}</aside><div class="cal-main">${toolbar(mode, d, title)}${body}</div></div>`,
-      wire: el => { A.wireCalClicks(el); $$('.tg-col', el).forEach(c => c.addEventListener('dblclick', e => { if (e.target.closest('.tg-ev')) return; const dd = c.dataset.day; if (dd >= today()) location.hash = '#/new?date=' + dd; })); } };
+    return { html: `${mode === 'day' ? A.dayTabs(d, 'calendar') : ''}<div class="cal-wrap cal-full"><div class="cal-main">${toolbar(mode, d, title)}${body}</div></div>`,
+      wire: el => { A.wireCalClicks(el); const cj = $('#calJump', el); if (cj) cj.onchange = () => { if (cj.value) location.hash = `#/calendar/${mode}/${cj.value}${qs()}`; }; $$('.tg-col', el).forEach(c => c.addEventListener('dblclick', e => { if (e.target.closest('.tg-ev')) return; const dd = c.dataset.day; if (dd >= today()) location.hash = '#/new?date=' + dd; })); } };
   };
 
   // ---------- Room calendar: rooms down the side, nights across ----------
