@@ -131,7 +131,7 @@
 
   // ---------- shell ----------
   const NAV = [
-    ['Run the day', [['today', 'Today', 'today'], ['ahead', 'Future days', 'cal'], ['todo', 'To do', 'check'], ['calendar', 'Calendar', 'cal'], ['roomcal', 'Room calendar', 'bed'], ['bookings', 'Bookings', 'list'], ['waitlist', 'Waitlist', 'wait']]],
+    ['Run the day', [['today', 'Today', 'today'], ['ahead', 'Future days', 'cal'], ['calendar', 'Calendar', 'cal'], ['roomcal', 'Room calendar', 'bed'], ['bookings', 'Bookings', 'list'], ['waitlist', 'Waitlist', 'wait']]],
     ['Team', [['staff', 'Staff', 'staff'], ['rota', 'Rota', 'rota']]],
     ['Guests & sales', [['customers', 'Customers', 'cust'], ['vouchers', 'Gift vouchers', 'gift'], ['promos', 'Discount codes', 'tag'], ['reports', 'Reports', 'chart']]],
     ['Set-up', [['spa', 'Spa & sessions', 'spa'], ['treatments', 'Treatments', 'treat'], ['rooms', 'Rooms', 'bed'], ['products', 'Booking types', 'box'], ['rates', 'Date prices', 'price'], ['emails', 'Emails', 'mail'], ['settings', 'Settings', 'cog']]]
@@ -150,12 +150,13 @@
         <button class="burger" id="burger" aria-label="Menu">${A.ic.menu}</button>
         <div class="search">${A.ic.search}<input id="q" placeholder="${innerWidth < 600 ? 'Search guests, bookings…' : 'Search bookings, guests, references…'}" autocomplete="off" aria-label="Search" type="search" enterkeyhint="search"><div class="search-res" id="qres" hidden></div></div>
         <span style="flex:1"></span>
+        ${A.can('view.today') ? `<a class="icon-btn bell" href="#/todo" title="To do" aria-label="To do"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10.3 20a1.9 1.9 0 0 0 3.4 0"/></svg><span class="cnt" data-cnt="todo" hidden></span></a>` : ''}
         ${A.can('bookings.create') ? `<a class="btn pri" href="#/new">${A.ic.plus}<span>New booking</span></a>` : ''}
         <span class="save-st" id="saveSt"><i></i><span>Saved</span></span>
         <div class="me"><button class="me-btn" id="meBtn"><i>${A.initials(S.user.name)}</i><b>${esc(S.user.name.split(' ')[0])}</b></button>
           <div class="me-menu" id="meMenu" hidden><a href="#/settings/users">Users & password</a><a href="#/settings/data">Backup & data</a>${S.mode === 'demo' ? '<button id="resetDemo">Reset the demo data</button>' : ''}<button id="signOut">Sign out</button></div></div>
       </header><main class="view" id="view"></main></div>
-      <nav class="tabbar" aria-label="Main">${[...(A.can('view.today') ? [['today', 'Today', 'today'], ['todo', 'To do', 'check']] : A.myStaff() ? [['staffday/' + A.myStaff(), 'My day', 'today']] : []), ...(A.can('view.calendar') ? [['calendar', 'Calendar', 'cal']] : []), ...(A.can('view.bookings') ? [['bookings', 'Bookings', 'list']] : [])].slice(0, 4).map(([r, t, ic]) => `<a href="#/${r}" data-r="${r.split('/')[0]}">${A.ic[ic]}<span>${t}</span>${r === 'todo' ? '<i class="tb-cnt" data-cnt="todo2" hidden></i>' : ''}</a>`).join('')}<button id="tbMenu" type="button">${A.ic.menu}<span>Menu</span></button></nav></div>`;
+      <nav class="tabbar" aria-label="Main">${[...(A.can('view.today') ? [['today', 'Today', 'today'], ['ahead', 'Future', 'cal']] : A.myStaff() ? [['staffday/' + A.myStaff(), 'My day', 'today']] : []), ...(A.can('view.calendar') ? [['calendar', 'Calendar', 'cal']] : []), ...(A.can('view.bookings') ? [['bookings', 'Bookings', 'list']] : [])].slice(0, 4).map(([r, t, ic]) => `<a href="#/${r}" data-r="${r.split('/')[0]}">${A.ic[ic]}<span>${t}</span>${r === 'todo' ? '<i class="tb-cnt" data-cnt="todo2" hidden></i>' : ''}</a>`).join('')}<button id="tbMenu" type="button">${A.ic.menu}<span>Menu</span></button></nav></div>`;
     $('#burger').onclick = () => document.body.classList.toggle('nav-open');
     $('#tbMenu').onclick = e => { e.stopPropagation(); document.body.classList.toggle('nav-open'); };
     $('#side').addEventListener('click', e => { if (e.target.closest('a')) document.body.classList.remove('nav-open'); });

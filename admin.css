@@ -747,3 +747,9 @@ html{touch-action:manipulation}
 .rb-now{position:absolute;top:0;bottom:0;width:2px;background:var(--bad,#c0392b);border-radius:2px}
 .rb-now em{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-style:normal;font-size:10.5px;font-weight:700;color:var(--bad,#c0392b);background:var(--cream);padding:0 3px}
 @media (max-width:700px){.rb-hours,.rb-row,.rb-nowwrap{grid-template-columns:120px minmax(480px,1fr)}.td-stat{min-width:0;flex:1 1 45%;border-left:0;border-top:1px solid var(--line)}.td-stat:nth-child(-n+2){border-top:0}}
+
+/* To do bell in the top bar */
+.bell{position:relative}
+.bell svg{width:20px;height:20px}
+.bell .cnt{position:absolute;top:-3px;right:-4px;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:var(--clay);color:#fff;font-size:10.5px;font-weight:700;display:grid;place-items:center;line-height:1}
+.bell .cnt[hidden]{display:none}

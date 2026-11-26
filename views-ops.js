@@ -115,7 +115,7 @@
       const h = E.hours(cfg, t) || { start: '09:00', end: '18:00' };
       const spans = people.flatMap(s => (E.staffDay(cfg, s, t) || { spans: [] }).spans);
       const t0 = Math.floor(Math.min(E.T(h.start), ...spans.map(x => x[0]), ...items.map(i => E.T(i.start))) / 60) * 60;
-      const t1 = Math.ceil(Math.max(Math.min(E.T(h.end), 20 * 60), ...spans.map(x => Math.min(x[1], 22 * 60)), ...items.map(i => E.T(i.start) + i.min)) / 60) * 60;
+      const t1 = Math.ceil(Math.max(...(spans.length ? spans.map(x => Math.min(x[1], 22 * 60)) : [E.T(h.end)]), ...items.map(i => E.T(i.start) + i.min), ...services.map(x => E.T(x.sv.end))) / 60) * 60;
       const pc = m => ((m - t0) / (t1 - t0) * 100).toFixed(2) + '%', wd = (a, b) => ((b - a) / (t1 - t0) * 100).toFixed(2) + '%';
       const hrsTicks = []; for (let m = t0; m <= t1; m += 60) hrsTicks.push(`<span style="left:${pc(m)}">${E.HM(m).replace(':00', '')}</span>`);
       const nowOn = isToday && nowM > t0 && nowM < t1;
