@@ -394,12 +394,13 @@
       if ((cfg.rules.share || 'fill') === 'fill' && g.length === 1) {
         const it = g[0], inUse = st => ((ix.staff[date] || {})[st.id] || []).some(x => x[3] !== 'duty');
         const order = cfg.staff.filter(st => E.canDoAll(st, it) && (!it.staff || it.staff === st.id)).sort((a, b) => (inUse(b) - inUse(a)) || E.byPriority(a, b));
-        outer: for (const st of order) for (const t of starts) {
-          if (!guestFree(it.guest, t, t + min)) continue;
-          if (E.staffFree(cfg, ix, st, date, t, it.min || tr.min, buf)) continue;
-          const room = E.roomFree(cfg, ix, date, tr, t, t + min + buf, 1); if (!room) { why = 'No treatment room free'; continue; }
-          book(it, st, room, t); done = true; break outer;
-        }
+        // earliest time first (busiest therapist only breaks ties), so guests aren't pushed late in the session
+        // (user 2026-11-27); side by side with another guest only if that costs at most 30 minutes
+        const fit = t => { if (!guestFree(it.guest, t, t + min)) return null; for (const st of order) { if (E.staffFree(cfg, ix, st, date, t, it.min || tr.min, buf)) continue; const room = E.roomFree(cfg, ix, date, tr, t, t + min + buf, 1); if (room) return { st, room }; why = 'No treatment room free'; } return null; };
+        const ordered = [...new Set(starts)].sort((x, y) => opt.prefer === 'late' ? y - x : x - y);
+        let best = null; for (const t of ordered) { const f = fit(t); if (f) { best = { t, ...f }; break; } }
+        if (best && opt.align && (out.length || taken.length) && !it.start) { const used = [...new Set(out.concat(taken).map(o => T(o.start)))].filter(t => t !== best.t && Math.abs(t - best.t) <= 30).sort((x, y) => x - y); for (const t of used) { const f = fit(t); if (f) { best = { t, ...f }; break; } } }
+        if (best) { book(it, best.st, best.room, best.t); done = true; }
         if (!done) return { ok: false, fail: { key: g[0].key, why, name: tr.name }, items: out };
         continue;
       }
