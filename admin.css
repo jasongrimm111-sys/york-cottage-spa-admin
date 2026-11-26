@@ -785,3 +785,7 @@ html{touch-action:manipulation}
 .sp-row .sp-snip{max-width:none}
 .sp-list{display:block;width:100%}
 @media (max-width:700px){.sp-tabs{display:flex;overflow-x:auto}.sp-row{flex-wrap:wrap}.sp-meta{flex-direction:row;gap:8px;width:100%;justify-content:flex-start;padding-left:21px}}
+
+/* long values (emails, links) wrap instead of running out of their box */
+.kv dd{min-width:0;overflow-wrap:anywhere;word-break:break-word}
+.sp-text,.sp-snip,.tk-text{overflow-wrap:anywhere}
