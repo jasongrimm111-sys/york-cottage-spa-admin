@@ -606,8 +606,24 @@
       const incCat = incNeed && (E.tr(cfg, incNeed.tid) || {}).cat;
       (g.extras || []).forEach((tid, j) => {
         const tr = E.tr(cfg, tid) || {};
-        if (incNeed && cfg.rules.combineIncluded !== false && incCat && tr.cat === incCat) { incNeed.with = (incNeed.with || []).concat(tid); incNeed.min += tr.min || 0; return; }
+        if (incNeed && cfg.rules.combineIncluded !== false && incCat && tr.cat === incCat) { const add = (incNeed.with || []).length ? 0 : E.extendBy(cfg, incNeed.min, tr); if (add > 0) { incNeed.with = (incNeed.with || []).concat(tid); incNeed.min += add; } return; }
         out.push({ key: `g${i}-x${j}`, guest: i, tid });
+      });
+    });
+    return out;
+  };
+  // how many minutes a same-kind extra adds to an included treatment that is already `have` minutes long: the whole
+  // treatment is capped at rules.combineMax (55 min, user 2026-11-27), and the extra is charged only for what it adds
+  E.combineMax = cfg => +((cfg.rules || {}).combineMax) || 55;
+  E.extendBy = (cfg, have, tr) => Math.max(0, Math.min((tr && tr.min) || 0, E.combineMax(cfg) - have));
+  // what each guest's extras cost, with the same-kind ones prorated to the minutes they add: [{ guest, tid, price, full, mins }]
+  E.extraCharges = (cfg, b) => {
+    const out = [], inc = E.includedFor(cfg, b.product), comb = cfg.rules.combineIncluded !== false, bl = tr => b.blueLight && cfg.rules.blueLight ? Math.max(tr.min, cfg.rules.blueLightMin) : tr.min;
+    (b.guestList || []).forEach((g, i) => {
+      const incTr = inc.length ? (inc.find(t => t.id === g.included) || inc[0]) : null; let have = incTr ? bl(incTr) : 0;
+      (g.extras || []).forEach(tid => { const t = E.tr(cfg, tid); if (!t) return;
+        if (comb && incTr && E.includedPick(cfg, b.product) !== 'all' && t.cat === incTr.cat) { const add = out.some(x => x.guest === i && x.extends) ? 0 : E.extendBy(cfg, have, t); have += add; out.push({ guest: i, tid, mins: add, full: t.price, price: add >= t.min ? t.price : Math.round(t.price * add / t.min / 5) * 5, extends: true }); }
+        else out.push({ guest: i, tid, mins: t.min, full: t.price, price: t.price });
       });
     });
     return out;
@@ -633,7 +649,7 @@
     else if (p.kind !== 'treat') { const u = E.unitPrice(cfg, b.product, b.date); lines.push({ k: 'base', label: `${p.name} · ${g} × £${u}`, amount: u * g }); }
     if (b.breakfast && p.breakfast) lines.push({ k: 'bfast', label: `Breakfast · ${g} × ${n} morning${n === 1 ? '' : 's'}`, amount: cfg.breakfastPrice * g * n });
     let tsum = 0, off = 0;
-    (b.guestList || []).forEach(gl => (gl.extras || []).forEach(tid => { const t = E.tr(cfg, tid); if (!t) return; tsum += t.price; if (t.head && p.kind !== 'treat') off += t.price * cfg.rules.headSpaOff / 100; }));
+    E.extraCharges(cfg, b).forEach(c => { const t = E.tr(cfg, c.tid); tsum += c.price; if (t.head && p.kind !== 'treat') off += c.price * cfg.rules.headSpaOff / 100; });
     (b.addOns || []).forEach(a => lines.push({ k: 'addon', label: a.label, amount: +a.amount || 0 }));
     if (tsum) lines.push({ k: 'treat', label: 'Treatments', amount: tsum });
     if (off) lines.push({ k: 'headoff', label: `Head spa ${cfg.rules.headSpaOff}% off`, amount: -Math.round(off * 100) / 100 });
