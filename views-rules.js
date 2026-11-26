@@ -75,7 +75,8 @@
       `When more than one therapist is working: ${(r.share || 'fill') === 'fill' ? '<b>use one therapist where possible</b>, by their priority in Staff, then the next' : '<b>share treatments evenly</b>'}.`,
       r.groupTogether ? `Groups of <b>${r.groupTogetherFrom || 2} or more</b> are treated side by side where it costs at most 30 minutes.` : 'Guests in a group aren’t specially put side by side.',
       `A therapist does at most <b>${mins(r.maxHandsOn || 360)}</b> of hands-on treatments a day (unless their own limit is set in Staff).`,
-      `Treatment rooms: ${(cfg.treatRooms || []).filter(x => x.active !== false).map(x => `${esc(x.name)} (${x.beds} bed${x.beds > 1 ? 's' : ''})`).join(', ')}.`
+      `Treatment rooms: ${(cfg.treatRooms || []).filter(x => x.active !== false).map(x => `${esc(x.name)} (${x.beds} bed${x.beds > 1 ? 's' : ''})`).join(', ')}.`,
+      'A therapist <b>only ever treats one guest at a time</b>. A room with 2 beds just means two therapists can work in it side by side, one guest each.'
     ], '#/settings/rules'));
 
     // ---- breaks ----
