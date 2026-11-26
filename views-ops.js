@@ -57,8 +57,9 @@
   };
 
   // ============ TODAY ============
-  V.today = () => {
-    const t = today(), DB = A.DB(), cfg = A.cfg();
+  V.today = (d) => {
+    const real = today(), t = /^\d{4}-\d\d-\d\d$/.test(d || '') ? d : real, DB = A.DB(), cfg = A.cfg(), isToday = t === real;
+    const rel = isToday ? 'Today' : t < real ? (E.between(t, real) === 1 ? 'Yesterday' : `${E.between(t, real)} days ago`) : (E.between(real, t) === 1 ? 'Tomorrow' : `In ${E.between(real, t)} days`);
     const arr = arrivals(t).sort((a, b) => arriveTime(a).localeCompare(arriveTime(b)));
     const dep = departs(t), house = inHouse(t);
     const items = live().flatMap(b => (b.items || []).filter(i => (i.date || b.date) === t).map(i => ({ ...i, b })));
@@ -84,36 +85,36 @@
     const mx = Math.max(1, ...next7.map(x => x.n));
     const closedToday = E.closures(cfg, t, ['all', 'spa', 'rooms', 'treatments']);
     const row = b => `<a class="li" href="#/booking/${b.id}"><span class="when">${arriveTime(b) || '—'}</span>${A.prodDot(b.product)}<span class="grow"><b>${esc(A.cust(b))} · ${b.guests} guest${b.guests > 1 ? 's' : ''}</b><span class="small muted">${A.pname(b.product)}${b.rooms && b.rooms.length ? ' · ' + b.rooms.map(r => (cfg.rooms.find(x => x.id === r) || {}).name).join(', ') : ''}${b.notes ? ' · ' + esc(b.notes.slice(0, 60)) : ''}</span></span>${consultDue(b) ? `<span class="badge warn" title="Consultation forms still to complete">${consultDue(b)} form${consultDue(b) > 1 ? 's' : ''}</span>` : ''}${A.statusBadge(b)}<button class="btn sm ${b.arrived ? 'dark' : ''}" data-arr="${b.id}">${b.arrived ? '✓ Arrived' : 'Arrived'}</button></a>`;
-    return { html: `<div class="vh"><div><div class="eyebrow">${fdy(t)}</div><h1>Today</h1></div><div class="acts"><a class="btn" href="#/day/${t}">${A.ic.cal} Day view</a><a class="btn" href="#/day/${t}/print">${A.ic.print} Run sheet</a></div></div>
-      ${closedToday.length ? `<div class="note warn" style="margin-bottom:14px">Closed today: ${closedToday.map(c => esc(c.reason || 'closure')).join(', ')}</div>` : ''}
+    return { html: `<div class="vh"><div><div class="eyebrow">${rel}</div><h1>${isToday ? 'Today' : fdy(t)}</h1>${isToday ? `<p>${fdy(t)}</p>` : ''}</div><div class="acts"><a class="btn" href="#/today/${E.addD(t, -1)}" title="Previous day">${A.ic.left}</a><input type="date" class="inp" id="todayPick" value="${t}" style="width:auto" aria-label="Choose a day"><a class="btn" href="#/today/${E.addD(t, 1)}" title="Next day">${A.ic.right}</a>${isToday ? '' : `<a class="btn" href="#/today">Back to today</a>`}<a class="btn" href="#/day/${t}">${A.ic.cal} Day view</a><a class="btn" href="#/day/${t}/print">${A.ic.print} Run sheet</a></div></div>
+      ${closedToday.length ? `<div class="note warn" style="margin-bottom:14px">Closed ${isToday ? 'today' : 'this day'}: ${closedToday.map(c => esc(c.reason || 'closure')).join(', ')}</div>` : ''}
       <div class="grid g4" style="margin-bottom:14px">
-        <div class="kpi"><small>Guests today</small><b>${guests}</b><span>${arr.length} arrival${arr.length === 1 ? '' : 's'} · ${dep.length} departure${dep.length === 1 ? '' : 's'}</span></div>
-        <div class="kpi"><small>Treatments today</small><b>${items.length}</b><span>${staffToday.length} therapist${staffToday.length === 1 ? '' : 's'} working</span></div>
-        <div class="kpi"><small>Rooms tonight</small><b>${roomsUsed}<span style="font-size:20px;color:var(--muted)"> / ${roomsAll}</span></b><span>${Math.round(roomsUsed / roomsAll * 100)}% occupied</span></div>
-        <div class="kpi"><small>Taken today</small><b>${gbp(takings)}</b><span>${pend.length} booking${pend.length === 1 ? '' : 's'} awaiting payment</span></div>
+        <div class="kpi"><small>Guests ${isToday ? 'today' : 'this day'}</small><b>${guests}</b><span>${arr.length} arrival${arr.length === 1 ? '' : 's'} · ${dep.length} departure${dep.length === 1 ? '' : 's'}</span></div>
+        <div class="kpi"><small>Treatments ${isToday ? 'today' : 'this day'}</small><b>${items.length}</b><span>${staffToday.length} therapist${staffToday.length === 1 ? '' : 's'} working</span></div>
+        <div class="kpi"><small>Rooms ${isToday ? 'tonight' : 'that night'}</small><b>${roomsUsed}<span style="font-size:20px;color:var(--muted)"> / ${roomsAll}</span></b><span>${Math.round(roomsUsed / roomsAll * 100)}% occupied</span></div>
+        <div class="kpi"><small>Taken ${isToday ? 'today' : 'that day'}</small><b>${gbp(takings)}</b><span>${pend.length} booking${pend.length === 1 ? '' : 's'} awaiting payment</span></div>
       </div>
       <div class="grid g-side">
         <div>
-          <div class="card"><div class="card-h"><h3>Arrivals & sessions</h3><span class="muted small">${arr.length} booking${arr.length === 1 ? '' : 's'}</span></div>
-            ${arr.length ? `<div class="list">${arr.map(row).join('')}</div>` : '<div class="empty"><b>No arrivals today</b>Enjoy the quiet.</div>'}</div>
+          <div class="card"><div class="card-h"><h3>${isToday ? 'Arrivals & sessions' : 'Arrivals & sessions'}</h3><span class="muted small">${arr.length} booking${arr.length === 1 ? '' : 's'}</span></div>
+            ${arr.length ? `<div class="list">${arr.map(row).join('')}</div>` : `<div class="empty"><b>No arrivals ${isToday ? 'today' : 'this day'}</b>${isToday ? 'Enjoy the quiet.' : ''}</div>`}</div>
           ${dep.length ? `<div class="card"><div class="card-h"><h3>Departures</h3><span class="muted small">check-out by ${(E.stayTimes(cfg, dep[0].product, dep[0].date, dep[0].nights) || {}).checkOut || '11:00'}</span></div><div class="list">${dep.map(b => `<a class="li" href="#/booking/${b.id}">${A.prodDot(b.product)}<span class="grow"><b>${esc(A.cust(b))}</b><span class="small muted">${A.pname(b.product)} · ${(b.product === 'house' ? ['Whole house'] : (b.rooms || []).map(r => (cfg.rooms.find(x => x.id === r) || {}).name)).join(', ')}</span></span>${due(b) > 0 ? `<span class="badge warn">${gbp(due(b))} to pay</span>` : ''}</a>`).join('')}</div></div>` : ''}
           <div class="card"><div class="card-h"><h3>Treatments</h3><a class="btn sm" href="#/day/${t}">Timeline</a></div>
             ${staffToday.length ? staffToday.map(s => { const mine = items.filter(i => i.staff === s.id).sort((a, b) => a.start.localeCompare(b.start)), d = E.staffDay(cfg, s, t);
               return `<div style="margin-bottom:12px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span class="av" style="background:${s.colour}">${A.initials(s.name)}</span><b>${esc(s.name)}</b><span class="muted small">${d.spans.map(x => E.HM(x[0]) + '–' + E.HM(x[1])).join(', ')} · ${mine.length} treatment${mine.length === 1 ? '' : 's'}</span><a class="btn sm ghost" style="margin-left:auto" href="#/staffday/${s.id}/${t}">Their day</a></div>
-                ${mine.length ? mine.map(i => `<a class="li" href="#/booking/${i.b.id}" style="padding:6px 0 6px 38px"><span class="when">${i.start}</span><span class="grow"><b>${esc(A.tname(i.tid))}</b><span class="small muted">${esc((i.b.guestList[i.guest] || {}).name || A.cust(i.b))} · ${i.min} min · ${(cfg.treatRooms.find(r => r.id === i.troom) || {}).name || ''}</span></span></a>`).join('') : '<p class="muted small" style="padding-left:38px">Nothing booked yet</p>'}</div>`; }).join('') : '<div class="empty"><b>No therapists working today</b></div>'}
+                ${mine.length ? mine.map(i => `<a class="li" href="#/booking/${i.b.id}" style="padding:6px 0 6px 38px"><span class="when">${i.start}</span><span class="grow"><b>${esc(A.tname(i.tid))}</b><span class="small muted">${esc((i.b.guestList[i.guest] || {}).name || A.cust(i.b))} · ${i.min} min · ${(cfg.treatRooms.find(r => r.id === i.troom) || {}).name || ''}</span></span></a>`).join('') : '<p class="muted small" style="padding-left:38px">Nothing booked yet</p>'}</div>`; }).join('') : `<div class="empty"><b>No therapists working ${isToday ? 'today' : 'that day'}</b></div>`}
           </div>
         </div>
         <div>
           <div class="card"><div class="card-h"><h3>Needs attention</h3><span class="badge ${att.length ? 'warn' : 'ok'}">${att.length}</span></div>
             ${att.length ? `<div class="list">${att.slice(0, 14).map(([k, h, b, href]) => `<a class="li" href="${b ? '#/booking/' + b.id : href}"><span class="dot" style="background:var(--${k === 'ok' ? 'ok' : k === 'bad' ? 'bad' : k === 'warn' ? 'warn' : 'info'})"></span><span class="grow small" style="white-space:normal">${h}</span></a>`).join('')}</div>${att.length > 14 ? `<p class="small muted">+ ${att.length - 14} more</p>` : ''}` : '<p class="muted">All clear.</p>'}</div>
-          <div class="card"><div class="card-h"><h3>Food today</h3></div>
-            ${Object.keys(foods).length || bfast ? `<div class="list">${Object.entries(foods).map(([f, n]) => `<div class="li"><span class="grow">${esc((cfg.foods.find(x => x.id === f) || {}).name || f)}</span><b class="tnum">${n}</b></div>`).join('')}${bfast ? `<div class="li"><span class="grow">Continental breakfast</span><b class="tnum">${bfast}</b></div>` : ''}</div>` : '<p class="muted">No food orders today.</p>'}
+          <div class="card"><div class="card-h"><h3>Food ${isToday ? 'today' : 'that day'}</h3></div>
+            ${Object.keys(foods).length || bfast ? `<div class="list">${Object.entries(foods).map(([f, n]) => `<div class="li"><span class="grow">${esc((cfg.foods.find(x => x.id === f) || {}).name || f)}</span><b class="tnum">${n}</b></div>`).join('')}${bfast ? `<div class="li"><span class="grow">Continental breakfast</span><b class="tnum">${bfast}</b></div>` : ''}</div>` : '<p class="muted">No food orders.</p>'}
             <a class="btn sm" style="margin-top:10px" href="#/reports/food">Food orders for the next 2 weeks</a></div>
-          <div class="card"><div class="card-h"><h3>Next 7 days</h3><a class="btn sm ghost" href="#/calendar">Calendar</a></div>
+          <div class="card"><div class="card-h"><h3>The next 7 days</h3><a class="btn sm ghost" href="#/calendar">Calendar</a></div>
             ${next7.map(x => `<a class="hbar" href="#/day/${x.d}" style="text-decoration:none"><span>${fd(x.d)}</span><span class="bar"><i style="width:${x.n / mx * 100}%"></i></span><b>${x.n}</b></a>`).join('')}<p class="small muted">Guests visiting or staying each day</p></div>
         </div>
       </div>`,
-      wire: el => $$('[data-arr]', el).forEach(btn => btn.onclick = e => { e.preventDefault(); const b = findB(btn.dataset.arr); b.arrived = !b.arrived; A.change('booking', b, (b.arrived ? 'Marked arrived: ' : 'Unmarked arrival: ') + b.ref); A.refresh(); }) };
+      wire: el => { const tp = $('#todayPick', el); if (tp) tp.onchange = () => { if (tp.value) location.hash = '#/today/' + tp.value; }; $$('[data-arr]', el).forEach(btn => btn.onclick = e => { e.preventDefault(); const b = findB(btn.dataset.arr); b.arrived = !b.arrived; A.change('booking', b, (b.arrived ? 'Marked arrived: ' : 'Unmarked arrival: ') + b.ref); A.refresh(); }); } };
   };
 
   // ============ CALENDAR (month) ============
