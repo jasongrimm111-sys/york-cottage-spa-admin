@@ -68,7 +68,12 @@
   V.today = (d) => {
     const real = today(), t = /^\d{4}-\d\d-\d\d$/.test(d || '') ? d : real, DB = A.DB(), cfg = A.cfg(), isToday = t === real;
     // "View as": ?as=<staff id> in the link; someone who is also a therapist sees their own list by default
-    const asQ = new URLSearchParams((location.hash.split('?')[1] || '')).get('as'), asId = asQ === 'all' ? '' : (asQ || A.myStaff() || '');
+    const asQ = new URLSearchParams((location.hash.split('?')[1] || '')).get('as'), asId = asQ === 'all' ? '' : (asQ || '');
+    const asBar = `<div class="viewas"><label class="small muted" for="viewAs">View as</label><select class="inp" id="viewAs" style="width:auto"><option value="">Everyone (whole day)</option>${cfg.staff.filter(s => s.active !== false).sort(E.byPriority).map(s => `<option value="${s.id}" ${s.id === asId ? 'selected' : ''}>${esc(s.name)}${E.staffDay(cfg, s, t) ? '' : ' (not working)'}</option>`).join('')}</select>${asId ? `<button class="btn sm" id="asPortal">See the whole portal as ${esc(A.sname(asId))}</button>` : ''}</div>`;
+    const asWire = el => { const va = $('#viewAs', el); if (va) va.onchange = () => { location.hash = `#/today/${t}${va.value ? '?as=' + va.value : ''}`; };
+      const ap = $('#asPortal', el); if (ap) ap.onclick = () => { const S = St.S; S.realUser = S.realUser || S.user; S.user = { ...S.realUser, name: S.realUser.name + ' (viewing as ' + A.sname(asId) + ')', role: 'therapist', staffId: asId }; A.reshell(); location.hash = '#/staffday/' + asId + '/' + t; }; };
+    // viewing as one person: their whole day, as they'd see it (user, 2026-11-26), not extra cards on top of everyone's
+    if (asId && cfg.staff.some(s => s.id === asId)) { const sd = V.staffday(asId, t, { fromToday: true }); return { html: asBar + sd.html, wire: el => { sd.wire(el); asWire(el); } }; }
     const rel = isToday ? 'Today' : t < real ? (E.between(t, real) === 1 ? 'Yesterday' : `${E.between(t, real)} days ago`) : (E.between(real, t) === 1 ? 'Tomorrow' : `In ${E.between(real, t)} days`);
     const arr = arrivals(t).sort((a, b) => arriveTime(a).localeCompare(arriveTime(b)));
     const dep = departs(t), house = inHouse(t);
@@ -82,6 +87,9 @@
     const bfast = departs(t).concat(house.filter(b => b.date !== t)).filter(b => b.breakfast).reduce((n, b) => n + b.guests, 0);
     // staff today
     const staffToday = cfg.staff.filter(s => E.staffDay(cfg, s, t));
+    const FIX = E.index(cfg, DB.bookings);
+    const services = Object.entries((FIX.food || {})[t] || {}).map(([sid, n]) => { const sv = E.service(cfg, sid, t); return sv && n ? { sid, n, sv, staff: ((FIX.duty || {})[t] || {})[sid] || [] } : null; }).filter(Boolean).sort((a, b) => a.sv.start.localeCompare(b.sv.start));
+    const svFor = sid => services.filter(x => x.staff.includes(sid));
     const next7 = Array.from({ length: 7 }, (_, i) => E.addD(t, i)).map(d => ({ d, n: arrivals(d).reduce((a, b) => a + b.guests, 0) + inHouse(d).filter(b => b.date !== d).reduce((a, b) => a + b.guests, 0) }));
     const mx = Math.max(1, ...next7.map(x => x.n));
     const closedToday = E.closures(cfg, t, ['all', 'spa', 'rooms', 'treatments']);
@@ -99,8 +107,7 @@
         ${pill('Next treatment', up ? `${up.start} · ${esc((up.b.guestList[up.guest] || {}).name || A.cust(up.b))} · ${esc(A.tname(up.tid))} <em>${esc(A.sname(up.staff))}, ${esc((cfg.treatRooms.find(r => r.id === up.troom) || {}).name || '')}</em>` : 'None left today')}
         ${pill('Next arrival', nextArr ? `${arriveTime(nextArr)} · ${esc(A.cust(nextArr))} <em>${nextArr.guests} guest${nextArr.guests > 1 ? 's' : ''} · ${esc(A.pname(nextArr.product))}</em>` : 'No more arrivals')}</div>`; })();
     return { html: `<div class="vh"><div><div class="eyebrow">${isToday ? fdy(t) : rel}</div><h1>${isToday ? greet : fdy(t)}</h1>${isToday ? `<p>Here’s how today looks at York Cottage.</p>` : ''}</div><div class="acts"><a class="btn" href="#/today/${E.addD(t, -1)}${asQ ? '?as=' + asQ : ''}" title="Previous day">${A.ic.left}</a><input type="date" class="inp" id="todayPick" value="${t}" style="width:auto" aria-label="Choose a day"><a class="btn" href="#/today/${E.addD(t, 1)}${asQ ? '?as=' + asQ : ''}" title="Next day">${A.ic.right}</a>${isToday ? '' : `<a class="btn" href="#/today">Back to today</a>`}<a class="btn" href="#/calendar/day/${t}">${A.ic.cal} Day view</a><a class="btn" href="#/day/${t}/print">${A.ic.print} Run sheet</a></div></div>
-      <div class="viewas"><label class="small muted" for="viewAs">View as</label><select class="inp" id="viewAs" style="width:auto"><option value="">Everyone (whole day)</option>${cfg.staff.filter(s => s.active !== false).sort(E.byPriority).map(s => `<option value="${s.id}" ${s.id === asId ? 'selected' : ''}>${esc(s.name)}${E.staffDay(cfg, s, t) ? '' : ' (not working)'}</option>`).join('')}</select>${asId ? `<button class="btn sm" id="asPortal">See the portal as ${esc(A.sname(asId))}</button><a class="btn sm ghost" href="#/staffday/${asId}/${t}">Their day sheet</a>` : ''}</div>
-      ${asId ? A.myDayCard(asId, t, { self: asId === A.myStaff() }) : ''}
+      ${asBar}
       ${nowStrip}
       ${closedToday.length ? `<div class="note warn" style="margin-bottom:14px">Closed ${isToday ? 'today' : 'this day'}: ${closedToday.map(c => esc(c.reason || 'closure')).join(', ')}</div>` : ''}
       <div class="grid g4 kpi-side" style="margin-bottom:14px">
@@ -117,21 +124,21 @@
           <div class="card"><div class="card-h"><h3>Treatments</h3><a class="btn sm" href="#/day/${t}">Timeline</a></div>
             ${staffToday.length ? staffToday.map(s => { const mine = items.filter(i => i.staff === s.id).sort((a, b) => a.start.localeCompare(b.start)), d = E.staffDay(cfg, s, t);
               return `<div style="margin-bottom:12px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span class="av" style="background:${s.colour}">${A.initials(s.name)}</span><b>${esc(s.name)}</b><span class="muted small">${d.spans.map(x => E.HM(x[0]) + '–' + E.HM(x[1])).join(', ')} · ${mine.length} treatment${mine.length === 1 ? '' : 's'}</span><a class="btn sm ghost" style="margin-left:auto" href="#/staffday/${s.id}/${t}">Their day</a></div>
-                ${mine.length ? mine.map(i => `<a class="li tr-row ${tState(i)}" href="#/booking/${i.b.id}" style="padding:6px 0 6px 38px"><span class="when">${i.start}</span>${tState(i) === 'now' ? '<span class="badge ok live-tag">Now</span>' : ''}<span class="grow"><b>${esc(A.tname(i.tid))}</b><span class="small muted">${esc((i.b.guestList[i.guest] || {}).name || A.cust(i.b))} · ${i.min} min · ${(cfg.treatRooms.find(r => r.id === i.troom) || {}).name || ''}</span></span>${(i.date || i.b.date) >= today() ? `<button class="btn sm ghost mv-btn" data-mv="${i.b.id}|${i.key}" title="Move to another time or hand to another therapist">Move or hand over</button>` : ''}</a>`).join('') : '<p class="muted small" style="padding-left:38px">Nothing booked yet</p>'}</div>`; }).join('') : `<div class="empty"><b>No therapists working ${isToday ? 'today' : 'that day'}</b></div>`}
+                ${(mine.length || svFor(s.id).length) ? [...mine.map(i => ({ at: i.start, i })), ...svFor(s.id).map(x => ({ at: x.sv.start, x }))].sort((a, b) => a.at.localeCompare(b.at)).map(({ i, x }) => x ? `<button type="button" class="li svc-li" data-food="${t}|${x.sid}" style="padding:6px 0 6px 38px"><span class="when">${x.sv.start}</span><span class="grow"><b>🍽 ${esc(x.sv.name)}</b><span class="small muted">until ${x.sv.end} · ${x.n} guest${x.n === 1 ? '' : 's'} · no treatments during it</span></span></button>` : `<a class="li tr-row ${tState(i)}" href="#/booking/${i.b.id}" style="padding:6px 0 6px 38px"><span class="when">${i.start}</span>${tState(i) === 'now' ? '<span class="badge ok live-tag">Now</span>' : ''}<span class="grow"><b>${esc(A.tname(i.tid))}</b><span class="small muted">${esc((i.b.guestList[i.guest] || {}).name || A.cust(i.b))} · ${i.min} min · ${(cfg.treatRooms.find(r => r.id === i.troom) || {}).name || ''}</span></span>${(i.date || i.b.date) >= today() ? `<button class="btn sm ghost mv-btn" data-mv="${i.b.id}|${i.key}" title="Move to another time or hand to another therapist">Move or hand over</button>` : ''}</a>`).join('') : '<p class="muted small" style="padding-left:38px">Nothing booked yet</p>'}</div>`; }).join('') : `<div class="empty"><b>No therapists working ${isToday ? 'today' : 'that day'}</b></div>`}
           </div>
         </div>
         <div>
           ${(() => { const td = A.todoItems(), n = A.todoCount(); return `<div class="card"><div class="card-h"><h3>To do</h3><a class="badge ${n ? 'warn' : 'ok'}" href="#/todo">${n}</a></div>${td.length ? `<div class="list">${td.slice(0, 5).map(x => `<a class="li" href="${x.href}"><span class="dot" style="background:var(--${x.level === 'ok' ? 'ok' : x.level === 'bad' ? 'bad' : x.level === 'warn' ? 'warn' : 'info'})"></span><span class="grow small"><b>${esc(x.title)}</b></span></a>`).join('')}</div>` : '<p class="muted">Nothing needs attention.</p>'}<a class="btn sm" style="margin-top:10px" href="#/todo">Open the to-do list</a></div>`; })()}
           <div class="card"><div class="card-h"><h3>Food ${isToday ? 'today' : 'that day'}</h3></div>
+            ${services.map(x => `<button type="button" class="svc-row" data-food="${t}|${x.sid}"><span class="when">${x.sv.start}</span><span class="grow"><b>🍽 ${esc(x.sv.name)}</b><span class="small muted" style="display:block">${x.sv.start}–${x.sv.end} · ${x.n} guest${x.n === 1 ? '' : 's'} · ${x.staff.length ? 'served by ' + x.staff.map(id => esc(A.sname(id))).join(', ') : '<span style="color:var(--bad)">nobody assigned</span>'}</span></span><span class="small muted">Who’s eating ›</span></button>`).join('')}
             ${Object.keys(foods).length || bfast ? `<div class="list">${Object.entries(foods).map(([f, n]) => `<div class="li"><span class="grow">${esc((cfg.foods.find(x => x.id === f) || {}).name || f)}</span><b class="tnum">${n}</b></div>`).join('')}${bfast ? `<div class="li"><span class="grow">Continental breakfast</span><b class="tnum">${bfast}</b></div>` : ''}</div>` : '<p class="muted">No food orders.</p>'}
             <a class="btn sm" style="margin-top:10px" href="#/reports/food">Food orders for the next 2 weeks</a></div>
           <div class="card"><div class="card-h"><h3>The next 7 days</h3><a class="btn sm ghost" href="#/calendar">Calendar</a></div>
             ${next7.map(x => `<a class="hbar" href="#/day/${x.d}" style="text-decoration:none"><span>${fd(x.d)}</span><span class="bar"><i style="width:${x.n / mx * 100}%"></i></span><b>${x.n}</b></a>`).join('')}<p class="small muted">Guests visiting or staying each day</p></div>
         </div>
       </div>`,
-      wire: el => { A.wireMove(el); const tp = $('#todayPick', el); if (tp) tp.onchange = () => { if (tp.value) location.hash = '#/today/' + tp.value + (asQ ? '?as=' + asQ : ''); }; A.wireArrive(el); A.wireMyDay(el);
-        const va = $('#viewAs', el); if (va) va.onchange = () => { location.hash = `#/today/${t}?as=${va.value || 'all'}`; };
-        const ap = $('#asPortal', el); if (ap) ap.onclick = () => { const S = St.S; S.realUser = S.realUser || S.user; S.user = { ...S.realUser, name: S.realUser.name + ' (viewing as ' + A.sname(asId) + ')', role: 'therapist', staffId: asId }; A.reshell(); location.hash = '#/staffday/' + asId + '/' + t; }; } };
+      wire: el => { A.wireMove(el); const tp = $('#todayPick', el); if (tp) tp.onchange = () => { if (tp.value) location.hash = '#/today/' + tp.value + (asQ ? '?as=' + asQ : ''); }; A.wireArrive(el); A.wireMyDay(el); if (A.wireCalClicks) A.wireCalClicks(el);
+        asWire(el); } };
   };
 
   // ============ CALENDAR (month) ============

@@ -262,7 +262,8 @@
       const old = E.addD(today(), -60); Object.keys(T.ticks).forEach(x => { if (x.split('|')[1] < old) delete T.ticks[x]; });
       A.change('tasks', null, ''); A.refresh(); }); });
 
-  V.staffday = (sid, d) => {
+  V.staffday = (sid, d, opt = {}) => {
+    // opt.fromToday: shown inside Today's "View as", so the day arrows stay on Today
     const cfg = A.cfg(), DB = A.DB(); d = d || today();
     if (A.isTher() && sid !== St.S.user.staffId) sid = St.S.user.staffId;
     const st = cfg.staff.find(s => s.id === sid) || cfg.staff[0]; if (!st) return '<div class="empty"><b>No staff yet</b></div>';
@@ -271,10 +272,10 @@
     const duty = list.filter(x => x[3] === 'duty'), hands = mine.reduce((a, i) => a + i.min, 0), cap = st.maxHands || cfg.rules.maxHandsOn;
     const breaks = E.suggestBreaks(cfg, st, d, ix);
     const timeline = [...mine.map(i => ({ s: E.T(i.start), e: E.T(i.start) + i.min, kind: 'treat', i })), ...duty.map(x => ({ s: x[0], e: x[1], kind: 'duty', sv: x[4] })), ...breaks.filter(b => b.kind !== 'Free').map(b => ({ ...b, kind: 'break', label: b.kind }))].sort((a, b) => a.s - b.s);
-    const canEdit = true;
-    return { html: `<div class="vh"><div><div class="eyebrow">${A.isTher() ? 'My day' : 'Day sheet'}</div><h1>${esc(st.name)}</h1><p>${fdy(d)} · ${day ? day.spans.map(s => E.HM(s[0]) + '–' + E.HM(s[1])).join(' and ') : 'Not working'} · ${mine.length} treatment${mine.length === 1 ? '' : 's'}, ${hrs(hands)} hands-on of ${hrs(cap)}</p></div>
-      <div class="acts"><a class="btn" href="#/staffday/${st.id}/${E.addD(d, -1)}">${A.ic.left}</a><a class="btn" href="#/staffday/${st.id}/${today()}">Today</a><a class="btn" href="#/staffday/${st.id}/${E.addD(d, 1)}">${A.ic.right}</a><button class="btn" onclick="print()">${A.ic.print} Print</button>
-        ${!A.isTher() ? `<select class="inp" id="who" style="width:auto">${cfg.staff.map(s => `<option value="${s.id}" ${s.id === st.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select>` : ''}</div></div>
+    const canEdit = true, dayLink = x => opt.fromToday ? `#/today/${x}?as=${st.id}` : `#/staffday/${st.id}/${x}`;
+    return { html: `<div class="vh"><div><div class="eyebrow">${opt.fromToday ? `Viewing as ${esc(st.name)}` : A.isTher() ? 'My day' : 'Day sheet'}</div><h1>${esc(st.name)}</h1><p>${fdy(d)} · ${day ? day.spans.map(s => E.HM(s[0]) + '–' + E.HM(s[1])).join(' and ') : 'Not working'} · ${mine.length} treatment${mine.length === 1 ? '' : 's'}, ${hrs(hands)} hands-on of ${hrs(cap)}</p></div>
+      <div class="acts"><a class="btn" href="${dayLink(E.addD(d, -1))}">${A.ic.left}</a><a class="btn" href="${dayLink(today())}">Today</a><a class="btn" href="${dayLink(E.addD(d, 1))}">${A.ic.right}</a><button class="btn" onclick="print()">${A.ic.print} Print</button>
+        ${!A.isTher() && !opt.fromToday ? `<select class="inp" id="who" style="width:auto">${cfg.staff.map(s => `<option value="${s.id}" ${s.id === st.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select>` : ''}</div></div>
       ${!day ? '<div class="note">Not working this day.</div>' : ''}
       ${day ? A.myDayCard(st.id, d, { self: St.S.user && St.S.user.staffId === st.id }) : ''}
       <div class="card"><div class="card-h"><h3>Timeline</h3></div><div class="list">${timeline.map(x => x.kind === 'treat' ? `<div class="li" style="align-items:flex-start"><span class="when">${x.i.start}</span><span class="dot" style="background:${PCOL[x.i.b.product]};margin-top:6px"></span>
