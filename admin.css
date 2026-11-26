@@ -309,3 +309,11 @@ a.btn.pri{color:#fff}
 .kpi b,.be-sum .tot b,.mcal .n,.minical button,.tnum,.when,.badge,.planner th{font-family:var(--sans);font-variant-numeric:tabular-nums lining-nums;letter-spacing:-.01em}
 .kpi b{font-size:30px;font-weight:600}
 .be-sum .tot b{font-size:28px;font-weight:600}
+
+/* pop-ups: title and buttons stay put, only the middle scrolls (the buttons never cover the form) */
+.ov{align-items:center;padding:4vh 16px;overflow:hidden}
+.modal{max-height:92vh;min-height:0}
+.m-h{flex:none;border-bottom:1px solid var(--line);padding-bottom:12px}
+.m-b{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-top:16px;padding-bottom:22px}
+.m-f{position:static;flex:none}
+@media (max-width:700px){.ov{padding:0;align-items:stretch}.modal{max-height:100dvh;height:100dvh;border-radius:0}}
