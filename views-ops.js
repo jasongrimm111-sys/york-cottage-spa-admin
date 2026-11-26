@@ -490,7 +490,8 @@
     B.times = B.times || {}; if (orig) (B.items || []).forEach(i => { if (i.start) B.times[i.key] = { date: i.date || B.date, start: i.start }; });
     const st = { g: 0, month: (B.date || t).slice(0, 7), lock: !!orig, override: false, payMode: orig ? null : 'link', pay: { method: 'card terminal', amount: null }, promoMsg: '' };
     const p = () => cfg.products[B.product];
-    const ix = () => E.index(cfg, DB.bookings, B.id);
+    // times a guest is paying for on the website right now count as taken
+    const ix = () => E.index(cfg, DB.bookings.concat((DB.holds || []).filter(h => new Date(h.expires).getTime() > Date.now())), B.id);
     const fixGuests = () => {
       const P = p(); B.guests = Math.max(1, Math.min(P.max || 16, B.guests || 1));
       while (B.guestList.length < B.guests) B.guestList.push({ name: '', food: null, included: null, extras: [], consult: 'needed' });
@@ -586,7 +587,7 @@
                 ${(P.kind === 'stay' || P.kind === 'house') && B.date ? `<div class="fld" style="margin-top:12px"><span>Rooms</span><div class="chips">${cfg.rooms.filter(r => r.active !== false).map(r => { const free = E.freeRooms(cfg, I, B.date, B.nights, B.product).some(x => x.id === r.id); return `<button type="button" class="chip ${B.rooms.includes(r.id) ? 'on' : ''}" data-room="${r.id}" ${free || B.rooms.includes(r.id) ? '' : 'disabled style="opacity:.4"'} title="${esc(r.bed)} · ${r.people} people">${esc(r.name)}</button>`; }).join('')}</div><small>${B.product === 'house' ? 'The whole house uses every room.' : 'Picked automatically. Tap to change.'}</small></div>` : ''}
                 ${P.times && B.date ? (() => { const tt = E.stayTimes(cfg, B.product, B.date, B.nights); return `<p class="small muted" style="margin-top:10px">Check-in from ${tt.checkIn}${tt.spa ? ` · spa ${tt.spa[0]}–${tt.spa[1]}` : ''} · check-out ${tt.checkOut}</p>`; })() : ''}
               </div></div></div>
-          <div class="card"><div class="card-h"><h3>4 · Each guest</h3>${B.guests > 1 ? '<button type="button" class="btn sm" id="sameAll" title="Copy guest 1’s food and included treatment to everyone (extras stay each guest’s own)">Copy guest 1’s treatment &amp; food to everyone</button>' : ''}</div>
+          <div class="card"><div class="card-h"><h3>4 · Each guest</h3></div>
             ${(() => { const g0 = Math.min(st.g, B.guests - 1); st.g = g0; const g = B.guestList[g0], i = g0;
               const gname = (x, n) => x.name || (n === 0 ? (A.cust(B) || 'Lead guest') : 'Guest ' + (n + 1));
               const tabs = B.guests > 1 ? `<div class="gtabs">${B.guestList.map((x, n) => { const cnt = (incList.length ? (incAll ? incList.length : 1) : 0) + (x.extras || []).length; const bad = (pl.conflicts || []).some(c => (B.items.find(it => it.key === c[0]) || {}).guest === n); return `<button type="button" class="gtab ${n === g0 ? 'on' : ''} ${bad ? 'bad' : ''}" data-gtab="${n}"><b>${n + 1}</b><span>${esc(gname(x, n))}<small>${cnt} treatment${cnt === 1 ? '' : 's'}${x.food ? ' · ' + esc((cfg.foods.find(f => f.id === x.food) || {}).name || '').split(' ')[0] : ''}</small></span></button>`; }).join('')}</div>` : '';

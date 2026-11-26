@@ -102,8 +102,8 @@
     const files = (await gh.list(R, 'bookings')).filter(f => /\.json$/.test(f.name));
     const months = await Promise.all(files.map(f => get('bookings/' + f.name)));
     const bookings = months.flatMap(m => m || []);
-    const [customers, vouchers, waitlist, audit, outbox, tasks, tickets] = await Promise.all(['customers.json', 'vouchers.json', 'waitlist.json', 'audit.json', 'outbox.json', 'tasks.json', 'support/tickets.json'].map(get));
-    const db = { cfg, bookings, customers: customers || {}, vouchers: vouchers || [], waitlist: waitlist || [], audit: audit || [], outbox: outbox || [], tasks: tasks || { items: [], hidden: {} }, tickets: tickets || [] };
+    const [customers, vouchers, waitlist, audit, outbox, tasks, tickets, holds] = await Promise.all(['customers.json', 'vouchers.json', 'waitlist.json', 'audit.json', 'outbox.json', 'tasks.json', 'support/tickets.json', 'holds/active.json'].map(get));
+    const db = { cfg, bookings, customers: customers || {}, vouchers: vouchers || [], waitlist: waitlist || [], audit: audit || [], outbox: outbox || [], tasks: tasks || { items: [], hidden: {} }, tickets: tickets || [], holds: (holds || []).filter(h => new Date(h.expires).getTime() > Date.now()) };
     if (firstRun) { S.dirty.add('config.json'); }
     return db;
   }
