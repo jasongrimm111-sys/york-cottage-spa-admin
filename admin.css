@@ -816,3 +816,6 @@ html{touch-action:manipulation}
   .cal-modes{width:100%;display:grid!important;grid-template-columns:repeat(4,1fr)}
   .cal-modes a{padding:7px 4px;white-space:nowrap;font-size:13px}
 }
+
+/* tables wider than the screen (e.g. Reports on a tablet) scroll sideways inside their card instead of running off the page */
+@media (max-width:1100px){ .card > table.tbl, .card > .card-b > table.tbl, #view > table.tbl { display:block; overflow-x:auto; max-width:100%; } }
