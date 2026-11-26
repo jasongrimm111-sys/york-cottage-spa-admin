@@ -809,3 +809,10 @@ html{touch-action:manipulation}
 .tpick-a .chip{cursor:pointer}
 .rb-in{position:relative}
 @media (max-width:700px){.rb-in{min-width:620px}}
+
+/* phones: Day / 3 days / Week / Month on one row (there are four now) */
+@media (max-width:860px){
+  .cal-bar-r{width:100%}
+  .cal-modes{width:100%;display:grid!important;grid-template-columns:repeat(4,1fr)}
+  .cal-modes a{padding:7px 4px;white-space:nowrap;font-size:13px}
+}
