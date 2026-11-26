@@ -83,7 +83,7 @@
     const cols = all.map(x => `<div class="tg-col ${x.d === t ? 'today' : ''}" data-day="${x.d}" style="height:${H}px">${lines.join('')}${foodBand(x.d)}
       ${x.evs.map(ev => { const grp = ev.list && ev.list.length > 1, n = grp ? ev.list.reduce((a, b) => a + b.guests, 0) : ev.b.guests, ses = E.session(cfg, ev.b.sessionId);
         const its = (grp ? ev.list : [ev.b]).flatMap(b => (b.items || []).filter(i => (i.date || b.date) === x.d).map(i => ({ ...i, b })));
-        const tick = its.map(i => { const top = (E.T(i.start) - ev.s) * PX; return `<span class="tg-tr" data-it="${i.b.id}|${i.key}" style="top:${top}px;height:${Math.max(10, i.min * PX - 1)}px" title="${i.start} ${esc(A.tname(i.tid))} · ${esc(A.sname(i.staff))}${grp ? ' · ' + esc(A.cust(i.b)) : ''}"><em>${i.start}</em> ${esc(A.tname(i.tid).replace(/^20-minute /, '20m '))}<i>${A.initials(A.sname(i.staff))}</i></span>`; }).join('');
+        const tick = its.map(i => { const top = (E.T(i.start) - ev.s) * PX; return `<span class="tg-tr" data-it="${i.b.id}|${i.key}" style="top:${top}px;height:${Math.max(10, i.min * PX - 1)}px" title="${i.start} ${esc(A.iname(i))} · ${esc(A.sname(i.staff))}${grp ? ' · ' + esc(A.cust(i.b)) : ''}"><em>${i.start}</em> ${esc(A.iname(i).replace(/^20-minute /, '20m '))}<i>${A.initials(A.sname(i.staff))}</i></span>`; }).join('');
         return `<a class="tg-ev ${its.length ? 'has-tr' : ''}" ${grp ? '' : `data-bk="${ev.b.id}"`} href="${grp ? `#/calendar/day/${x.d}${qs()}` : '#/booking/' + ev.b.id}" style="top:${y(ev.s)}px;height:${Math.max(22, (ev.e - ev.s) * PX - 2)}px;left:calc(${ev.lane / ev.lanes * 100}% + 2px);width:calc(${100 / ev.lanes}% - 4px);${evStyle(ev.b.product)}" title="${esc(A.pname(ev.b.product))}${grp ? ` · ${ev.list.length} bookings` : ' · ' + esc(A.cust(ev.b))}"><b>${E.HM(ev.s)} ${grp ? `${n} guests` : esc(label(ev.b))}</b><span>${esc(A.pname(ev.b.product))}${ses ? ' · ' + esc(ses.name) : ''}${grp ? ` · ${ev.list.length} bookings` : ''}</span><span class="tg-trs">${tick}</span></a>`; }).join('')}
       ${x.d === t && nowM >= t0 && nowM <= t1 ? `<div class="tl-now" style="top:${y(nowM)}px"></div>` : ''}</div>`).join('');
     return `<div class="tg" style="--n:${days.length}"><div class="tg-head"><div class="tg-gut"></div>${head}</div>
@@ -122,7 +122,7 @@
   A.calTreatment = async (bid, key) => {
     const b = A.DB().bookings.find(x => x.id === bid); if (!b) return; const i = (b.items || []).find(x => x.key === key); if (!i) return;
     const gl = (b.guestList || [])[i.guest] || {}, end = E.HM(E.T(i.start) + i.min);
-    const r = await A.modal({ title: esc(A.tname(i.tid)), size: '', ok: 'Open the booking', cancel: 'Close',
+    const r = await A.modal({ title: esc(A.iname(i)), size: '', ok: 'Open the booking', cancel: 'Close',
       foot: (i.date || b.date) >= today() && A.can('bookings.edit') ? '<button class="btn" data-mvx style="margin-right:auto">Move or hand over</button>' : '',
       body: dl([['Guest', `<b>${esc(guestName(b, i.guest))}</b>`], ['When', `${fdy(i.date || b.date)}, ${i.start}–${end} (${i.min} min)`], ['Therapist', esc(A.sname(i.staff))], ['Room', esc(room(i.troom))],
         ['Booking', `${esc(A.pname(b.product))} · ${esc(b.ref)} · ${b.guests} guest${b.guests > 1 ? 's' : ''}`], ['Included?', i.key.endsWith('-inc') ? 'Included in the booking' : 'Extra treatment'],
@@ -153,7 +153,7 @@
     const r = await A.modal({ title: esc(A.cust(b)), size: 'wide', ok: 'Open the booking', cancel: 'Close',
       body: `${dl([['Booking', `${esc(A.pname(b.product))}${ses ? ' · ' + esc(ses.name) : ''} · ${esc(b.ref)}`], ['When', `${fdy(b.date)}${b.nights ? ` · ${b.nights} night${b.nights > 1 ? 's' : ''}` : ''}`], ['Guests', String(b.guests)],
         ['Rooms', b.product === 'house' ? 'Whole house' : (b.rooms || []).map(bedroom).join(', ')], ['Status', esc(b.status)]])}
-        ${its.length ? `<h3 style="margin:14px 0 6px;font-size:15px">Treatments</h3><div class="list">${its.map(i => `<div class="li"><span class="when">${i.start}</span><span class="grow"><b>${esc(A.tname(i.tid))}</b><span class="small muted" style="display:block">${esc(guestName(b, i.guest))} · ${esc(A.sname(i.staff))} · ${esc(room(i.troom))}${b.nights ? ' · ' + fd(i.date || b.date) : ''} · ${i.min} min</span></span></div>`).join('')}</div>` : ''}` });
+        ${its.length ? `<h3 style="margin:14px 0 6px;font-size:15px">Treatments</h3><div class="list">${its.map(i => `<div class="li"><span class="when">${i.start}</span><span class="grow"><b>${esc(A.iname(i))}</b><span class="small muted" style="display:block">${esc(guestName(b, i.guest))} · ${esc(A.sname(i.staff))} · ${esc(room(i.troom))}${b.nights ? ' · ' + fd(i.date || b.date) : ''} · ${i.min} min</span></span></div>`).join('')}</div>` : ''}` });
     if (r) location.hash = '#/booking/' + b.id;
   };
   // added once per element: the page area is reused for every page, so adding it on each draw opened one box per draw (2026-11-26)

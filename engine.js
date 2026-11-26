@@ -367,7 +367,7 @@
       ((ix.staff[date] = ix.staff[date] || {})[st.id] = ix.staff[date][st.id] || []).push([t, t + min + buf, min]);
       ((ix.troom[date] = ix.troom[date] || {})[room.id] = ix.troom[date][room.id] || []).push([t, t + min + buf]);
       (guestBusy[it.guest] = guestBusy[it.guest] || []).push([t, t + min]);
-      out.push({ key: it.key, guest: it.guest, tid: it.tid, min, buffer: buf, start: HM(t), staff: st.id, troom: room.id, date });
+      out.push({ key: it.key, guest: it.guest, tid: it.tid, ...(it.with && it.with.length ? { with: it.with.slice() } : {}), min, buffer: buf, start: HM(t), staff: st.id, troom: room.id, date });
     };
     const guestFree = (g, t, e) => !(guestBusy[g] || []).some(x => overlap(t - 5, e + 5, x[0], x[1]));
     const load = st => handsOn((ix.staff[date] || {})[st.id] || []);
@@ -391,7 +391,7 @@
       let done = false, why = 'No therapist free in that time';
       if ((cfg.rules.share || 'fill') === 'fill' && g.length === 1) {
         const it = g[0], inUse = st => ((ix.staff[date] || {})[st.id] || []).some(x => x[3] !== 'duty');
-        const order = cfg.staff.filter(st => E.canDo(st, it.tid) && (!it.staff || it.staff === st.id)).sort((a, b) => (inUse(b) - inUse(a)) || E.byPriority(a, b));
+        const order = cfg.staff.filter(st => E.canDoAll(st, it) && (!it.staff || it.staff === st.id)).sort((a, b) => (inUse(b) - inUse(a)) || E.byPriority(a, b));
         outer: for (const st of order) for (const t of starts) {
           if (!guestFree(it.guest, t, t + min)) continue;
           if (E.staffFree(cfg, ix, st, date, t, it.min || tr.min, buf)) continue;
@@ -407,7 +407,7 @@
         if (!room) { why = 'No treatment room free'; continue; }
         const used = [], picks = [];
         for (const it of g) {
-          const cands = cfg.staff.filter(st => !used.includes(st.id) && E.canDo(st, it.tid) && (!it.staff || it.staff === st.id))
+          const cands = cfg.staff.filter(st => !used.includes(st.id) && E.canDoAll(st, it) && (!it.staff || it.staff === st.id))
             .filter(st => !E.staffFree(cfg, ix, st, date, t, it.min || tr.min, buf)).sort((a, b) => (cfg.rules.share || 'fill') === 'fill'
               ? E.byPriority(a, b) || load(b) - load(a)      // fill by priority: therapist 1 first
               : load(a) - load(b) || finishAfter(a, t + min + buf) - finishAfter(b, t + min + buf));   // share the work evenly
@@ -519,7 +519,7 @@
       const tt = E.treatTimes(cfg, w[0]), times = [];
       for (let t = Math.ceil(Math.max(T(w[1]), T(tt.first)) / step) * step; t + min <= T(w[2]) && t <= T(tt.last); t += step) {
         if (others.some(o => (o.date || b.date) === w[0] && o.guest === need.guest && overlap(t - 5, t + min + 5, T(o.start), T(o.start) + o.min))) continue;
-        const st = cfg.staff.filter(x => E.canDo(x, need.tid)).sort(E.byPriority).find(x => !E.staffFree(cfg, ix, x, w[0], t, min, buf));
+        const st = cfg.staff.filter(x => E.canDoAll(x, need)).sort(E.byPriority).find(x => !E.staffFree(cfg, ix, x, w[0], t, min, buf));
         if (!st) continue;
         if (!E.roomFree(cfg, ix, w[0], tr, t, t + min + buf, 1)) continue;
         times.push({ start: HM(t), staff: st.id });
@@ -548,7 +548,7 @@
   E.itemCheck = (cfg, ix, b, item, to) => {
     const d = to.date || item.date || b.date, s = T(to.start), st = cfg.staff.find(x => x.id === (to.staff || item.staff)), tr = E.tr(cfg, item.tid);
     if (!st) return 'Choose a therapist';
-    if (!E.canDo(st, item.tid)) return `${st.name} isn’t set up for ${tr ? tr.name : 'this treatment'}`;
+    if (!E.canDoAll(st, item)) return `${st.name} isn’t set up for ${tr ? tr.name : 'this treatment'}`;
     const w = E.windows(cfg, b).find(x => x[0] === d);
     if (!w || s < T(w[1]) || s + item.min > T(w[2])) return w ? `Outside the guest’s visit (${w[1]}–${w[2]})` : 'The guest isn’t here that day';
     const tt = E.treatTimes(cfg, d); if (s < T(tt.first) || s > T(tt.last)) return `Treatments start between ${tt.first} and ${tt.last}`;
@@ -600,10 +600,21 @@
       const inc = E.includedFor(cfg, b.product), bl = tr => b.blueLight && cfg.rules.blueLight ? Math.max(tr.min, cfg.rules.blueLightMin) : tr.min;
       if (inc.length && E.includedPick(cfg, b.product) === 'all') inc.forEach((tr, j) => out.push({ key: `g${i}-inc${j || ''}`, guest: i, tid: tr.id, min: bl(tr), included: true }));
       else if (inc.length) { const tr = inc.find(t => t.id === g.included) || inc[0]; out.push({ key: `g${i}-inc`, guest: i, tid: tr.id, min: bl(tr), included: true }); }
-      (g.extras || []).forEach((tid, j) => out.push({ key: `g${i}-x${j}`, guest: i, tid }));
+      // an extra treatment of the same kind as the included one (a massage with the included massage) extends it into one
+      // longer treatment, times added together (user, 2026-11-27); other extras stay separate
+      const incNeed = out.find(n => n.guest === i && n.included && !String(n.key).slice(-1).match(/\d/)) || out.find(n => n.guest === i && n.included);
+      const incCat = incNeed && (E.tr(cfg, incNeed.tid) || {}).cat;
+      (g.extras || []).forEach((tid, j) => {
+        const tr = E.tr(cfg, tid) || {};
+        if (incNeed && cfg.rules.combineIncluded !== false && incCat && tr.cat === incCat) { incNeed.with = (incNeed.with || []).concat(tid); incNeed.min += tr.min || 0; return; }
+        out.push({ key: `g${i}-x${j}`, guest: i, tid });
+      });
     });
     return out;
   };
+  // the name of a treatment as booked: "20-minute aromatherapy massage + Back to Basics Massage" when one extends the other
+  E.itemName = (cfg, it) => [it.tid, ...((it && it.with) || [])].map(t => (E.tr(cfg, t) || {}).name || t).join(' + ');
+  E.canDoAll = (st, it) => E.canDo(st, it.tid) && ((it && it.with) || []).every(t => E.canDo(st, t));
 
   // ---------- prices ----------
   E.unitPrice = (cfg, product, date, nights) => {
