@@ -73,6 +73,7 @@
     return '';   // removed; kept as a no-op so older calls stay harmless
   };
   A.ic = {
+    img: I('<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>'),
     me: I('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/>'),   // My day: a person (user 2026-11-27)
     today: I('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
     cal: I('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
@@ -174,7 +175,7 @@
     ['Run the day', [['today', 'Day view', 'today'], ['calendar', 'Calendars', 'cal'], ['bookings', 'Bookings', 'list'], ['waitlist', 'Waitlist', 'wait']]],
     ['Team', [['staff', 'Staff', 'staff'], ['rota', 'Rota', 'rota'], ['requests', 'Time off & sickness', 'rota']]],
     ['Guests & sales', [['support', 'Support', 'mail'], ['customers', 'Customers', 'cust'], ['marketing', 'Email guests', 'mail'], ['vouchers', 'Gift vouchers', 'gift'], ['promos', 'Discount codes', 'tag'], ['reports', 'Reports', 'chart']]],
-    ['Set-up', [['spa', 'Spa & sessions', 'spa'], ['treatments', 'Treatments', 'treat'], ['rooms', 'Rooms', 'bed'], ['products', 'Booking types', 'box'], ['rates', 'Date prices', 'price'], ['emails', 'Emails', 'mail'], ['rules', 'Rules', 'log'], ['settings', 'Settings', 'cog']]]
+    ['Set-up', [['spa', 'Spa & sessions', 'spa'], ['treatments', 'Treatments', 'treat'], ['rooms', 'Rooms', 'bed'], ['products', 'Booking types', 'box'], ['gallery', 'Gallery', 'img'], ['rates', 'Date prices', 'price'], ['emails', 'Emails', 'mail'], ['rules', 'Rules', 'log'], ['settings', 'Settings', 'cog']]]
   ];
   A.isTher = () => !!(St.S.user && !A.can('staff.view') && A.myStaff());   // sees only their own day
   A.reshell = () => { shell(); route(); saveSt(); };

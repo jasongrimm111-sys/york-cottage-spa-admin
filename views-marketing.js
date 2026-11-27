@@ -139,11 +139,26 @@
         const prev = () => { read(); $('#cpPrev', el).srcdoc = html(cp, aud[0] || { first: 'Sophie', name: 'Sophie Turner' }); };
         let tm; el.addEventListener('input', () => { clearTimeout(tm); tm = setTimeout(prev, 300); }); prev();
         const setPic = url => { read(); cp.image = url; A.change('campaigns'); A.refresh(); };
+        // choose a picture: the picture library (gallery + uploads, filter by tag), the email photos, or upload your own (user 2026-11-27)
         $('#cpPhoto', el).onclick = async () => {
-          const k = await A.modal({ title: 'Choose a photo', size: 'wide', ok: '', cancel: 'Cancel', body: `<div class="pic-pick">${PHOTOS.map(([k, l]) => `<button type="button" data-ph="${k}"><img src="${photoURL(k)}" alt="" loading="lazy"><span>${esc(l)}</span></button>`).join('')}</div>
-            <p class="small muted" style="margin-top:10px">Or paste the web address of any picture: <input class="inp" id="phURL" placeholder="https://…" style="margin-top:6px"></p>`,
-            foot: '<button class="btn" data-use>Use this address</button>',
-            onOpen: (m, close) => { $$('[data-ph]', m).forEach(b => b.onclick = () => close(photoURL(b.dataset.ph))); $('[data-use]', m).onclick = () => { const u = $('#phURL', m).value.trim(); if (/^https:\/\/\S+$/.test(u)) close(u); else A.toast('Paste a web address starting https://'); }; } });
+          const libPics = () => (A.picLibrary ? A.picLibrary() : []).map(p => ({ url: p.full || p.src, thumb: p.src, label: p.alt || '', tags: p.tags || [] }));
+          const pics = () => [...libPics(), ...PHOTOS.map(([k, l]) => ({ url: photoURL(k), thumb: photoURL(k), label: l, tags: ['email photos'] }))];
+          const tags = () => [...new Set(pics().flatMap(p => p.tags))].sort();
+          let tf = '';
+          const grid = () => pics().filter(p => !tf || p.tags.includes(tf)).map(p => `<button type="button" data-ph="${esc(p.url)}"><img src="${esc(p.thumb)}" alt="" loading="lazy">${p.label ? `<span>${esc(p.label)}</span>` : ''}</button>`).join('');
+          const k = await A.modal({ title: 'Choose a picture', size: 'wide', ok: '', cancel: 'Cancel',
+            body: `<div class="chips" id="phTags" style="margin-bottom:10px"></div><div class="pic-pick" id="phGrid"></div>
+              <p class="small muted" style="margin-top:12px">Or paste the web address of any picture: <input class="inp" id="phURL" placeholder="https://…" style="margin-top:6px"></p>`,
+            foot: '<button class="btn" data-up style="margin-right:auto">⬆ Upload your own</button><button class="btn" data-use>Use this address</button>',
+            onOpen: (m, close) => {
+              const draw = () => { $('#phTags', m).innerHTML = `<button type="button" class="chip ${tf ? '' : 'on'}" data-t="">All</button>` + tags().map(t => `<button type="button" class="chip ${tf === t ? 'on' : ''}" data-t="${esc(t)}">${esc(t)}</button>`).join('');
+                $('#phGrid', m).innerHTML = grid();
+                $$('[data-t]', m).forEach(b => b.onclick = () => { tf = b.dataset.t; draw(); });
+                $$('[data-ph]', m).forEach(b => b.onclick = () => close(b.dataset.ph)); };
+              draw();
+              $('[data-up]', m).onclick = async () => { const n = await A.pickAndUpload({ tags: ['email'], hidden: true }, false); if (n.length) close(n[0].full || n[0].src); };
+              $('[data-use]', m).onclick = () => { const u = $('#phURL', m).value.trim(); if (/^https:\/\/\S+$/.test(u)) close(u); else A.toast('Paste a web address starting https://'); };
+            } });
           if (typeof k === 'string') setPic(k);
         };
         if ($('#cpNoPic', el)) $('#cpNoPic', el).onclick = () => setPic('');

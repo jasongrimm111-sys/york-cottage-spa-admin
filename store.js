@@ -63,6 +63,8 @@
       },
       put: (repo, path, data, sha, message) => api(url(repo, path), { method: 'PUT', body: JSON.stringify({ message: message || 'Update ' + path, content: utf8b64(JSON.stringify(data, null, 1)), sha: sha || undefined, branch: CONF.branch }) }),
       del: (repo, path, sha, message) => api(url(repo, path), { method: 'DELETE', body: JSON.stringify({ message: message || 'Remove ' + path, sha, branch: CONF.branch }) }),
+      // save a picture (base64) as-is (user 2026-11-27)
+      putFile: async (repo, path, b64data, message) => { const old = await api(url(repo, path) + `?ref=${CONF.branch}`); return api(url(repo, path), { method: 'PUT', body: JSON.stringify({ message: message || 'Add ' + path, content: b64data, sha: old ? old.sha : undefined, branch: CONF.branch }) }); },
       // copy a file (e.g. a picture) between repos as-is, via the blob API so large files work (user 2026-11-27)
       copy: async (fromRepo, path, toRepo, toPath, message) => {
         const meta = await api(url(fromRepo, path) + `?ref=${CONF.branch}&t=${Date.now()}`); if (!meta) throw new Error('file not found');
