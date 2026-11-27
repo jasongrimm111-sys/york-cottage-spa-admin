@@ -20,14 +20,15 @@
   A.consultsToDo = () => { const t = today(), me = A.myStaff(); let n = 0;
     for (const b of A.DB().bookings) { if (!E.live(b) || !(b.items || []).some(i => (i.date || b.date) === t && i.start)) continue;
       for (let g = 0; g < Math.max(1, +b.guests || 1); g++) { const its = (b.items || []).filter(i => +i.guest === g && i.start && (i.date || b.date) === t); if (!its.length) continue;
-        if (me && !its.some(i => i.staff === me)) continue; if (((b.guestList || [])[g] || {}).consult !== 'done') n++; } }
+        if (me && !its.some(i => i.staff === me)) continue; if (((b.guestList || [])[g] || {}).noShow) continue; if (((b.guestList || [])[g] || {}).consult !== 'done') n++; } }
     return n; };
   // one form per guest per booking (user 2026-11-27): "Hand to" only on the guest's first treatment of the booking
   A.firstItemOf = (b, g) => (b.items || []).filter(i => +i.guest === +g && i.start).sort((x, y) => ((x.date || b.date) + x.start).localeCompare((y.date || b.date) + y.start))[0];
   // demo: make every sample form once, in the background, so flag counts show on the buttons
   let demoAll = null;
   A.ensureDemoFormsAll = () => { if (St.S.mode !== 'demo' || demoAll) return; demoAll = (async () => { for (const b of A.DB().bookings) { if ((b.guestList || []).some(g => g && g.consult === 'done' && g.flags == null)) { try { await ensureDemoForms(b); } catch (e) {} } } A.refresh(); })(); };
-  A.consultBtn = (b, g, cls = 'sm', itemKey) => (A.ensureDemoFormsAll && setTimeout(A.ensureDemoFormsAll, 300), 0) || (((b.guestList || [])[g] || {}).consult !== 'done' && itemKey && (A.firstItemOf(b, g) || {}).key !== itemKey) ? '' : ((b.guestList || [])[g] || {}).consult === 'done'
+  A.consultBtn = (b, g, cls = 'sm', itemKey) => (A.ensureDemoFormsAll && setTimeout(A.ensureDemoFormsAll, 300), 0) || (((b.guestList || [])[g] || {}).noShow ? '' : consultBtn1(b, g, cls, itemKey));
+  const consultBtn1 = (b, g, cls, itemKey) => (((b.guestList || [])[g] || {}).consult !== 'done' && itemKey && (A.firstItemOf(b, g) || {}).key !== itemKey) ? '' : ((b.guestList || [])[g] || {}).consult === 'done'
     ? `<button type="button" class="btn ${cls} cbtn" data-cview="${b.id}|${g}">${A.ic.log} View consultation${+((b.guestList || [])[g] || {}).flags > 0 ? ` <span class="cflag" title="${b.guestList[g].flags} answer${b.guestList[g].flags > 1 ? 's' : ''} to check before the treatment">⚑ ${b.guestList[g].flags}</span>` : ''}</button>`
     : `<button type="button" class="btn ${cls} pri cbtn" data-chand="${b.id}|${g}">Hand to ${esc((guestName(b, g) || 'guest').split(' ')[0])}</button>`;
   // buttons shown inside pop-ups (e.g. the calendar's booking details)

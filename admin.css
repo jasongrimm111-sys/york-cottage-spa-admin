@@ -1336,3 +1336,15 @@ body:has(.kiosk) .toast{z-index:6100}
 .tr-list .tr-li{display:grid;grid-template-columns:52px minmax(0,1fr);align-items:start;row-gap:6px}.tr-list .tr-li .when{padding-top:2px}.tr-list .row-acts{grid-column:2;flex-direction:row;justify-content:flex-start;margin:0}.tr-list .row-acts .btn{width:auto}
 
 .tr-list .tr-li b,.tr-list .tr-li .small{white-space:normal!important;overflow:visible!important;text-overflow:clip!important}
+
+/* on the day: here / not coming, add a treatment, move (2026-11-27) */
+.gshow{margin-right:6px}.gshow button{padding:5px 11px;font-size:12.5px}.gshow button.on{background:var(--forest);color:#fff}.gshow button.on.bad{background:#b3412e;color:#fff}
+.g-noshow{opacity:.72}.g-noshow .gcard-h b{text-decoration:none}
+.g-released{margin:6px 0 2px;padding:6px 10px;border-radius:8px;background:#fbf1ea}
+.g-add{margin-top:6px}
+.who-list{display:flex;flex-direction:column;gap:8px}.who{font-size:15px;padding:8px 10px;border:1px solid var(--line);border-radius:10px}
+.gcard .li [data-mv]{margin-left:8px}
+
+/* toggles are only as wide as their buttons, wherever they sit (never stretched across a column) (user 2026-11-27) */
+.seg:not(.cal-modes){width:max-content;max-width:100%;flex:none}
+.seg:not(.cal-modes) button{flex:0 0 auto}

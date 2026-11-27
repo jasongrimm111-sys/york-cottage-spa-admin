@@ -35,7 +35,7 @@
   const SEL = [
     ['#takePay,#payLink,[data-act=resend],[data-act=paylink]', 'payments.take'], ['#refund', 'payments.refund'], ['#cancelB,#reinstate', 'bookings.cancel'],
     ['a[href^="#/edit/"]', 'bookings.edit'], ['a[href^="#/new"],#dupB,[data-wlmail],#wlAdd,[data-act=book]', 'bookings.create'],
-    ['[data-arr],[data-ns],#noShowT,[data-act=arrived]', 'arrivals'], ['[data-cfill],[data-act=forms]', 'consult.fill'], ['[data-cview]', 'consult.view'],
+    ['[data-arr],[data-ns],#noShowT,[data-act=arrived],[data-gshow]', 'arrivals'], ['[data-addt],[data-mv]', 'bookings.edit'], ['[data-cfill],[data-act=forms]', 'consult.fill'], ['[data-cview]', 'consult.view'],
     ['[data-edit],[data-off],#addSt,[data-duty]', 'staff.edit'], ['#cSave,#gdprD,#gdprX,#cCsv,#cMk', 'customers.edit'], ['#bCsv,#rCsv,#fCsv,#fMail', 'reports'],
     ['[data-consult],[data-hk],#dmgS', 'arrivals']
   ];

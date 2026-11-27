@@ -58,17 +58,19 @@
   E.session = (cfg, id) => (cfg.sessions || []).find(s => s.id === id);
 
   // spa use: [{date, s, e, n, x (exclusive), ses}]
+  // guests on a booking who are actually coming (a guest marked as not coming frees their place)
+  E.comingGuests = b => Math.max(0, (b.guests || 1) - (b.guestList || []).filter(g => g && g.noShow).length);
   E.spaUse = (cfg, b) => {
     const p = cfg.products[b.product]; if (!p) return [];
     if (p.kind === 'session' || p.kind === 'private') {
       const s = E.session(cfg, b.sessionId); if (!s) return [];
-      return [{ date: b.date, s: T(s.start), e: T(s.end), n: b.guests, x: p.kind === 'private', ses: s.id }];
+      return [{ date: b.date, s: T(s.start), e: T(s.end), n: E.comingGuests(b), x: p.kind === 'private', ses: s.id }];
     }
     if (p.kind === 'stay') {
       const out = [];
       for (let i = 0; i < (b.nights || 1); i++) {
         const d = addD(b.date, i), t = E.stayTimes(cfg, b.product, d, b.nights);
-        if (t && t.spa) out.push({ date: d, s: T(t.spa[0]), e: T(t.spa[1]), n: b.guests, x: !!(p.exclusive || (p.exclusiveFrom && b.guests >= p.exclusiveFrom)) });
+        if (t && t.spa) out.push({ date: d, s: T(t.spa[0]), e: T(t.spa[1]), n: E.comingGuests(b), x: !!(p.exclusive || (p.exclusiveFrom && b.guests >= p.exclusiveFrom)) });
       }
       return out;
     }
@@ -76,7 +78,7 @@
       const t = E.stayTimes(cfg, 'house', b.date, b.nights), out = [];
       for (let i = 0; i <= b.nights; i++) {
         const d = addD(b.date, i);
-        out.push({ date: d, s: i === 0 ? Math.max(0, T(t.checkIn) - 120) : 0, e: i === b.nights ? T(t.checkOut) + 60 : 1440, n: b.guests, x: true, house: true });
+        out.push({ date: d, s: i === 0 ? Math.max(0, T(t.checkIn) - 120) : 0, e: i === b.nights ? T(t.checkOut) + 60 : 1440, n: E.comingGuests(b), x: true, house: true });
       }
       return out;
     }
@@ -109,7 +111,7 @@
       if (it.troom) ((ix.troom[d] = ix.troom[d] || {})[it.troom] = ix.troom[d][it.troom] || []).push(it.pair ? [s, eb, it.pair] : [s, eb]);
     }
     // food service: count who eats, then make sure someone is on duty to serve it
-    for (const sv of E.servicesFor(cfg, b)) { ix.food = ix.food || {}; const f = ix.food[sv.date] = ix.food[sv.date] || {}; f[sv.id] = (f[sv.id] || 0) + b.guests; E.ensureDuty(cfg, ix, sv.date, sv.id); }
+    for (const sv of E.servicesFor(cfg, b)) { ix.food = ix.food || {}; const f = ix.food[sv.date] = ix.food[sv.date] || {}; f[sv.id] = (f[sv.id] || 0) + E.comingGuests(b); E.ensureDuty(cfg, ix, sv.date, sv.id); }
   };
 
   // ---------- food service (lunch between the morning and afternoon sessions, grazing boards on stays) ----------
@@ -668,7 +670,9 @@
         out.push({ key: `g${i}-x${j}`, guest: i, tid });
       });
     });
-    return out;
+    // treatments added on the day (user 2026-11-27): their own treatment, never merged into another
+    (b.dayTreats || []).forEach(d => out.push({ key: d.key, guest: d.guest, tid: d.tid, dayAdd: true }));
+    return out.filter(n => !((b.guestList || [])[n.guest] || {}).noShow);
   };
   // how many minutes a same-kind extra adds to an included treatment that is already `have` minutes long: the whole
   // treatment is capped at rules.combineMax (55 min, user 2026-11-27), and the extra is charged only for what it adds
@@ -685,6 +689,7 @@
         else out.push({ guest: i, tid, mins: t.min, full: t.price, price: t.price });
       });
     });
+    (b.dayTreats || []).forEach(d => { const t = E.tr(cfg, d.tid); if (t) out.push({ guest: d.guest, tid: d.tid, mins: t.min, full: +d.price, price: +d.price, day: true }); });
     return out;
   };
   // the name of a treatment as booked: "20-minute aromatherapy massage + Back to Basics Massage" when one extends the other
