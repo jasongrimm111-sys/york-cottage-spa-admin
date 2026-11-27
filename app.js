@@ -173,7 +173,7 @@
   const NAV = [
     ['Run the day', [['today', 'Day view', 'today'], ['calendar', 'Calendars', 'cal'], ['bookings', 'Bookings', 'list'], ['waitlist', 'Waitlist', 'wait']]],
     ['Team', [['staff', 'Staff', 'staff'], ['rota', 'Rota', 'rota'], ['requests', 'Time off & sickness', 'rota']]],
-    ['Guests & sales', [['support', 'Support', 'mail'], ['customers', 'Customers', 'cust'], ['vouchers', 'Gift vouchers', 'gift'], ['promos', 'Discount codes', 'tag'], ['reports', 'Reports', 'chart']]],
+    ['Guests & sales', [['support', 'Support', 'mail'], ['customers', 'Customers', 'cust'], ['marketing', 'Email guests', 'mail'], ['vouchers', 'Gift vouchers', 'gift'], ['promos', 'Discount codes', 'tag'], ['reports', 'Reports', 'chart']]],
     ['Set-up', [['spa', 'Spa & sessions', 'spa'], ['treatments', 'Treatments', 'treat'], ['rooms', 'Rooms', 'bed'], ['products', 'Booking types', 'box'], ['rates', 'Date prices', 'price'], ['emails', 'Emails', 'mail'], ['rules', 'Rules', 'log'], ['settings', 'Settings', 'cog']]]
   ];
   A.isTher = () => !!(St.S.user && !A.can('staff.view') && A.myStaff());   // sees only their own day
@@ -317,7 +317,7 @@
     // colours for booking types added later: the next validated palette slot
     const SLOTS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'];
     Object.keys(A.cfg().products).forEach((k, i) => { if (!PCOL[k]) PCOL[k] = SLOTS[i % SLOTS.length]; });
-    const alias = { ahead: 'today', roomcal: 'calendar', day: 'calendar', booking: 'bookings', edit: 'bookings', customer: 'customers' }, nm = alias[name] || name;
+    const alias = { ahead: 'today', roomcal: 'calendar', day: 'calendar', booking: 'bookings', edit: 'bookings', customer: 'customers', campaign: 'marketing' }, nm = alias[name] || name;
     $$('.tabbar a').forEach(a => a.classList.toggle('on', a.dataset.r === name || a.dataset.r === nm));
     $$('.nav a').forEach(a => a.classList.toggle('on', a.dataset.r === name || a.dataset.r === nm || (name === 'customer' && a.dataset.r === 'customers') || (name === 'edit' && a.dataset.r === 'bookings')));
     const el = $('#view');
@@ -326,7 +326,7 @@
       const out = v(...rest.map(decodeURIComponent));
       // Back bar (user 2026-11-27): only on detail pages, always there on them, never on the main menu pages.
       // It goes to the page you came from, or to the matching list if you came straight in.
-      const DETAIL = { booking: ['#/bookings', 'Bookings'], edit: ['#/bookings', 'Bookings'], new: ['#/bookings', 'Bookings'], customer: ['#/customers', 'Customers'], ticket: ['#/support', 'Support'], staffday: ['#/rota', 'Rota'] };
+      const DETAIL = { booking: ['#/bookings', 'Bookings'], edit: ['#/bookings', 'Bookings'], new: ['#/bookings', 'Bookings'], customer: ['#/customers', 'Customers'], ticket: ['#/support', 'Support'], staffday: ['#/rota', 'Rota'], campaign: ['#/marketing', 'Email guests'] };
       const isDetail = DETAIL[name] && !(name === 'staffday' && (A.isTher() || (A.myStaff() && (rest[0] || A.myStaff()) === A.myStaff())));   // your own day (My day) is a menu page
       const prev = isDetail && trail.length && pageKey(trail[trail.length - 1].h) !== pageKey(location.hash) ? trail[trail.length - 1] : null;
       const back = isDetail ? `<a class="backbar" href="${esc(prev ? prev.h : DETAIL[name][0])}">${A.ic.left}<span>Back to ${esc(prev ? prev.t : DETAIL[name][1])}</span></a>` : '';

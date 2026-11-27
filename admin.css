@@ -1083,3 +1083,15 @@ html{touch-action:manipulation}
 }
 @media (max-width:700px){ .pager .btn{height:34px;min-width:36px} }
 @media (max-width:700px){ .td-right .acts{width:auto;align-self:center;flex-wrap:nowrap} .td-right #todayPick{flex:0 0 auto!important;width:170px!important} }
+
+/* email log: the email as the guest sees it (2026-11-27) */
+.mail-frame{width:100%;height:60vh;border:1px solid var(--line);border-radius:10px;background:#f6f1e9}
+.mail-frame[hidden],.mail-body[hidden]{display:none}
+
+.cp-grid{align-items:start}.cp-grid .mail-frame{height:640px}
+
+/* new marketing email: template picker */
+.tpl-pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.tpl-pick button{display:flex;flex-direction:column;gap:4px;align-items:flex-start;text-align:left;border:1px solid var(--line-2);border-radius:12px;padding:12px 14px;background:#fff;cursor:pointer;font:inherit;color:inherit}
+.tpl-pick button:hover{border-color:var(--forest);background:var(--cream)}
+.tpl-pick b{font-size:14.5px}.tpl-pick small{color:var(--muted);font-size:12.5px}
