@@ -318,7 +318,7 @@
     // colours for booking types added later: the next validated palette slot
     const SLOTS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'];
     Object.keys(A.cfg().products).forEach((k, i) => { if (!PCOL[k]) PCOL[k] = SLOTS[i % SLOTS.length]; });
-    const alias = { ahead: 'today', roomcal: 'calendar', day: 'calendar', booking: 'bookings', edit: 'bookings', customer: 'customers', campaign: 'marketing' }, nm = alias[name] || name;
+    const alias = { ahead: 'today', roomcal: 'calendar', day: 'calendar', booking: 'bookings', edit: 'bookings', customer: 'customers', campaign: 'marketing', consultform: 'settings' }, nm = alias[name] || name;
     $$('.tabbar a').forEach(a => a.classList.toggle('on', a.dataset.r === name || a.dataset.r === nm));
     $$('.nav a').forEach(a => a.classList.toggle('on', a.dataset.r === name || a.dataset.r === nm || (name === 'customer' && a.dataset.r === 'customers') || (name === 'edit' && a.dataset.r === 'bookings')));
     const el = $('#view');

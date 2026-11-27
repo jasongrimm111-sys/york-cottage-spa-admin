@@ -26,7 +26,7 @@
 
   // pages and the permission they need
   A.ROUTE_PERM = { rules: 'view.bookings', today: 'view.today', ahead: 'view.today', support: 'view.customers', ticket: 'view.customers', todo: 'view.today', calendar: 'view.calendar', roomcal: 'view.calendar', day: 'view.calendar', bookings: 'view.bookings', booking: 'view.bookings', waitlist: 'view.bookings',
-    new: 'bookings.create', edit: 'bookings.edit', staff: 'staff.view', requests: 'staff.view', rota: null, staffday: null, consults: null, customers: 'view.customers', customer: 'view.customers', marketing: 'view.customers', campaign: 'view.customers', vouchers: 'vouchers', promos: 'promos', reports: 'reports',
+    new: 'bookings.create', edit: 'bookings.edit', staff: 'staff.view', requests: 'staff.view', rota: null, staffday: null, consults: null, consultform: 'setup', customers: 'view.customers', customer: 'view.customers', marketing: 'view.customers', campaign: 'view.customers', vouchers: 'vouchers', promos: 'promos', reports: 'reports',
     spa: 'setup', treatments: 'setup', rooms: 'setup', products: 'setup', gallery: 'setup', sitetext: 'setup', rates: 'setup', emails: 'setup', settings: null };
   A.canRoute = name => { const p = A.ROUTE_PERM[name]; if (name === 'staffday') return !!A.myStaff() || A.can('staff.view'); if (name === 'rota') return A.can('staff.view') || !!A.myStaff(); if (name === 'settings') return true; return p == null || A.can(p); };
   A.homeRoute = () => A.can('view.today') ? 'today' : A.myStaff() ? 'staffday/' + A.myStaff() : A.can('view.calendar') ? 'calendar' : 'settings/users';
