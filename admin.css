@@ -969,3 +969,9 @@ html{touch-action:manipulation}
 .page-tabs a.on{color:var(--ink);border-bottom-color:var(--forest)}
 .page-tabs a:hover{color:var(--ink)}
 .ds-day{max-height:none;overflow:visible}
+
+/* Day view: staff pictures sit on the right under the day controls, so the title is at the top (user 2026-11-27) */
+.td-head{align-items:flex-start}
+.td-right{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+.td-right .who-pick{margin:0;justify-content:flex-end}
+@media (max-width:700px){ .td-right{align-items:center;width:100%} .td-right .who-pick{justify-content:flex-start;width:100%} }
