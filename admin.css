@@ -859,3 +859,5 @@ html{touch-action:manipulation}
 @keyframes yl-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 @keyframes yl-pulse{0%,100%{opacity:1}50%{opacity:.45}}
 @media (prefers-reduced-motion:reduce){.yc-load *{animation:none!important;opacity:1!important;stroke-dashoffset:0!important}}
+
+.yc-load b{transition:opacity .3s}

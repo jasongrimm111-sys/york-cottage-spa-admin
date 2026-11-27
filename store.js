@@ -341,6 +341,6 @@
   }
   function audit(what, ref) { if (!what) return; S.DB.audit.push({ at: new Date().toISOString(), by: S.user ? S.user.name : 'Admin', what, ref: ref || '' }); }
 
-  root.YCStore = { S, CONF, reloadTickets, signIn, resume, startDemo, setup, signOut, users, addUser, removeUser, changePassword, replaceToken, consultKey, makeConsultKey, saveConsult, listConsults, touch, saveNow, publish, queue, audit, getVault, month, sha, loadDemo, DEMO_KEY,
+  root.YCStore = { S, CONF, reloadTickets, signIn, resume, sessName: async () => { try { const x = await sessNow(); return x && x.user ? x.user.name : ''; } catch (e) { return ''; } }, startDemo, setup, signOut, users, addUser, removeUser, changePassword, replaceToken, consultKey, makeConsultKey, saveConsult, listConsults, touch, saveNow, publish, queue, audit, getVault, month, sha, loadDemo, DEMO_KEY,
     onChange: f => S.listeners.push(f) };
 })(this);
