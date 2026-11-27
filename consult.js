@@ -196,6 +196,10 @@
     f.addEventListener('input', e => { const i = idx(e.target); if (i >= 0 && us[i].el.classList.contains('cq-bad')) mark(us[i], us[i].check()); });
     f.addEventListener('change', e => { if (!e.target.matches || !e.target.matches('[data-grp]')) return; us.forEach((u, i) => { if (e.target.contains(u.el)) { seen.add(i); mark(u, u.check()); } }); });
     f.addEventListener('pointerup', e => { const s = e.target.closest('.cq-sig'); if (s) setTimeout(() => { const i = idx(s); if (i >= 0) visit(i); }, 30); });
+    // the "questions still need an answer" note counts down live, and goes once everything is answered
+    const note = () => { const m = f.querySelector('.cq-msg'); if (!m || !m.textContent) return; const n = f.querySelectorAll('.cq-bad').length;
+      m.textContent = n ? (n === 1 ? 'One question still needs an answer: it’s highlighted above.' : `${n} questions still need an answer: they’re highlighted above.`) : ''; };
+    ['input', 'change', 'focusout', 'pointerup'].forEach(ev => f.addEventListener(ev, () => setTimeout(note, 60)));
     f._units = us; };
   C.checkAll = (root, qs) => { const f = root.querySelector('form.cform-q'), us = (f && f._units) || units(root, qs); let first = null, n = 0;
     us.forEach(u => { const m = u.check(); mark(u, m); if (m) { n++; if (!first) first = u.el; } }); return { n, first }; };
