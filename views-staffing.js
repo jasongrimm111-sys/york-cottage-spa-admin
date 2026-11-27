@@ -54,10 +54,12 @@
   const row = s => `<div class="li"><span class="dot" style="background:${s.level >= 2 ? 'var(--bad)' : 'var(--warn)'}"></span><span class="grow"><b>${fdy(s.date)} · ${s.level >= 2 ? 'add a therapist' : 'worth considering another therapist'}, ${E.HM(s.win[0])}–${E.HM(s.win[1])}</b>
       <span class="small muted" style="display:block">${s.reasons.join(' · ')}</span></span><span style="white-space:nowrap"><a class="btn sm" href="#/ahead/${s.date}">See the day</a> <button class="btn sm pri" data-cover="${s.date}|${E.HM(s.win[0])}|${E.HM(s.win[1])}">Add cover</button></span></div>`;
   const card0 = list => { const top = list.filter(s => s.level >= 2), rest = list.filter(s => s.level < 2), show = top.concat(rest.slice(0, Math.max(0, 6 - top.length))), more = list.filter(s => !show.includes(s));
-    return `<div class="card staffing"><div class="card-h"><h3>Staffing suggestions</h3><span class="small muted">Next six weeks</span></div>
-    ${list.length ? `<p class="muted" style="margin-bottom:8px">Days where another therapist would let you sell more, or take pressure off the team. Red: sales are being lost or someone is over their limit.</p>
-      <div class="list">${show.sort((a, b) => a.date.localeCompare(b.date)).map(row).join('')}</div>${more.length ? `<details style="margin-top:8px"><summary class="small" style="cursor:pointer">${more.length} smaller suggestion${more.length > 1 ? 's' : ''}</summary><div class="list">${more.map(row).join('')}</div></details>` : ''}`
-      : '<p class="muted">Nothing to suggest: there’s enough therapist time for what’s booked over the next six weeks.</p>'}</div>`; };
+    if (!list.length) return `<div class="staff-sum ok"><span>✓ Enough therapist time for everything booked over the next six weeks.</span></div>`;
+    const next = list[0];
+    return `<details class="staff-sum ${top.length ? 'bad' : ''}"><summary><span class="ss-dot"></span><span class="grow"><b>${top.length ? `${top.length} day${top.length > 1 ? 's' : ''} need${top.length > 1 ? '' : 's'} another therapist` : `${list.length} day${list.length > 1 ? 's' : ''} could use another therapist`}</b> in the next six weeks${top.length && rest.length ? ` · ${rest.length} more worth considering` : ''}. Next: ${fd(next.date)}.</span><span class="ss-open">Show</span></summary>
+      <div class="ss-body"><p class="small muted" style="margin:0 0 6px">Red: sales are being lost or someone is over their limit. Amber: worth considering, e.g. guests can’t add extras.</p><div class="list">${list.slice().sort((a, b) => a.date.localeCompare(b.date)).map(row).join('')}</div></div></details>`; };
+  // the rota's "Therapists needed" row: a small Add cover on days that are flagged
+  A.coverChip = d => { const s = (A.staffingSuggestions() || []).find(x => x.date === d); return s ? `<button type="button" class="cover-chip ${s.level >= 2 ? 'bad' : ''}" data-cover="${d}|${E.HM(s.win[0])}|${E.HM(s.win[1])}" title="${esc(s.reasons.join(' · ').replace(/<[^>]+>/g, ''))}">+ Add cover</button>` : ''; };
   const card = card0;
   A.staffingCard = () => card(A.staffingSuggestions());
 

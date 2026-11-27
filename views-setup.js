@@ -207,7 +207,7 @@
       <div class="acts"><a class="btn" href="#/rota/${E.addD(mon, -7)}">${A.ic.left}</a><a class="btn" href="#/rota">This week</a><a class="btn" href="#/rota/${E.addD(mon, 7)}">${A.ic.right}</a><button class="btn" onclick="print()">${A.ic.print}</button></div></div>
       ${!me && A.staffingCard && A.can('staff.edit') ? A.staffingCard() : ''}
       <div class="rota card flush"><table><thead><tr><th>Who</th>${days.map(d => `<th${d === t ? ' style="color:var(--clay)"' : ''}>${fd(d)}</th>`).join('')}<th>Week</th></tr></thead><tbody>
-      ${!me ? `<tr class="need-row"><td><b>Therapists needed</b><br><span class="small muted">with treatments or food cover</span></td>${days.map(d => { const working = staff.filter(st => E.staffDay(cfg, st, d)).length, needed = staff.filter(st => ((ixAll.staff[d] || {})[st.id] || []).length).length; return `<td><b>${needed}</b> <span class="small muted">of ${working} working</span></td>`; }).join('')}<td></td></tr>` : ''}
+      ${!me ? `<tr class="need-row"><td><b>Therapists needed</b><br><span class="small muted">with treatments or food cover</span></td>${days.map(d => { const working = staff.filter(st => E.staffDay(cfg, st, d)).length, needed = staff.filter(st => ((ixAll.staff[d] || {})[st.id] || []).length).length; return `<td><b>${needed}</b> <span class="small muted">of ${working} working</span>${d >= t && A.coverChip ? A.coverChip(d) : ''}</td>`; }).join('')}<td></td></tr>` : ''}
       ${staff.slice().sort(E.byPriority).map(st => { const tot = days.reduce((a, d) => { const x = E.staffDay(cfg, st, d); return a + (x ? x.spans.reduce((y, s) => y + s[1] - s[0], 0) : 0); }, 0);
         return `<tr><td><span class="dot" style="background:${st.colour}"></span> <b>${esc(st.name)}</b><br><span class="small muted">${esc(st.role || '')}</span></td>${days.map(d => cell(st, d)).join('')}<td class="tnum">${hrs(tot)}</td></tr>`; }).join('')}
       </tbody></table></div>
@@ -229,14 +229,14 @@
     const hrs = x => E.shiftsOf(x).map(y => `${y.start}–${y.end}`).join(' and ') || 'not working';
     const booked = A.DB().bookings.filter(E.live).flatMap(b => (b.items || []).filter(it => it.staff === st.id && (it.date || b.date) === d)).length;
     const row = (a = '', b = '') => `<div class="ds-sh"><input type="time" class="inp" value="${a}" step="300"><span>to</span><input type="time" class="inp" value="${b}" step="300"><button type="button" class="btn sm ghost ds-x" aria-label="Remove">✕</button></div>`;
-    const r = await A.modal({ title: `${esc(st.name)} · ${fdy(d)}`, ok: 'Save', body: `
+    const r = await A.modal({ title: `${esc(st.name)} · ${fdy(d)}`, ok: booked ? 'Next' : 'Save', body: `
       <p class="muted" style="margin-bottom:12px">Changes this date only. Usually ${E.shiftsOf(usual).length ? 'works ' + hrs(usual) : 'off'} on ${E.DAYS_L ? '' : ''}${fdy(d).split(',')[0]}s.${changed ? ' <b>This day has already been changed.</b>' : ''}</p>
       <div class="ds-pick" id="dsPick"><button type="button" data-m="work" class="${sh.length ? 'on' : ''}"><b>Working</b><small>Set the hours</small></button><button type="button" data-m="off" class="${sh.length ? '' : 'on'}"><b>Day off</b><small>Not working this day</small></button></div>
       <div id="dsWork" ${sh.length ? '' : 'hidden'}><div class="ds-lbl">Hours</div><div id="dsShifts">${(sh.length ? sh : [{ start: '09:00', end: '17:00' }]).map(x => row(x.start, x.end)).join('')}</div>
         <button type="button" class="btn sm ghost" id="dsAdd">+ Split the day (add another shift)</button>
         <div class="ds-lbl" style="margin-top:12px">Set break <span class="muted" style="font-weight:400">(optional; otherwise breaks follow the break rules)</span></div>
         <div class="ds-sh"><input type="time" class="inp" id="dsB" value="${(brk[0] || {}).start || ''}" step="300"><span>for</span><input type="number" class="inp" id="dsBm" value="${(brk[0] || {}).min || 30}" min="10" max="90" style="width:80px"><span>minutes</span></div></div>
-      ${booked ? `<p class="note warn" style="margin-top:12px">${booked} treatment${booked > 1 ? 's' : ''} booked with ${esc(st.name.split(' ')[0])} this day. If the new hours clash, you’ll choose what to do with ${booked > 1 ? 'them' : 'it'} next.</p>` : ''}
+      ${booked ? `<p class="note warn" style="margin-top:12px">${booked} treatment${booked > 1 ? 's' : ''} booked with ${esc(st.name.split(' ')[0])} this day. If the new hours clash, you’ll choose what to do with ${booked > 1 ? 'them' : 'it'} on the next screen before anything is saved.</p>` : ''}
       <p class="small" style="margin-top:12px">Off sick or on holiday? <a href="#" id="dsOff">Record time off instead</a>, so it shows on their record.${changed ? ` · <a href="#" id="dsReset">Go back to their usual hours</a>` : ''}</p>`,
       onOpen: (m, close) => {
         let mode = sh.length ? 'work' : 'off';

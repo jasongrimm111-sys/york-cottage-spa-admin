@@ -923,3 +923,22 @@ html{touch-action:manipulation}
 .ds-lbl{font-size:13px;font-weight:700;margin-bottom:6px}
 .ds-sh{display:flex;align-items:center;gap:8px;margin-bottom:8px}.ds-sh .inp{width:auto}
 #dsShifts .ds-sh:only-child .ds-x{visibility:hidden}
+
+/* To do tabs (2026-11-27) */
+.todo-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.todo-tabs button{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-2);background:#fff;border-radius:99px;padding:7px 12px;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--ink)}
+.todo-tabs button.on{background:var(--forest);border-color:var(--forest);color:#fff}
+.tt-n{min-width:22px;height:22px;padding:0 6px;border-radius:99px;display:inline-grid;place-items:center;background:var(--sand);color:var(--ink);font-size:12px;font-weight:700}
+.tt-n.warn{background:var(--warn);color:#fff}.tt-n.bad{background:var(--bad);color:#fff}
+.todo-tabs button.on .tt-n:not(.warn):not(.bad){background:rgba(255,255,255,.25);color:#fff}
+/* Rota: staffing as a one-line summary (2026-11-27) */
+.staff-sum{border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:12px;background:#fff;margin-bottom:14px}
+.staff-sum.bad{border-left-color:var(--bad)}.staff-sum.ok{border-left-color:var(--ok);padding:10px 14px;font-size:14px;color:var(--muted)}
+.staff-sum summary{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;list-style:none;font-size:14px}
+.staff-sum summary::-webkit-details-marker{display:none}
+.staff-sum .ss-dot{width:9px;height:9px;border-radius:50%;background:var(--warn);flex:none}.staff-sum.bad .ss-dot{background:var(--bad)}
+.staff-sum .grow{flex:1}.staff-sum .ss-open{font-weight:700;color:var(--clay);font-size:13px}
+.staff-sum[open] .ss-open{font-size:0}.staff-sum[open] .ss-open::after{content:"Hide";font-size:13px}
+.staff-sum .ss-body{padding:0 14px 12px;max-height:340px;overflow:auto}
+.cover-chip{display:inline-block;margin-top:4px;border:1px dashed var(--warn);color:#7a4e0c;background:var(--warn-bg);border-radius:99px;padding:2px 8px;font-size:11.5px;font-weight:700;cursor:pointer}
+.cover-chip.bad{border-color:var(--bad);color:#8c2f2c;background:var(--bad-bg)}
