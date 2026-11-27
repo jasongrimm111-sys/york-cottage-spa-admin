@@ -1277,3 +1277,9 @@ html{touch-action:manipulation}
 @media (max-width:640px){.kiosk .kiosk-top{grid-template-columns:auto 1fr auto;gap:10px;padding:8px 12px}.k-brand span{display:none}.kiosk .kiosk-hello{font-size:36px}.k-hero{padding:20px}.k-send{width:100%}}
 
 .kiosk .k-prog>span{white-space:nowrap}
+
+/* My day header: time-off buttons on the name's line, on the right */
+.vh-sd{flex-wrap:wrap}.vh-sd .vh-main{flex:1 1 100%;min-width:0}
+.vh-title{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.req-btns{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+@media (max-width:700px){.req-btns{margin-left:0;width:100%}.req-btns .btn{flex:1}}
