@@ -1355,3 +1355,8 @@ body:has(.kiosk) .toast{z-index:6100}
 .aud-opt input{width:15px;height:15px;accent-color:var(--forest)}
 .aud-opt.on,.aud-opt:has(input:checked){border-color:var(--forest);background:#eef2ec}
 .aud-pick>span small{font-weight:400;margin-left:4px}
+
+/* the flag count sits on the button corner like a notification, so buttons keep the same width (user 2026-11-27) */
+button:has(> .cflag){position:relative;overflow:visible}
+.cflag{position:absolute;top:-8px;right:-8px;margin:0;min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:#c0623f;color:#fff;font-size:11px;font-weight:800;line-height:20px;display:inline-flex;align-items:center;justify-content:center;gap:1px;box-shadow:0 0 0 2px #fff;pointer-events:none}
+.row-acts{overflow:visible}
