@@ -8,7 +8,7 @@
   const arrivals = d => live().filter(b => b.date === d);
   const inHouse = d => live().filter(b => b.nights && b.date <= d && d < E.addD(b.date, b.nights));
   const departs = d => live().filter(b => b.nights && E.addD(b.date, b.nights) === d);
-  const arriveTime = b => { const cfg = A.cfg(), p = cfg.products[b.product]; if (p.kind === 'session' || p.kind === 'private') { const s = E.session(cfg, b.sessionId); return s ? (s.arrive || s.start) : ''; } if (p.kind === 'treat') return (b.items || []).map(i => i.start).sort()[0] || ''; const t = E.stayTimes(cfg, b.product, b.date, b.nights); return t ? t.checkIn : ''; };
+  const arriveTime = b => E.arriveAt(A.cfg(), b);
   const consultDue = b => (b.guestList || []).filter((g, i) => (b.items || []).some(it => it.guest === i) && g.consult !== 'done').length;
   A.consultDue = consultDue;
   const due = b => Math.round(((b.quote || {}).total - E.paid(b)) * 100) / 100;
@@ -26,6 +26,7 @@
     const t = p.times ? E.stayTimes(cfg, b.product, b.date, b.nights) : null;
     if (t) lines.push(`Check-in from ${t.checkIn}${t.spa ? ` · spa ${t.spa[0]}–${t.spa[1]}` : ''} · check-out ${t.checkOut}`);
     const s = E.session(cfg, b.sessionId); if (s) lines.push(`Please arrive at ${s.arrive || s.start}`);
+    else if ((cfg.products[b.product] || {}).kind === 'treat' && E.arriveAt(cfg, b)) lines.push(`Please arrive by ${E.arriveAt(cfg, b)}, ${E.arriveBefore(cfg)} minutes before your first treatment`);
     const multiDay = (b.items || []).some(i => i.date && i.date !== b.date);
     if ((b.items || []).length) {
       lines.push('', 'Your treatment times:');
@@ -82,7 +83,7 @@
     const cfg = A.cfg(), sm = cfg.sms || {}, t = (sm.templates || {})[key]; if (!t || (sm.off || {})[key] || !A.wants(b, 'sms')) return null;
     const q = b.quote || E.quote(cfg, b), ses = E.session(cfg, b.sessionId), cu = A.consultURL ? A.consultURL(b) : '';
     const v = { first: (b.customer || {}).first || '', ref: b.ref, product: A.pname(b.product), when: A.whenText(b), manageLink: A.manageURL(b) || A.siteURL(), consultLink: cu, consultLine: cu ? `Please fill in your consultation form: ${cu} ` : '', phone: cfg.business.phone || '',
-      arrive: ses ? `Please arrive at ${ses.arrive || ses.start}. ` : '', due: gbp(extra.amount != null ? extra.amount : due(b), 2), dueDate: q.balanceDue ? fdy(q.balanceDue) : '', payLink: extra.link || A.payURL(b, extra.amount != null ? extra.amount : due(b)), reviewLink: cfg.business.googleReviewUrl || A.siteURL() };
+      arrive: ses ? `Please arrive at ${ses.arrive || ses.start}. ` : E.arriveAt(cfg, b) && (cfg.products[b.product] || {}).kind === 'treat' ? `Please arrive by ${E.arriveAt(cfg, b)}. ` : '', due: gbp(extra.amount != null ? extra.amount : due(b), 2), dueDate: q.balanceDue ? fdy(q.balanceDue) : '', payLink: extra.link || A.payURL(b, extra.amount != null ? extra.amount : due(b)), reviewLink: cfg.business.googleReviewUrl || A.siteURL() };
     const body = t.replace(/\{(\w+)\}/g, (m0, k) => v[k] != null ? v[k] : m0);
     return St.queue({ type: 'sms', template: key, bookingId: b.id, ref: b.ref, to: A.ukPhone(b.customer.phone), subject: 'Text message', body });
   };

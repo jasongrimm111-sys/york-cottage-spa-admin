@@ -46,6 +46,15 @@
     if (nights > 1 && t.spa2) t.spa = t.spa2;
     return t;
   };
+  // arrival (user 2026-11-27): sessions use the session's arrival time, stays their check-in, and treatments-only bookings
+  // Settings → Booking rules "arrive before a treatment" minutes (default 15) before the first treatment of the day
+  E.arriveBefore = cfg => { const v = +((cfg.rules || {}).treatArriveMins); return Number.isFinite(v) && v >= 0 ? v : 15; };
+  E.arriveAt = (cfg, b) => {
+    const p = cfg.products[b.product] || {};
+    if (p.kind === 'session' || p.kind === 'private') { const s = E.session(cfg, b.sessionId); return s ? (s.arrive || s.start) : ''; }
+    if (p.kind === 'treat') { const first = (b.items || []).filter(i => i.start && (i.date || b.date) === b.date).map(i => i.start).sort()[0]; return first ? HM(Math.max(0, T(first) - E.arriveBefore(cfg))) : ''; }
+    const t = E.stayTimes(cfg, b.product, b.date, b.nights); return t ? t.checkIn : '';
+  };
   E.session = (cfg, id) => (cfg.sessions || []).find(s => s.id === id);
 
   // spa use: [{date, s, e, n, x (exclusive), ses}]
