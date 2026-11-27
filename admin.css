@@ -1044,3 +1044,7 @@ html{touch-action:manipulation}
   .tg-food-chip b,.tg-food-chip span{display:none}
   .tg-food-chip::after{content:"🍽";font-size:13px;writing-mode:horizontal-tb}
 }
+/* calendar text: whole lines only (the last one that fits ends with …) */
+.tg-ev b,.tg-ev span:not(.tg-tr):not(.tg-trs),.tg-food-chip b,.tg-food-chip span{text-overflow:ellipsis}
+.tg-tr{display:block}
+.tg-tr > *{display:inline}

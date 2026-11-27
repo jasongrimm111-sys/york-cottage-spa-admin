@@ -165,6 +165,25 @@
     if (r) location.hash = '#/booking/' + b.id;
   };
   // added once per element: the page area is reused for every page, so adding it on each draw opened one box per draw (2026-11-26)
+  // text that doesn't fit its block (user 2026-11-27): show whole lines only, and end the last one that fits with "…"
+  A.fitCalText = root => {
+    const fit = box => {
+      const kids = [...box.children].filter(k => /^(B|SPAN|EM)$/.test(k.tagName) && !k.classList.contains('tg-tr') && !k.classList.contains('tg-trs') && getComputedStyle(k).display !== 'none' && getComputedStyle(k).position !== 'absolute');
+      if (!kids.length) return;
+      kids.forEach(k => { k.style.display = ''; k.style.webkitLineClamp = ''; k.style.webkitBoxOrient = ''; k.style.overflow = ''; });
+      const cs = getComputedStyle(box), room = box.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+      if (box.scrollHeight <= box.clientHeight + 1) return;
+      let used = 0;
+      for (const k of kids) {
+        const lh = parseFloat(getComputedStyle(k).lineHeight) || 14, lines = Math.round(k.offsetHeight / lh), left = Math.floor((room - used) / lh + 0.05);
+        if (left <= 0) { k.style.display = 'none'; continue; }
+        if (lines > left) { k.style.display = '-webkit-box'; k.style.webkitLineClamp = String(left); k.style.webkitBoxOrient = 'vertical'; k.style.overflow = 'hidden'; used = room; continue; }
+        used += k.offsetHeight;
+      }
+    };
+    requestAnimationFrame(() => root.querySelectorAll('.tg-ev, .tg-tr, .tg-food-chip').forEach(fit));
+  };
+  addEventListener('resize', () => { const v = document.getElementById('view'); if (v && v.querySelector('.tg-ev')) A.fitCalText(v); });
   A.wireCalClicks = el => { if (el._calClicks) return; el._calClicks = true; el.addEventListener('click', e => {
     if (e.target.closest('[data-mv], [data-move], [data-cview], [data-arr], [data-tick], input, select')) return;   // their own buttons keep working
     const tr = e.target.closest('[data-it]'), fo = e.target.closest('[data-food]'), bk = e.target.closest('[data-bk]');
@@ -184,7 +203,7 @@
     if (mode === '3day') { const days = [0, 1, 2].map(i => E.addD(d, i)); title = `${fd(d, { day: 'numeric', month: 'short' })} – ${fd(days[2], { day: 'numeric', month: 'short', year: 'numeric' })}`; body = narrow() ? agenda(days) : timeGrid(days, 'day'); }
     if (mode === 'month') { title = monthName(d); body = month(d); }
     return { html: `${mode === 'day' ? A.dayTabs(d, 'calendar') : ''}<div class="cal-wrap cal-full"><div class="cal-main">${toolbar(mode, d, title)}${body}</div></div>`,
-      wire: el => { A.wireCalClicks(el); const cj = $('#calJump', el); if (cj) cj.onchange = () => { if (cj.value) A.goDay(`#/calendar/${mode}/${cj.value}${qs()}`); }; $$('.tg-col', el).forEach(c => c.addEventListener('dblclick', e => { if (e.target.closest('.tg-ev')) return; const dd = c.dataset.day; if (dd >= today()) location.hash = '#/new?date=' + dd; })); } };
+      wire: el => { A.wireCalClicks(el); A.fitCalText(el); const cj = $('#calJump', el); if (cj) cj.onchange = () => { if (cj.value) A.goDay(`#/calendar/${mode}/${cj.value}${qs()}`); }; $$('.tg-col', el).forEach(c => c.addEventListener('dblclick', e => { if (e.target.closest('.tg-ev')) return; const dd = c.dataset.day; if (dd >= today()) location.hash = '#/new?date=' + dd; })); } };
   };
 
   // ---------- Room calendar: rooms down the side, nights across ----------
