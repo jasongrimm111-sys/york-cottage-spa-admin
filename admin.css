@@ -898,3 +898,19 @@ html{touch-action:manipulation}
   .td-head .acts{justify-content:center;width:100%}
 }
 @media (max-width:700px){ .td-head .acts{flex-wrap:nowrap;gap:8px} .td-head .acts .inp{flex:0 1 160px;min-width:0;width:160px!important} }
+
+/* calendar on phones: the date sits between two proper arrow buttons; Today and "go to a date" underneath (user 2026-11-27) */
+@media (max-width:700px){
+  .cal-bar-l{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;gap:8px 10px;width:100%}
+  .cal-bar-l .icon-btn{width:44px;height:44px;display:grid;place-items:center;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink)}
+  .cal-bar-l .icon-btn svg{width:20px;height:20px}
+  .cal-bar-l .icon-btn:active{background:var(--cream)}
+  .cal-bar-l a.icon-btn[title="Previous"]{grid-column:1;grid-row:1}
+  .cal-bar-l .cal-title{grid-column:2;grid-row:1;text-align:center;margin:0;font-size:22px;line-height:1.15}
+  .cal-bar-l a.icon-btn[title="Next"]{grid-column:3;grid-row:1}
+  .cal-bar-l > a.btn{grid-column:1 / span 2;grid-row:2;justify-self:end;margin-right:4px}
+  .cal-bar-l .cal-jump{grid-column:3;grid-row:2;justify-self:start}
+  .cal-bar-l{grid-template-areas:none}
+  .cal-bar-l > a.btn, .cal-bar-l .cal-jump{height:38px}
+}
+@media (max-width:700px){ .cal-bar-l > a.btn{grid-column:1 / -1;justify-self:center;margin:0} .cal-bar-l .cal-jump{grid-column:1 / -1;grid-row:3;justify-self:center} }
