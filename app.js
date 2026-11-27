@@ -299,7 +299,7 @@
       // Back bar (user 2026-11-27): only on detail pages, always there on them, never on the main menu pages.
       // It goes to the page you came from, or to the matching list if you came straight in.
       const DETAIL = { booking: ['#/bookings', 'Bookings'], edit: ['#/bookings', 'Bookings'], new: ['#/bookings', 'Bookings'], customer: ['#/customers', 'Customers'], ticket: ['#/support', 'Support'], staffday: ['#/rota', 'Rota'] };
-      const isDetail = DETAIL[name] && !(name === 'staffday' && A.isTher());
+      const isDetail = DETAIL[name] && !(name === 'staffday' && (A.isTher() || (A.myStaff() && (rest[0] || A.myStaff()) === A.myStaff())));   // your own day (My day) is a menu page
       const prev = isDetail && trail.length && pageKey(trail[trail.length - 1].h) !== pageKey(location.hash) ? trail[trail.length - 1] : null;
       const back = isDetail ? `<a class="backbar" href="${esc(prev ? prev.h : DETAIL[name][0])}">${A.ic.left}<span>Back to ${esc(prev ? prev.t : DETAIL[name][1])}</span></a>` : '';
       if (out && typeof out === 'object' && 'html' in out) { el.innerHTML = back + out.html; if (out.wire) await out.wire(el); }
