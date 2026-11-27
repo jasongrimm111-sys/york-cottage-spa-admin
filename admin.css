@@ -1031,3 +1031,16 @@ html{touch-action:manipulation}
 .tg-ev:hover{z-index:4}
 .tg-food-chip{justify-content:flex-end}
 .tg-food-chip{flex-direction:column-reverse;justify-content:flex-start}
+/* calendar: food in its own strip on the right (user 2026-11-27) */
+.tg-food{left:auto!important;right:0;width:var(--fw,0px);z-index:1;border:0;background:none}
+.tg-food-chip{flex-direction:column;justify-content:flex-start;left:2px;right:2px}
+.tg-food{container-type:inline-size}
+@container (max-width: 90px){
+  .tg-food-chip{padding:4px 2px;align-items:center;justify-content:center}
+  .tg-food-chip b{writing-mode:vertical-rl;transform:rotate(180deg);font-size:11px;white-space:nowrap}
+  .tg-food-chip span{display:none}
+}
+@container (max-width: 90px){
+  .tg-food-chip b,.tg-food-chip span{display:none}
+  .tg-food-chip::after{content:"🍽";font-size:13px;writing-mode:horizontal-tb}
+}
