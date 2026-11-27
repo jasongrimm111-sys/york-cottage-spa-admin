@@ -1001,3 +1001,12 @@ html{touch-action:manipulation}
 /* Back links line up with the page content */
 .backbar{margin-left:-9px}
 .icon-btn.bell,.icon-btn.bell:hover{text-decoration:none;color:var(--ink)}
+/* menu button: phones show ≡; desktop shows a panel icon with an arrow saying what it will do (user 2026-11-27) */
+.burger .bg-hide,.burger .bg-show{display:none;width:22px;height:22px}
+@media (min-width:981px){
+  .burger{width:auto!important;padding:0 10px;gap:6px}
+  .burger .bg-m{display:none}
+  .burger .bg-hide{display:block}
+  body.side-off .burger .bg-hide{display:none}
+  body.side-off .burger .bg-show{display:block}
+}
