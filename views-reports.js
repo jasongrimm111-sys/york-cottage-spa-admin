@@ -15,7 +15,7 @@
   const days = (a, b) => { const o = []; for (let d = a; d <= b; d = E.addD(d, 1)) o.push(d); return o; };
   // simple accessible bar chart (stacked by product), with hover titles
   const stacked = (buckets, keys, fmt) => {
-    const W = 720, H = 200, pad = 34, mx = Math.max(1, ...buckets.map(b => keys.reduce((a, k) => a + (b.v[k] || 0), 0)));
+    const W = 720, H = 200, pad = 62, mx = Math.max(1, ...buckets.map(b => keys.reduce((a, k) => a + (b.v[k] || 0), 0)));
     const bw = Math.max(4, (W - pad - 8) / buckets.length - 4);
     let g = `<line x1="${pad}" y1="${H - 20}" x2="${W}" y2="${H - 20}" stroke="#e1e0d9"/>`;
     [0.5, 1].forEach(f => g += `<line x1="${pad}" y1="${(H - 20) - (H - 34) * f}" x2="${W}" y2="${(H - 20) - (H - 34) * f}" stroke="#e1e0d9" stroke-dasharray="2 3"/><text x="${pad - 4}" y="${(H - 20) - (H - 34) * f + 4}" text-anchor="end">${fmt(mx * f)}</text>`);
@@ -28,24 +28,26 @@
   };
   const hbars = (rows, fmt, colour) => { const mx = Math.max(1, ...rows.map(r => r[1])); return rows.map(r => `<div class="hbar"><span>${r[2] ? A.prodDot(r[2]) + ' ' : ''}${esc(r[0])}</span><span class="bar"><i style="width:${r[1] / mx * 100}%;background:${r[2] ? PCOL[r[2]] : colour || 'var(--forest)'}"></i></span><b>${fmt(r[1])}</b></div>`).join('') || '<p class="muted">No data</p>'; };
 
+  // a booking's total, worked out if it was saved without one (one missing total made the whole sum show £0)
+  const qt = b => { const q = b.quote && b.quote.total != null ? b.quote : (() => { try { return E.quote(A.cfg(), b); } catch (e) { return null; } })(); return (q && +q.total) || 0; };
   A.views.reports = (tab = 'overview') => {
     if (tab === 'food') return food();
     const cfg = A.cfg(), DB = A.DB(), t = today(), F = A._rf = A._rf || { p: '30' };
     const [from, to] = range(F, t), dl = days(from, to);
     const inP = b => b.date >= from && b.date <= to;
     const all = DB.bookings.filter(inP), live = all.filter(E.live), canc = all.filter(b => b.status === 'cancelled');
-    const total = live.reduce((a, b) => a + (b.quote || {}).total, 0), guests = live.reduce((a, b) => a + b.guests, 0);
+    const total = live.reduce((a, b) => a + qt(b), 0), guests = live.reduce((a, b) => a + b.guests, 0);
     const payIn = DB.bookings.flatMap(b => (b.payments || []).map(p => ({ ...p, b }))).filter(p => (p.at || '').slice(0, 10) >= from && (p.at || '').slice(0, 10) <= to);
     const taken = payIn.filter(p => p.amount > 0).reduce((a, p) => a + p.amount, 0), refunds = -payIn.filter(p => p.amount < 0).reduce((a, p) => a + p.amount, 0);
     // previous period for comparison
     const len = dl.length, pf = E.addD(from, -len), pt = E.addD(from, -1);
-    const prevLive = DB.bookings.filter(b => E.live(b) && b.date >= pf && b.date <= pt), prevTotal = prevLive.reduce((a, b) => a + (b.quote || {}).total, 0);
+    const prevLive = DB.bookings.filter(b => E.live(b) && b.date >= pf && b.date <= pt), prevTotal = prevLive.reduce((a, b) => a + qt(b), 0);
     const delta = (a, b) => b ? `<span class="${a >= b ? 'up' : 'down'}">${a >= b ? '▲' : '▼'} ${Math.abs(pct(a - b, b))}%</span> vs the ${len} days before` : '';
     const prods = Object.keys(cfg.products);
     // buckets: by day (<= 31 days), else by week
     const byWeek = dl.length > 45;
-    const bk = []; for (let i = 0; i < dl.length; i += byWeek ? 7 : 1) { const d0 = dl[i], d1 = dl[Math.min(dl.length - 1, i + (byWeek ? 6 : 0))]; const v = {}; live.filter(b => b.date >= d0 && b.date <= d1).forEach(b => v[b.product] = (v[b.product] || 0) + (b.quote || {}).total); bk.push({ label: byWeek ? `Week of ${fd(d0)}` : fdy(d0), short: byWeek ? fd(d0, { day: 'numeric', month: 'short' }) : String(+d0.slice(8)), v }); }
-    const byProd = prods.map(k => [cfg.products[k].name, live.filter(b => b.product === k).reduce((a, b) => a + (b.quote || {}).total, 0), k]).filter(r => r[1]).sort((a, b) => b[1] - a[1]);
+    const bk = []; for (let i = 0; i < dl.length; i += byWeek ? 7 : 1) { const d0 = dl[i], d1 = dl[Math.min(dl.length - 1, i + (byWeek ? 6 : 0))]; const v = {}; live.filter(b => b.date >= d0 && b.date <= d1).forEach(b => v[b.product] = (v[b.product] || 0) + qt(b)); bk.push({ label: byWeek ? `Week of ${fd(d0)}` : fdy(d0), short: byWeek ? fd(d0, { day: 'numeric', month: 'short' }) : String(+d0.slice(8)), v }); }
+    const byProd = prods.map(k => [cfg.products[k].name, live.filter(b => b.product === k).reduce((a, b) => a + qt(b), 0), k]).filter(r => r[1]).sort((a, b) => b[1] - a[1]);
     // spa sessions fill
     const fill = prods.filter(k => cfg.products[k].kind === 'session').map(k => { let cap = 0, used = 0; dl.forEach(d => { if (!E.hours(cfg, d) || E.closedAllDay(cfg, d, ['spa', 'product:' + k])) return; cfg.sessions.filter(s => s.product === k && s.active !== false && (!s.days || s.days.includes(E.dow(d)))).forEach(s => cap += s.cap); }); used = live.filter(b => b.product === k).reduce((a, b) => a + b.guests, 0); return [cfg.products[k].name, pct(used, cap), k, used, cap]; });
     // rooms
@@ -77,6 +79,18 @@
     const sel = `<div class="card" style="margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select class="inp" id="rp" style="width:auto">${PERIODS.map(([v, x]) => `<option value="${v}" ${F.p === v ? 'selected' : ''}>${x}</option>`).join('')}</select>${F.p === 'custom' ? `<input type="date" class="inp" id="rf" value="${from}" style="width:auto"> to <input type="date" class="inp" id="rt" value="${to}" style="width:auto">` : ''}<span class="muted small">${fdy(from)} – ${fdy(to)} · by visit date</span><span style="flex:1"></span><button class="btn sm" id="rCsv">${A.ic.dl} Export</button></div>`;
     const kpi = (l, v, s) => `<div class="kpi"><small>${l}</small><b>${v}</b><span>${s || ''}</span></div>`;
     const tip = s => `<span class="small muted" style="display:block;margin-top:2px">${s}</span>`;
+    // income by month (user 2026-11-27): the last 12 months and the next 3, booked value by type, and money actually taken
+    const monthly = () => {
+      const ms = []; let m = t.slice(0, 7); for (let i = 0; i < 11; i++) m = E.addD(m + '-01', -1).slice(0, 7);
+      for (let i = 0; i < 15; i++) { ms.push(m); m = E.addD(m + '-28', 5).slice(0, 7); }
+      const used = prods.filter(k => DB.bookings.some(b => E.live(b) && b.product === k));
+      const val = (mo, k) => DB.bookings.filter(b => E.live(b) && b.date.slice(0, 7) === mo && (!k || b.product === k)).reduce((a, b) => a + (qt(b) || 0), 0);
+      const took = mo => DB.bookings.flatMap(b => b.payments || []).filter(p => (p.at || '').slice(0, 7) === mo).reduce((a, p) => a + (+p.amount || 0), 0);
+      const vsold = mo => DB.vouchers.filter(v => (v.sold || '').slice(0, 7) === mo).reduce((a, v) => a + (+v.paid || 0), 0);
+      const nm = mo => new Date(mo + '-15').toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+      const rows = ms.map(mo => `<tr${mo === t.slice(0, 7) ? ' style="background:var(--cream)"' : ''}><td style="white-space:nowrap"><b>${nm(mo)}</b>${mo > t.slice(0, 7) ? ' <span class="small muted">ahead</span>' : ''}</td>${used.map(k => `<td class="r tnum">${val(mo, k) ? gbp(val(mo, k)) : '<span class="muted">—</span>'}</td>`).join('')}<td class="r tnum"><b>${gbp(val(mo))}</b></td><td class="r tnum">${gbp(took(mo))}</td><td class="r tnum">${vsold(mo) ? gbp(vsold(mo)) : '<span class="muted">—</span>'}</td></tr>`).join('');
+      return `<div class="card" style="margin-top:14px"><div class="card-h"><h3>Income by month</h3><span class="small muted">Booked value by visit month · money taken by payment date</span></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Month</th>${used.map(k => `<th class="r">${esc(A.pname(k))}</th>`).join('')}<th class="r">Booked</th><th class="r">Taken</th><th class="r">Vouchers sold</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+    };
     const html = `<div class="vh"><div><div class="eyebrow">Reports</div><h1>Reports</h1><p>How the spa is doing, using the measures spas and hotels compare themselves on.</p></div><div class="acts"><a class="btn" href="#/reports/food">Food orders</a></div></div>${sel}
       <div class="grid g4" style="margin-bottom:14px">${kpi('Booked value', gbp(total), delta(total, prevTotal))}${kpi('Bookings', live.length, `${guests} guests · ${gbp(live.length ? total / live.length : 0)} average`)}${kpi('Money taken', gbp(taken), `${gbp(refunds)} refunded`)}${kpi('Spend per guest', gbp(guests ? total / guests : 0), `${canc.length} cancelled (${pct(canc.length, all.length)}%)`)}</div>
       <div class="card"><div class="card-h"><h3>Booked value ${byWeek ? 'by week' : 'by day'}</h3></div>${stacked(bk, prods, v => gbp(v))}</div>
@@ -84,6 +98,7 @@
         <div class="card"><div class="card-h"><h3>By booking type</h3></div>${hbars(byProd, v => gbp(v))}</div>
         <div class="card"><div class="card-h"><h3>Spa sessions filled</h3></div>${hbars(fill.map(f => [f[0] + ` (${f[3]} of ${f[4]})`, f[1], f[2]]), v => v + '%')}${tip('Places booked as a share of places on offer, for days the spa was open.')}</div>
       </div>
+      ${monthly()}
       <h2 style="margin:24px 0 10px">Rooms</h2>
       <div class="grid g4">${kpi('Occupancy', pct(roomNights, availRN) + '%', `${roomNights} of ${availRN} room nights`)}${kpi('ADR', gbp(roomNights ? roomRev / roomNights : 0), 'average room-night rate')}${kpi('RevPAR', gbp(availRN ? roomRev / availRN : 0), 'stay revenue per available room night')}${kpi('Stays', live.filter(b => b.nights).length, `${live.filter(b => b.product === 'house').length} whole-house`)}</div>
       <h2 style="margin:24px 0 10px">Treatments & therapists</h2>

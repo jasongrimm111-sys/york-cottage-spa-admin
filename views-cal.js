@@ -176,7 +176,7 @@
     if (mode === '3day') { const days = [0, 1, 2].map(i => E.addD(d, i)); title = `${fd(d, { day: 'numeric', month: 'short' })} – ${fd(days[2], { day: 'numeric', month: 'short', year: 'numeric' })}`; body = narrow() ? agenda(days) : timeGrid(days, 'day'); }
     if (mode === 'month') { title = monthName(d); body = month(d); }
     return { html: `${mode === 'day' ? A.dayTabs(d, 'calendar') : ''}<div class="cal-wrap cal-full"><div class="cal-main">${toolbar(mode, d, title)}${body}</div></div>`,
-      wire: el => { A.wireCalClicks(el); const cj = $('#calJump', el); if (cj) cj.onchange = () => { if (cj.value) location.hash = `#/calendar/${mode}/${cj.value}${qs()}`; }; $$('.tg-col', el).forEach(c => c.addEventListener('dblclick', e => { if (e.target.closest('.tg-ev')) return; const dd = c.dataset.day; if (dd >= today()) location.hash = '#/new?date=' + dd; })); } };
+      wire: el => { A.wireCalClicks(el); const cj = $('#calJump', el); if (cj) cj.onchange = () => { if (cj.value) A.goDay(`#/calendar/${mode}/${cj.value}${qs()}`); }; $$('.tg-col', el).forEach(c => c.addEventListener('dblclick', e => { if (e.target.closest('.tg-ev')) return; const dd = c.dataset.day; if (dd >= today()) location.hash = '#/new?date=' + dd; })); } };
   };
 
   // ---------- Room calendar: rooms down the side, nights across ----------

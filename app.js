@@ -292,6 +292,17 @@
   }
   A.route = route; A.refresh = () => { const y = scrollY; route(); scrollTo(0, y); };
   addEventListener('hashchange', route);
+  // Back goes to the previous page, not the previous day (user 2026-11-27): moving between days, weeks or months of the same
+  // view replaces the history entry instead of adding one. A.goDay(hash) does the same for date pickers and dropdowns.
+  const BROWSE = new Set(['today', 'ahead', 'day', 'staffday', 'rota', 'calendar', 'roomcal', 'timeline', 'reports']);
+  const routeName = h => (String(h || '').replace(/^#\/?/, '').split(/[/?]/)[0]) || 'today';
+  A.goDay = h => { if (BROWSE.has(routeName(h)) && routeName(h) === routeName(location.hash)) location.replace(h); else location.hash = h; };
+  document.addEventListener('click', e => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    const a = e.target.closest('a[href^="#/"]'); if (!a || a.target) return;
+    const h = a.getAttribute('href'); if (h === location.hash) return;
+    if (BROWSE.has(routeName(h)) && routeName(h) === routeName(location.hash)) { e.preventDefault(); location.replace(h); }
+  }, true);
 
   A.lotus = (cls = '') => `<svg class="lotus ${cls}" viewBox="0 0 760 500" fill="none" stroke="currentColor" stroke-width="24" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M160 190 L160 45 C215 62 268 92 305 132"/><path d="M600 190 L600 45 C545 62 492 92 455 132"/><path d="M380 25 C455 115 515 215 515 325 C515 415 455 470 380 485 C305 470 245 415 245 325 C245 215 305 115 380 25 Z"/><path d="M10 180 C150 172 290 212 345 300 C368 337 380 360 380 385 L380 488 C235 488 125 455 82 382 C52 330 27 258 10 180 Z"/><path d="M750 180 C610 172 470 212 415 300 C392 337 380 360 380 385 L380 488 C525 488 635 455 678 382 C708 330 733 258 750 180 Z"/></svg>`;
   // ---------- sign-in screens ----------

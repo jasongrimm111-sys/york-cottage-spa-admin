@@ -303,7 +303,7 @@
         : `<div class="li"><span class="when">${E.HM(x.s)}</span><span class="dot" style="background:var(--stone)"></span><span class="grow"><b>${x.label}</b><span class="small muted">until ${E.HM(x.e)}${x.fixed ? '' : ' (suggested: a free gap)'}</span></span></div>`).join('') || '<div class="empty"><b>Nothing booked</b></div>'}</div></div>
       <p class="small muted" style="margin-top:10px">${d >= today() ? 'You can move a treatment to any free time inside the guest’s visit, or hand it to a colleague who’s free. The guest is emailed the new time.' : 'This day has passed, so its treatments can’t be moved.'}</p>`,
       wire: el => {
-        const w = $('#who', el); if (w) w.onchange = () => location.hash = `#/staffday/${w.value}/${d}`; A.wireMyDay(el); if (A.wireRequests) A.wireRequests(el); if (A.wireCalClicks) A.wireCalClicks(el);
+        const w = $('#who', el); if (w) w.onchange = () => A.goDay(`#/staffday/${w.value}/${d}`); A.wireMyDay(el); if (A.wireRequests) A.wireRequests(el); if (A.wireCalClicks) A.wireCalClicks(el);
         $$('[data-cview]', el).forEach(b => b.onclick = () => { const [bid, g] = b.dataset.cview.split('|'); A.viewConsults(DB.bookings.find(x => x.id === bid), +g); });
         $$('[data-move]', el).forEach(b => b.onclick = () => { const [bid, key] = b.dataset.move.split('|'); A.moveItem(DB.bookings.find(x => x.id === bid), key); });
       } };

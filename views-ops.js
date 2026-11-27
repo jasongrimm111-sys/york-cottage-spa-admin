@@ -106,7 +106,7 @@
     // whose day: picture buttons rather than a dropdown (user, 2026-11-26)
     const dayFor = sid => `#/${base}/${ahead ? t : ''}${sid ? '?as=' + sid : ''}`.replace(/\/(\?|$)/, '$1');
     const asBar = `<nav class="who-pick" aria-label="Whose day"><a href="${dayFor('')}" class="${!asId ? 'on' : ''}"><span class="av all">${A.ic.staff}</span><span><b>Everyone</b><small>The whole day</small></span></a>${cfg.staff.filter(s => s.active !== false).sort(E.byPriority).map(s => { const d = E.staffDay(cfg, s, t), n = (live().flatMap(b => (b.items || []).filter(i => i.staff === s.id && (i.date || b.date) === t))).length; return `<a href="${dayFor(s.id)}" class="${s.id === asId ? 'on' : ''} ${d ? '' : 'off'}"><span class="av" style="background:${s.colour}">${A.initials(s.name)}</span><span><b>${esc(s.name)}</b><small>${d ? n + ' treatment' + (n === 1 ? '' : 's') : 'Not working'}</small></span></a>`; }).join('')}${asId ? `<button class="btn sm ghost" id="asPortal" title="See every page as they would">See the portal as ${esc(A.sname(asId))}</button>` : ''}</nav>`;
-    const asWire = el => { const va = $('#viewAs', el); if (va) va.onchange = () => { location.hash = `#/${base}/${ahead ? t : ''}${va.value ? '?as=' + va.value : ''}`.replace('//?', '/?').replace(/\/$/, ''); };
+    const asWire = el => { const va = $('#viewAs', el); if (va) va.onchange = () => { A.goDay(`#/${base}/${ahead ? t : ''}${va.value ? '?as=' + va.value : ''}`.replace('//?', '/?').replace(/\/$/, '')); };
       const ap = $('#asPortal', el); if (ap) ap.onclick = () => { const S = St.S; S.realUser = S.realUser || S.user; S.user = { ...S.realUser, name: S.realUser.name + ' (viewing as ' + A.sname(asId) + ')', role: 'therapist', staffId: asId }; A.reshell(); location.hash = '#/staffday/' + asId + '/' + t; }; };
     // viewing as one person: their whole day, as they'd see it (user, 2026-11-26), not extra cards on top of everyone's
     if (asId && cfg.staff.some(s => s.id === asId)) { const sd = V.staffday(asId, t, { fromToday: true, base }); return { html: A.dayTabs(t, 'person', asId) + asBar + sd.html, wire: el => { sd.wire(el); asWire(el); } }; }
@@ -189,7 +189,7 @@
             ${next7.map(x => `<a class="hbar" href="${x.d === real ? '#/today' : '#/ahead/' + x.d}" style="text-decoration:none"><span>${fd(x.d)}</span><span class="bar"><i style="width:${x.n / mx * 100}%"></i></span><b>${x.n}</b></a>`).join('')}<p class="small muted">Guests visiting or staying each day</p></div>` : ''}
         </div>
       </div>`,
-      wire: el => { A.wireMove(el); const tp = $('#todayPick', el); if (tp) tp.onchange = () => { if (tp.value) location.hash = '#/ahead/' + (tp.value > today() ? tp.value : E.addD(today(), 1)) + (asQ ? '?as=' + asQ : ''); }; A.wireArrive(el); A.wireMyDay(el); if (A.wireCalClicks) A.wireCalClicks(el);
+      wire: el => { A.wireMove(el); const tp = $('#todayPick', el); if (tp) tp.onchange = () => { if (tp.value) A.goDay('#/ahead/' + (tp.value > today() ? tp.value : E.addD(today(), 1)) + (asQ ? '?as=' + asQ : '')); }; A.wireArrive(el); A.wireMyDay(el); if (A.wireCalClicks) A.wireCalClicks(el);
         asWire(el);
         // phones: the day's timeline scrolls sideways; start it with the current time in view (user, 2026-11-27)
         const rb = $('.rb', el), nw = $('.rb-now', el);

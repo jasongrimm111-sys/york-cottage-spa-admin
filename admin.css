@@ -1,8 +1,10 @@
+/* digits in headings use the plain sans font (the serif 1 looked like a Roman numeral I) */
+@font-face{font-family:"YC Digits";font-style:normal;font-weight:400 700;font-display:swap;src:url(https://fonts.gstatic.com/s/manrope/v23/xn7gYHE41ni1AdIRggexSg.woff2) format('woff2');unicode-range:U+0030-0039;size-adjust:90%}
 :root{
   --cream:#f6f1e9; --paper:#fbf8f3; --sand:#e9dfd0; --stone:#cdbfaa; --forest:#2f3b32; --forest-2:#3e4d41; --sage:#8a9a85;
   --clay:#b4785a; --clay-2:#9c6449; --ink:#232823; --muted:#6b6f68; --line:rgba(35,40,35,.12); --line-2:rgba(35,40,35,.2);
   --ok:#3f7a52; --ok-bg:#e6f1e8; --warn:#a86b12; --warn-bg:#fbf0dc; --bad:#b0413e; --bad-bg:#f8e4e2; --info:#3f6a86; --info-bg:#e3eef5;
-  --serif:"Cormorant Garamond", Georgia, serif; --sans:"Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --serif:"YC Digits", "Cormorant Garamond", Georgia, serif; --sans:"Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
   --r:12px; --side:248px; --top:60px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -846,7 +848,7 @@ html{touch-action:manipulation}
 /* loading screen: the logo draws itself, then breathes (2026-11-27) */
 .yc-load{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:#f6f1e9;color:#2f3b32;font-family:Manrope,system-ui,sans-serif}
 .yc-load.over{position:fixed;inset:0;z-index:9999;background:rgba(246,241,233,.96);animation:yl-in .25s ease both}
-.yc-load b{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:30px;letter-spacing:.02em;margin-top:14px;opacity:0;animation:yl-in .8s 1.1s ease forwards}
+.yc-load b{font-family:"YC Digits","Cormorant Garamond",Georgia,serif;font-weight:500;font-size:30px;letter-spacing:.02em;margin-top:14px;opacity:0;animation:yl-in .8s 1.1s ease forwards}
 .yc-load small{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:#8a7a68;opacity:0;animation:yl-in .8s 1.3s ease forwards, yl-pulse 2s 2.1s ease-in-out infinite}
 .yl-mark{position:relative;width:150px;height:110px;display:grid;place-items:center}
 .yl-mark svg{width:132px;overflow:visible;animation:yl-breathe 3.2s 1.9s ease-in-out infinite}
@@ -880,3 +882,11 @@ html{touch-action:manipulation}
 .fill-order li::before{content:counter(fo);font-weight:700;color:var(--muted);width:16px}
 .fill-order .grow{flex:1}
 .staff-note{display:flex;align-items:center;gap:12px;margin-bottom:14px}.staff-note .grow{flex:1}
+
+/* normal (lining) numbers everywhere: the serif font's old-style 1 looked like a Roman numeral I (user 2026-11-27) */
+*,*::before,*::after{font-feature-settings:"lnum" 1}
+
+/* phones: the side menu fits the visible screen and scrolls clear of the bottom tab bar (user 2026-11-27) */
+@media (max-width:980px){
+  .side{height:auto;height:100dvh;max-height:100dvh;padding-bottom:calc(96px + env(safe-area-inset-bottom));overscroll-behavior:contain}
+}
