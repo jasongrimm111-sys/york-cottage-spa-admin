@@ -79,7 +79,7 @@
     const FIX = E.index(cfg, A.DB().bookings);
     const foodBand = d => Object.entries((FIX.food || {})[d] || {}).map(([sid, n]) => { const sv = E.service(cfg, sid, d); if (!sv || !n) return '';
       const st = ((FIX.duty || {})[d] || {})[sid] || [];
-      return `<div class="tg-food" style="top:${y(E.T(sv.start))}px;height:${Math.max(16, (E.T(sv.end) - E.T(sv.start)) * PX)}px"><button type="button" class="tg-food-chip" data-food="${d}|${sid}" title="${esc(sv.name)}: ${n} guests">🍽 ${esc(sv.name.replace(/ service$/i, ''))} · ${n}${st.length ? ' · ' + st.map(x => A.initials(A.sname(x))).join(', ') : ''}</button></div>`; }).join('');
+      return `<div class="tg-food" style="top:${y(E.T(sv.start))}px;height:${Math.max(16, (E.T(sv.end) - E.T(sv.start)) * PX)}px"><button type="button" class="tg-food-chip" data-food="${d}|${sid}" title="${esc(sv.name)}: ${n} guests"><b>🍽 ${esc(sv.name.replace(/ service$/i, ''))} · ${sv.start}–${sv.end}</b><span>${n} guest${n === 1 ? '' : 's'}${st.length ? ' · served by ' + st.map(x => esc(A.sname(x))).join(', ') : ' · nobody free to serve'}</span></button></div>`; }).join('');
     const cols = all.map(x => `<div class="tg-col ${x.d === t ? 'today' : ''}" data-day="${x.d}" style="height:${H}px">${lines.join('')}${foodBand(x.d)}
       ${x.evs.map(ev => { const grp = ev.list && ev.list.length > 1, n = grp ? ev.list.reduce((a, b) => a + b.guests, 0) : ev.b.guests, ses = E.session(cfg, ev.b.sessionId);
         const its = (grp ? ev.list : [ev.b]).flatMap(b => (b.items || []).filter(i => (i.date || b.date) === x.d).map(i => ({ ...i, b })));
