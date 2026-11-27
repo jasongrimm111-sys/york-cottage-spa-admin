@@ -141,7 +141,8 @@
     saving = (async () => {
       const files = [...S.dirty]; S.dirty.clear(); set('status', 'saving');
       try {
-        if (S.mode === 'demo') { localStorage.setItem(DEMO_KEY, JSON.stringify(S.DB)); }
+        // demo: sample consultation forms are recreated when needed, so only forms filled in by hand are kept (browser storage is small)
+        if (S.mode === 'demo') { localStorage.setItem(DEMO_KEY, JSON.stringify({ ...S.DB, consults: (S.DB.consults || []).filter(c => !c.sample).slice(-30) })); }
         else {
           for (const f of files) await writeFile(f);
           publishSoon();
@@ -366,7 +367,8 @@
   const cpath = (b, g) => `consult/${month(b)}/${b.ref}-g${g}-${Date.now().toString(36)}.json`;
   async function saveConsult(b, g, sealed, via) {
     const rec = { ref: b.ref, bookingId: b.id, g, via, at: new Date().toISOString(), by: S.user.name, sealed };
-    if (S.mode === 'demo') { (S.DB.consults = S.DB.consults || []).push({ path: cpath(b, g), ...rec }); localStorage.setItem(DEMO_KEY, JSON.stringify(S.DB)); return; }
+    if (via && typeof via === 'object') { rec.via = 'sample'; rec.sampleVia = via.via; via = 'sample'; }
+    if (S.mode === 'demo') { (S.DB.consults = S.DB.consults || []).push({ path: cpath(b, g), ...rec, ...(via === 'sample' ? { sample: true, via: rec.sampleVia } : {}) }); return; }
     await S.gh.put(CONF.dataRepo, cpath(b, g), rec, null, `Consultation form for ${b.ref} (encrypted)`);
   }
   // forms for a booking: filed ones for its month + any still in the online inbox

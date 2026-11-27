@@ -1300,3 +1300,17 @@ html{touch-action:manipulation}
 /* pop-ups and messages open above the full-screen consultation form */
 body:has(.kiosk) .ov{z-index:6000}
 body:has(.kiosk) .toast{z-index:6100}
+
+/* flagged answers on the View consultation button */
+.cflag{display:inline-flex;align-items:center;gap:2px;background:#f6dfcf;color:#8a4f2e;border-radius:99px;padding:1px 8px;font-size:12px;font-weight:800;margin-left:4px}
+
+/* reading a form: Edit answers, earlier versions */
+.ca-hr{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.ca-old{margin-top:6px}.ca-old>summary{cursor:pointer;font-weight:600;color:var(--muted);padding:8px 0}
+.ca-old .card{opacity:.85}
+
+.kiosk{overflow-x:hidden}.kiosk .kiosk-in{box-sizing:border-box;max-width:100%}
+@media (min-width:1000px){.kiosk .kiosk-in{max-width:980px}}
+@media (min-width:700px) and (max-width:999px){.kiosk .kiosk-in{max-width:760px}}
+
+.ca-r.ok b{color:#2f6b3f}

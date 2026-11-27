@@ -196,7 +196,7 @@
     const nav = [...(A.myStaff() ? [['My work', [['staffday/' + A.myStaff(), 'My day', 'me']]]] : []), ...NAV.map(([h, items]) => [h, items.filter(([r]) => A.canRoute(r) && !(r === 'today' && false))])].filter(([, items]) => items.length);
     document.body.innerHTML = `<div class="app">
       <aside class="side" id="side"><a class="brand" href="#/${A.homeRoute()}"><i class="brand-lotus">${A.lotus()}</i><span><b>York Cottage</b><small>Spa admin</small></span></a>
-        <nav class="nav">${nav.map(([h, items]) => `<div class="nav-h">${h}</div>` + items.map(([r, t, ic]) => `<a href="#/${r}" data-r="${r.split('/')[0]}">${A.ic[ic]}<span>${t}</span>${r === 'bookings' || r === 'waitlist' || r === 'todo' || r === 'support' ? `<span class="cnt" data-cnt="${r}" hidden></span>` : ''}</a>`).join('')).join('')}</nav>
+        <nav class="nav">${nav.map(([h, items]) => `<div class="nav-h">${h}</div>` + items.map(([r, t, ic]) => `<a href="#/${r}" data-r="${r.split('/')[0]}">${A.ic[ic]}<span>${t}</span>${r === 'bookings' || r === 'waitlist' || r === 'todo' || r === 'support' || r === 'consults' ? `<span class="cnt" data-cnt="${r}" hidden></span>` : ''}</a>`).join('')).join('')}</nav>
         <div class="side-foot">${S.mode === 'demo' ? '<span class="demo-tag">OFFLINE DEMO</span><br>Changes here are kept in this browser only and aren’t saved to York Cottage’s data.<br><button class="btn sm" id="leaveDemo" style="margin-top:8px;color:var(--ink)">Go to the real portal</button>' : `Signed in as ${esc(S.user.name)}<br><span style="opacity:.7">Everything saves to York Cottage’s private data store</span>`}${S.realUser ? '<br><button class="btn sm" id="backMgr" style="margin-top:8px;color:var(--ink)">Back to the manager view</button>' : ''}</div></aside>
       <div class="main"><header class="top">
         <button class="burger" id="burger" aria-label="Menu"><span class="bg-m">${A.ic.menu}</span><svg class="bg-hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9 4v16"/><path d="m15.5 9.5-2.5 2.5 2.5 2.5"/></svg><svg class="bg-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9 4v16"/><path d="m13 9.5 2.5 2.5-2.5 2.5"/></svg><span class="bg-t"></span></button>
@@ -245,6 +245,7 @@
     if (c3 && A.todoCount) { const n = A.todoCount(); c3.hidden = !n; c3.textContent = n; c3.title = n + ' to do'; const c4 = $('[data-cnt=todo2]'); if (c4) { c4.hidden = !n; c4.textContent = n; } }
     if (c1) { c1.hidden = !pend; c1.textContent = pend; c1.title = pend + ' waiting for payment'; }
     if (c2) { c2.hidden = !wl; c2.textContent = wl; }
+    { const cc = $('[data-cnt=consults]'); if (cc && A.consultsToDo) { const n = A.consultsToDo(); cc.hidden = !n; cc.textContent = n; cc.title = n + ' consultation form' + (n === 1 ? '' : 's') + ' still to do today' + (A.myStaff() ? ' for your guests' : ''); } }
   }
   // ---------- search ----------
   function search() {

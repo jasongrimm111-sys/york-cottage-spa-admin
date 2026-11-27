@@ -16,10 +16,19 @@
   const guestForms = (b, g) => C.formsFor(cc(), C.guestTreatments(b, g));
   const guestQs = (b, g) => C.questionsFor(cc(), guestForms(b, g));
   A.consultFormsFor = guestForms;
+  // forms still to do today: each guest with a treatment today, once per booking (a therapist: only their own guests)
+  A.consultsToDo = () => { const t = today(), me = A.myStaff(); let n = 0;
+    for (const b of A.DB().bookings) { if (!E.live(b) || !(b.items || []).some(i => (i.date || b.date) === t && i.start)) continue;
+      for (let g = 0; g < Math.max(1, +b.guests || 1); g++) { const its = (b.items || []).filter(i => +i.guest === g && i.start && (i.date || b.date) === t); if (!its.length) continue;
+        if (me && !its.some(i => i.staff === me)) continue; if (((b.guestList || [])[g] || {}).consult !== 'done') n++; } }
+    return n; };
   // one form per guest per booking (user 2026-11-27): "Hand to" only on the guest's first treatment of the booking
   A.firstItemOf = (b, g) => (b.items || []).filter(i => +i.guest === +g && i.start).sort((x, y) => ((x.date || b.date) + x.start).localeCompare((y.date || b.date) + y.start))[0];
-  A.consultBtn = (b, g, cls = 'sm', itemKey) => (((b.guestList || [])[g] || {}).consult !== 'done' && itemKey && (A.firstItemOf(b, g) || {}).key !== itemKey) ? '' : ((b.guestList || [])[g] || {}).consult === 'done'
-    ? `<button type="button" class="btn ${cls} cbtn" data-cview="${b.id}|${g}">${A.ic.log} View consultation</button>`
+  // demo: make every sample form once, in the background, so flag counts show on the buttons
+  let demoAll = null;
+  A.ensureDemoFormsAll = () => { if (St.S.mode !== 'demo' || demoAll) return; demoAll = (async () => { for (const b of A.DB().bookings) { if ((b.guestList || []).some(g => g && g.consult === 'done' && g.flags == null)) { try { await ensureDemoForms(b); } catch (e) {} } } A.refresh(); })(); };
+  A.consultBtn = (b, g, cls = 'sm', itemKey) => (A.ensureDemoFormsAll && setTimeout(A.ensureDemoFormsAll, 300), 0) || (((b.guestList || [])[g] || {}).consult !== 'done' && itemKey && (A.firstItemOf(b, g) || {}).key !== itemKey) ? '' : ((b.guestList || [])[g] || {}).consult === 'done'
+    ? `<button type="button" class="btn ${cls} cbtn" data-cview="${b.id}|${g}">${A.ic.log} View consultation${+((b.guestList || [])[g] || {}).flags > 0 ? ` <span class="cflag" title="${b.guestList[g].flags} answer${b.guestList[g].flags > 1 ? 's' : ''} to check before the treatment">⚑ ${b.guestList[g].flags}</span>` : ''}</button>`
     : `<button type="button" class="btn ${cls} pri cbtn" data-chand="${b.id}|${g}">Hand to ${esc((guestName(b, g) || 'guest').split(' ')[0])}</button>`;
   // buttons shown inside pop-ups (e.g. the calendar's booking details)
   document.addEventListener('click', e => { const x = e.target.closest('[data-chand],[data-cview]'); if (!x || x.onclick) return; const v = x.dataset.chand || x.dataset.cview; if (!v || !v.includes('|')) return;
@@ -40,7 +49,7 @@
   const save = async (b, g, v, via) => {
     A.consultOptin(v.optin, via);
     const sealed = await C.seal(cc().publicKey, v.answers); await St.saveConsult(b, g, sealed, via);
-    b.guestList[g] = b.guestList[g] || {}; b.guestList[g].consult = 'done'; if (v.answers.name && !b.guestList[g].name && g > 0) b.guestList[g].name = v.answers.name;
+    b.guestList[g] = b.guestList[g] || {}; b.guestList[g].consult = 'done'; b.guestList[g].flags = C.flags(v.answers.questions, v.answers.a).length; if (v.answers.name && !b.guestList[g].name && g > 0) b.guestList[g].name = v.answers.name;
     (b.history = b.history || []).push({ at: new Date().toISOString(), by: St.S.user.name, what: `Consultation form completed ${via === 'tablet' ? 'on the tablet' : ''} for ${guestName(b, g)}` });
     A.change('booking', b, 'Consultation form: ' + b.ref);
   };
@@ -49,7 +58,7 @@
   A.fillConsult = async (b, g) => A.handOver(b, g);
 
   // hand-over mode: full screen, just the form; then "please hand the tablet back"
-  A.handOver = async (b, g, after) => {
+  A.handOver = async (b, g, after, prev) => {
     if (await needKey()) return;
     const qs = guestQs(b, g), forms = guestForms(b, g), first = (guestName(b, g) || '').split(' ')[0];
     const ov = document.createElement('div'); ov.className = 'kiosk'; document.body.appendChild(ov); document.body.style.overflow = 'hidden';
@@ -66,7 +75,7 @@
           ${its.length ? `<div class="k-chips">${its.map(i => `<span>${esc(tname(i.tid))} · ${i.start}</span>`).join('')}</div>` : ''}</section>
         ${C.formHTML(fqs, { name: ((b.guestList || [])[g] || {}).name || (g === 0 ? A.cust(b) : ''), consent: cc().consentText, prefill: g === 0 ? { email: (b.customer || {}).email || '', phone: (b.customer || {}).phone || '', optin: !!custRec((b.customer || {}).email).marketing } : {} })}
         <div class="k-foot"><p class="kiosk-lock">🔒 Your answers are encrypted on this tablet and only York Cottage can read them.</p><button class="btn pri k-send" id="kGo">Send my answers →</button></div></div>`;
-      C.wireForm(ov, qs); ov.scrollTop = 0;
+      C.wireForm(ov, qs); if (prev) C.fillForm(ov, qs, prev); ov.scrollTop = 0;
       $('[data-x]', ov).onclick = async () => { if (await A.modal({ title: 'Cancel this form?', body: '<p>Nothing has been saved. You can start it again from the list.</p>', ok: 'Yes, cancel the form', cancel: 'Keep going', danger: true })) close(); };
       $('#kGo', ov).onclick = async e => { const v = C.readForm(ov, qs), msg = $('.cq-msg', ov);
         if (!v.ok) { msg.textContent = v.msg; return; }
@@ -90,7 +99,8 @@
   const rnd = seed => { let h = 2166136261; for (const ch of seed) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return ((h >>> 0) % 10000) / 10000; }; };
   const sigImage = name => { const cv = document.createElement('canvas'); cv.width = 900; cv.height = 260; const cx = cv.getContext('2d');
     cx.fillStyle = 'rgba(0,0,0,0)'; cx.fillRect(0, 0, 900, 260); cx.fillStyle = '#1d2a22'; cx.font = 'italic 86px "Segoe Script","Brush Script MT","Lucida Handwriting",cursive'; cx.textBaseline = 'middle';
-    cx.save(); cx.translate(60, 140); cx.rotate(-0.04); cx.fillText(name, 0, 0); cx.restore(); return cv.toDataURL('image/png'); };
+    cx.save(); cx.translate(60, 140); cx.rotate(-0.04); cx.fillText(name, 0, 0); cx.restore();
+    return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="900" height="260"><text x="50" y="160" font-family="Segoe Script, Brush Script MT, cursive" font-style="italic" font-size="84" fill="#1d2a22" transform="rotate(-2 450 130)">${esc(name)}</text></svg>`))); };
   const sampleForm = (b, g) => {
     const r = rnd(b.id + '|' + g), pick = a => a[Math.floor(r() * a.length)], qs = guestQs(b, g), name = guestName(b, g), a = {};
     const yesOdds = { allergies: .18, back: .12, meds: .2, pain: .15, anxiety: .12, skin: .06, arthritis: .05, bruising: .07, surgery: .04 };
@@ -117,7 +127,7 @@
     if (St.S.mode !== 'demo') return;
     const c = cc(); if (!c.publicKey) { c.publicKey = await St.makeConsultKey(); A.change('cfg'); }
     const have = await St.listConsults(b), gs = (b.guestList || []).map((x, g) => g).filter(g => ((b.guestList[g] || {}).consult === 'done') && !have.some(h => +h.g === g));
-    for (const g of gs) { const f = sampleForm(b, g); await St.saveConsult(b, g, await C.seal(c.publicKey, f.answers), f.via); const recs = St.S.DB.consults || []; const last = recs[recs.length - 1]; if (last) last.at = f.at; }
+    for (const g of gs) { const f = sampleForm(b, g); b.guestList[g].flags = C.flags(f.answers.questions, f.answers.a).length; A.change('booking', b); await St.saveConsult(b, g, await C.seal(c.publicKey, f.answers), { via: f.via }); const recs = St.S.DB.consults || []; const last = recs[recs.length - 1]; if (last) last.at = f.at; }
   };
 
   // read completed forms
@@ -130,16 +140,25 @@
     if (!key) { A.toast('This login can’t open forms yet. The owner creates the key in Settings → Consultation forms.'); return; }
     const opened = [];
     for (const x of list) { try { opened.push({ x, f: await C.open(key, x.sealed) }); } catch (e) { opened.push({ x, err: true }); } }
-    const show = ({ x, f, err }) => err ? `<div class="note bad">A form from ${ft(x.at)} couldn’t be opened (it was made with an older key).</div>` : `<div class="card" style="margin-bottom:12px">
-      <div class="card-h"><h3>${esc(f.name)}</h3><span class="small muted">${x.via === 'online' ? 'Online, before the visit' : 'On the tablet'} · ${ft(f.signedAt || x.at)}</span></div>
+    { let ch = false; for (const o of opened) { if (o.err || o.x.g === 'all') continue; const gi = +o.x.g, n = C.flags(o.f.questions, o.f.a).length; b.guestList[gi] = b.guestList[gi] || {}; if (b.guestList[gi].flags !== n) { b.guestList[gi].flags = n; ch = true; } } if (ch) { A.change('booking', b); setTimeout(() => A.refresh(), 0); } }
+    const show = ({ x, f, err }, i, all) => err ? `<div class="note bad">A form from ${ft(x.at)} couldn’t be opened (it was made with an older key).</div>` : `<div class="card" style="margin-bottom:12px">
+      <div class="card-h"><h3>${esc(f.name)}${x.old ? ' <span class="badge">Earlier version</span>' : ''}</h3><span class="ca-hr"><span class="small muted">${x.via === 'online' ? 'Online, before the visit' : 'On the tablet'}${x.edited ? ' · corrected' : ''} · ${ft(f.signedAt || x.at)}</span>${!x.old && x.g !== 'all' && b.status !== 'cancelled' ? `<button type="button" class="btn sm" data-cedit="${i}">✎ Edit answers</button>` : ''}</span></div>
       ${C.flags(f.questions, f.a).length ? `<div class="note warn" style="margin-bottom:10px"><b>Check before the treatment:</b> ${C.flags(f.questions, f.a).map(esc).join(' · ')}</div>` : '<div class="note ok" style="margin-bottom:10px">Nothing flagged</div>'}
       <div class="ca">${[['Date of birth', f.dob ? new Date(f.dob + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—']].map(([q, a]) => `<div class="ca-r"><span>${q}</span><b>${esc(a)}</b></div>`).join('')}
-        ${(f.questions || []).map(q => { if (q.type === 'heading') return `<div class="ca-h">${esc(q.label)}</div>`; if (q.type === 'info') return '';
+        ${(f.questions || []).map(q => { if (q.type === 'heading') return `<div class="ca-h">${esc(q.label)}</div>`; if (q.type === 'info') return q.terms || q.id === 'consent_text' ? `<div class="ca-r ${f.consent ? 'ok' : 'flag'}"><span>Agreed to the ${esc((q.label || 'terms and conditions').toLowerCase())}</span><b>${f.consent ? '✓ Agreed' : 'Not agreed'}</b></div>` : '';
           const a = (f.a || {})[q.id], flag = C.flags([q], f.a || {}).length; return `<div class="ca-r ${flag ? 'flag' : ''}"><span>${esc(q.label)}</span><b>${flag ? '⚑ ' : ''}${esc(C.answerText(q, a))}</b></div>`; }).join('')}
-        <div class="ca-h">Signed</div><div class="ca-r"><span>${esc(f.sign)} · ${f.consent ? 'agreed to the terms and confirmed the information is correct' : ''}</span><b>${ft(f.signedAt || x.at)}</b></div>
+        <div class="ca-r ${f.consent ? 'ok' : ''}"><span>Confirmed the information is correct</span><b>${f.consent ? '✓ Yes' : '—'}</b></div><div class="ca-h">Signed</div><div class="ca-r"><span>Signed by ${esc(f.sign)}</span><b>${ft(f.signedAt || x.at)}</b></div>
         ${f.sigImg ? `<img class="ca-sig" src="${f.sigImg}" alt="Signature of ${esc(f.sign)}">` : ''}</div></div>`;
     St.audit(`Consultation form viewed: ${b.ref}`, b.ref); St.touch('audit');
-    await A.modal({ title: 'Consultation form' + (opened.length > 1 ? 's' : ''), size: 'wide', ok: 'Close', cancel: '', foot: '<button class="btn" onclick="print()" style="margin-right:auto">Print</button>', body: `<p class="small muted">${esc(A.cust(b))} · ${b.ref} · ${fdy(b.date)}. Health information: keep it private, and don’t copy it into notes.</p>${opened.map(show).join('')}` });
+    // newest first for each guest; earlier versions (before a correction) are kept underneath
+    opened.sort((p, q) => (+p.x.g - +q.x.g) || String((q.f || {}).signedAt || q.x.at).localeCompare(String((p.f || {}).signedAt || p.x.at)));
+    const seenG = new Set(); opened.forEach(o => { const k = String(o.x.g); if (seenG.has(k)) o.x.old = true; else { seenG.add(k); o.x.edited = opened.some(p => p !== o && String(p.x.g) === k); } });
+    const cur = opened.filter(o => !o.x.old), old = opened.filter(o => o.x.old);
+    const r = await A.modal({ title: 'Consultation form' + (cur.length > 1 ? 's' : ''), size: 'wide', ok: 'Close', cancel: '', foot: '<button class="btn" onclick="print()" style="margin-right:auto">Print</button>',
+      body: `<p class="small muted">${esc(A.cust(b))} · ${b.ref} · ${fdy(b.date)}. Health information: keep it private, and don’t copy it into notes.</p>${opened.map((o, i) => o.x.old ? '' : show(o, i)).join('')}
+        ${old.length ? `<details class="ca-old"><summary>Earlier version${old.length > 1 ? 's' : ''} (${old.length}), before ${old.length > 1 ? 'corrections' : 'a correction'}</summary>${opened.map((o, i) => o.x.old ? show(o, i) : '').join('')}</details>` : ''}`,
+      onOpen: (m, close) => $$('[data-cedit]', m).forEach(x => x.onclick = () => close({ edit: +x.dataset.cedit })) });
+    if (r && r.edit != null) { const o = opened[r.edit]; A.handOver(b, +o.x.g, null, o.f); }
   };
 
   // ---------- Run the day → Consultation forms: each guest with treatments on a day, and their form ----------
@@ -166,7 +185,7 @@
           <div class="cd-time">${r.start}</div>
           <div class="cd-who"><b>${esc(guestName(r.b, r.g))}</b><div class="small muted">${r.its.map(i => esc(tn(i.tid))).join(' · ')} · ${esc(r.b.ref)}</div><div class="small muted">Form: ${guestForms(r.b, r.g).map(f => esc(f.name)).join(' + ')}</div></div>
           <div class="cd-st">${badge(r.st)}</div>
-          <div class="cd-act">${r.st === 'done' ? `<button class="btn" data-cv="${r.b.id}|${r.g}">Read it</button>` : `<button class="btn pri" data-ch="${r.b.id}|${r.g}">Hand to ${esc(guestName(r.b, r.g).split(' ')[0])}</button>`}</div></div>`).join('') || '<div class="card"><div class="empty"><b>Nobody to show</b>No treatments booked for this day' + (mineOnly ? ' with you' : '') + '.</div></div>'}</div>`,
+          <div class="cd-act">${r.st === 'done' ? A.consultBtn(r.b, r.g, '') : `<button class="btn pri" data-ch="${r.b.id}|${r.g}">Hand to ${esc(guestName(r.b, r.g).split(' ')[0])}</button>`}</div></div>`).join('') || '<div class="card"><div class="empty"><b>Nobody to show</b>No treatments booked for this day' + (mineOnly ? ' with you' : '') + '.</div></div>'}</div>`,
       wire: el => {
         const go = d => { location.hash = '#/consults/' + d; };
         $('#cdPrev', el).onclick = () => go(add(-1)); $('#cdNext', el).onclick = () => go(add(1)); $('#cdDate', el).onchange = e => e.target.value && go(e.target.value);
