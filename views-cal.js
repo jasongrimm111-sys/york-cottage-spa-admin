@@ -134,7 +134,7 @@
       foot: (i.date || b.date) >= today() && A.can('bookings.edit') ? '<button class="btn" data-mvx style="margin-right:auto">Move or hand over</button>' : '',
       body: dl([['Guest', `<b>${esc(guestName(b, i.guest))}</b>`], ['When', `${fdy(i.date || b.date)}, ${i.start}–${end} (${i.min} min)`], ['Therapist', esc(A.sname(i.staff))], ['Room', esc(room(i.troom))],
         ['Booking', `${esc(A.pname(b.product))} · ${esc(b.ref)} · ${b.guests} guest${b.guests > 1 ? 's' : ''}`], ['Included?', i.key.endsWith('-inc') ? 'Included in the booking' : 'Extra treatment'],
-        ['Consultation', gl.consult === 'done' ? '<span class="badge ok">Form done</span>' : '<span class="badge warn">Form needed</span>'],
+        ['Consultation', A.consultBtn ? A.consultBtn(b, i.guest) || '—' : ''],
         ['Notes', [...(b.tags || []).map(t => `<span class="badge">${esc(t)}</span>`), b.notes ? esc(b.notes) : ''].filter(Boolean).join(' ')]]),
       onOpen: ov => { const m = ov.querySelector('[data-mvx]'); if (m) m.onclick = () => { ov.querySelector('[data-x]').click(); setTimeout(() => A.moveItem(b, key), 50); }; } });
     if (r) location.hash = '#/booking/' + b.id;
@@ -161,7 +161,7 @@
     const its = (b.items || []).slice().sort((x, y) => ((x.date || b.date) + x.start).localeCompare((y.date || b.date) + y.start));
     const r = await A.modal({ title: esc(A.cust(b)), size: 'wide', ok: 'Open the booking', cancel: 'Close',
       body: `${dl([['Booking', `${esc(A.pname(b.product))}${ses ? ' · ' + esc(ses.name) : ''} · ${esc(b.ref)}`], ['When', `${fdy(b.date)}${b.nights ? ` · ${b.nights} night${b.nights > 1 ? 's' : ''}` : ''}`], ['Guests', `${b.guests}: ${Array.from({ length: b.guests }, (_, i) => esc(((b.guestList || [])[i] || {}).name || (i === 0 ? A.cust(b) : `Guest ${i + 1}`))).join(', ')}`],
-        ['Rooms', b.product === 'house' ? 'Whole house' : (b.rooms || []).map(bedroom).join(', ')], ['Status', esc(cap(b.status === 'confirmed' && b.arrived ? 'arrived' : b.status))]])}
+        ['Rooms', b.product === 'house' ? 'Whole house' : (b.rooms || []).map(bedroom).join(', ')], ['Status', esc(cap(b.status === 'confirmed' && b.arrived ? 'arrived' : b.status))], ...((b.items || []).some(i => i.start) && A.consultBtn ? [['Consultation', `<span class="cb-list">${Array.from({ length: b.guests || 1 }, (_, gi) => (b.items || []).some(i => +i.guest === gi && i.start) ? A.consultBtn(b, gi) : '').join('')}</span>`]] : [])])}
         ${its.length ? `<h3 style="margin:14px 0 6px;font-size:15px">Treatments</h3><div class="list">${its.map(i => `<div class="li"><span class="when">${i.start}</span><span class="grow"><b>${esc(A.iname(i))}</b><span class="small muted" style="display:block">${esc(guestName(b, i.guest))} · ${esc(A.sname(i.staff))} · ${esc(room(i.troom))}${b.nights ? ' · ' + fd(i.date || b.date) : ''} · ${i.min} min</span></span></div>`).join('')}</div>` : ''}` });
     if (r) location.hash = '#/booking/' + b.id;
   };

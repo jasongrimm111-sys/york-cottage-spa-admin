@@ -100,7 +100,9 @@
 
   // on a therapist's own day page
   A.requestCard = sid => { const mine = list().filter(r => r.staffId === sid).slice().reverse().slice(0, 8);
-    return `<div class="card"><div class="card-h"><h3>Time off & shift swaps</h3><span><button class="btn sm danger" data-asksick="${sid}">I’m off sick</button> <button class="btn sm" data-askoff="${sid}">Ask for time off</button> <button class="btn sm" data-askswap="${sid}">Ask to swap a shift</button></span></div>${rows(mine, false)}</div>`; };
+    // the buttons sit in the page header (user 2026-11-27); the card only shows when there are requests to see
+    return mine.length ? `<div class="card"><div class="card-h"><h3>Time off & shift swap requests</h3></div>${rows(mine, false)}</div>` : ''; };
+  A.requestButtons = sid => `<span class="acts-break"></span><button class="btn sm danger" data-asksick="${sid}">I’m off sick</button><button class="btn sm" data-askoff="${sid}">Ask for time off</button><button class="btn sm" data-askswap="${sid}">Ask to swap a shift</button>`;
   A.wireRequests = wire;
 
   // the manager's page

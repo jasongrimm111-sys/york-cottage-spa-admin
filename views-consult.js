@@ -16,6 +16,17 @@
   const guestForms = (b, g) => C.formsFor(cc(), C.guestTreatments(b, g));
   const guestQs = (b, g) => C.questionsFor(cc(), guestForms(b, g));
   A.consultFormsFor = guestForms;
+  // one form per guest per booking (user 2026-11-27): "Hand to" only on the guest's first treatment of the booking
+  A.firstItemOf = (b, g) => (b.items || []).filter(i => +i.guest === +g && i.start).sort((x, y) => ((x.date || b.date) + x.start).localeCompare((y.date || b.date) + y.start))[0];
+  A.consultBtn = (b, g, cls = 'sm', itemKey) => (((b.guestList || [])[g] || {}).consult !== 'done' && itemKey && (A.firstItemOf(b, g) || {}).key !== itemKey) ? '' : ((b.guestList || [])[g] || {}).consult === 'done'
+    ? `<button type="button" class="btn ${cls} cbtn" data-cview="${b.id}|${g}">${A.ic.log} View consultation</button>`
+    : `<button type="button" class="btn ${cls} pri cbtn" data-chand="${b.id}|${g}">Hand to ${esc((guestName(b, g) || 'guest').split(' ')[0])}</button>`;
+  // buttons shown inside pop-ups (e.g. the calendar's booking details)
+  document.addEventListener('click', e => { const x = e.target.closest('[data-chand],[data-cview]'); if (!x || x.onclick) return; const v = x.dataset.chand || x.dataset.cview; if (!v || !v.includes('|')) return;
+    e.preventDefault(); const [id, g] = v.split('|'), b = A.DB().bookings.find(y => y.id === id); if (!b) return; const ov = x.closest('.ov'); if (ov) ov.querySelector('[data-x]')?.click(); x.dataset.chand ? A.handOver(b, +g) : A.viewConsults(b, +g); });
+  A.wireConsultBtns = el => { const DB = A.DB(), get = s => { const [id, g] = s.split('|'); return [DB.bookings.find(x => x.id === id), +g]; };
+    $$('[data-chand]', el).forEach(x => x.onclick = e => { e.preventDefault(); e.stopPropagation(); const [b, g] = get(x.dataset.chand); if (b) A.handOver(b, g); });
+    $$('[data-cview]', el).forEach(x => { if (!x.dataset.cview.includes('|')) return; x.onclick = e => { e.preventDefault(); e.stopPropagation(); const [b, g] = get(x.dataset.cview); if (b) A.viewConsults(b, g); }; }); };
   if (!document.getElementById('consult-css')) { const st = document.createElement('style'); st.id = 'consult-css'; st.textContent = C.css; document.head.appendChild(st); }
   const needKey = async () => { if (cc().publicKey) return false; if (await A.confirm('Set up the form first', 'The consultation form needs its encryption key. Create it now in Settings → Consultation forms?', 'Go to Settings', false)) location.hash = '#/settings/consult'; return true; };
   const custRec = email => { const DB = A.DB(), e = String(email || '').toLowerCase(); const k = Object.keys(DB.customers || {}).find(x => x.toLowerCase() === e); return (k && DB.customers[k]) || {}; };

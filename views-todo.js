@@ -41,10 +41,10 @@
     const mine = T.items.filter(x => !x.done).sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999'));
     const doneRecent = T.items.filter(x => x.done).sort((a, b) => (b.done || '').localeCompare(a.done || '')).slice(0, 8);
     const groups = [...new Set(auto.map(x => x.group))];
-    const ACT = { resend: 'Send a reminder', paylink: 'Send a payment link', forms: 'Mark forms done', book: 'Book them', arrived: 'Mark arrived' };
+    const ACT = { resend: 'Send a reminder', paylink: 'Send a payment link', book: 'Book them', arrived: 'Mark arrived' };
     const row = x => `<div class="li todo"><span class="dot" style="background:var(--${x.level === 'ok' ? 'ok' : x.level === 'bad' ? 'bad' : x.level === 'warn' ? 'warn' : 'info'})"></span>
       <a class="grow" href="${x.href}"><b>${esc(x.title)}</b><span class="small muted">${esc(x.sub)}</span></a>
-      ${x.act ? `<button class="btn sm" data-act="${x.act}" data-key="${esc(x.key)}">${ACT[x.act]}</button>` : ''}<button class="btn sm ghost" data-hide="${esc(x.key)}" title="Hide this until something changes">Hide</button></div>`;
+      ${x.act === 'forms' && A.consultBtn ? (x.booking.guestList || []).map((g, gi) => (x.booking.items || []).some(i => +i.guest === gi && i.start) && g.consult !== 'done' ? A.consultBtn(x.booking, gi) : '').join('') : x.act ? `<button class="btn sm" data-act="${x.act}" data-key="${esc(x.key)}">${ACT[x.act]}</button>` : ''}<button class="btn sm ghost" data-hide="${esc(x.key)}" title="Hide this until something changes">Hide</button></div>`;
     const html = `<div class="vh"><div><div class="eyebrow">Run the day</div><h1>To do</h1><p>Things that need someone’s attention, worked out from the bookings, and the team’s own tasks.</p></div><div class="acts"><button class="btn pri" id="tAdd">${A.ic.plus} Add a task</button></div></div>
       <div class="grid g-side">
         <div>${groups.length ? (() => { const cur = groups.includes(A._todoTab) ? A._todoTab : groups[0], worst = g => auto.some(x => x.group === g && x.level === 'bad') ? 'bad' : auto.some(x => x.group === g && x.level === 'warn') ? 'warn' : '';
@@ -72,7 +72,6 @@
         if (b.dataset.act === 'book') { location.hash = x.href; return; }
         if (!bk) return;
         if (b.dataset.act === 'resend' || b.dataset.act === 'paylink') return A.payLinkDialog(bk);
-        if (b.dataset.act === 'forms') { (bk.guestList || []).forEach(g => g.consult = 'done'); (bk.history = bk.history || []).push({ at: new Date().toISOString(), by: St.S.user.name, what: 'Consultation forms marked done' }); A.change('booking', bk, 'Consultation forms done: ' + bk.ref); A.refresh(); }
         if (b.dataset.act === 'arrived') { bk.arrived = true; bk.arrivedAt = bk.arrivedAt || null; (bk.history = bk.history || []).push({ at: new Date().toISOString(), by: St.S.user.name, what: 'Marked as arrived (afterwards)' }); A.change('booking', bk, 'Arrived: ' + bk.ref); A.refresh(); }
       });
     } };
