@@ -343,6 +343,12 @@
   async function settle(t0, name) { const fresh = name && !(document.querySelector('.yc-load b') || {}).textContent.startsWith('Welcome') && greet(name); await nap(Math.max(LOAD_MIN - (Date.now() - t0), fresh ? 1400 : 0)); }
   async function boot() {
     const t0 = Date.now();
+    // sign-in encryption only works on a secure (https) page (user 2026-11-27)
+    if (!window.isSecureContext || !(window.crypto && crypto.subtle)) {
+      if (location.protocol === 'http:' && location.hostname !== 'localhost') { try { const r = await fetch('https://' + location.host + '/index.html', { method: 'HEAD', mode: 'no-cors' }); location.replace('https://' + location.host + location.pathname + location.hash); return; } catch (e) {} }
+      document.body.innerHTML = A.loader('Not secure yet', false).replace('Not secure yet', 'The secure address is still being set up. Please try again in a little while.');
+      return;
+    }
     document.body.innerHTML = A.loader('Loading…');
     St.sessName().then(greet);
     try { if (await St.resume()) { await settle(t0, St.S.user && St.S.user.name); return boot2(); } } catch (e) { console.error(e); }
