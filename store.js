@@ -272,12 +272,14 @@
     return null;
   }
   async function startDemo(fresh) {
-    const sess = { demo: true, user: { id: 'demo', email: 'demo', name: 'Demo manager', role: 'owner' } };
+    const sess = { demo: true, user: { id: 'demo', email: 'gemma@yorkcottagespa.com', name: 'Gemma Burke', role: 'owner', staffId: 's1' } };
     sessionStorage.setItem('yc-admin-sess', JSON.stringify(sess));
     return start('demo', sess, fresh);
   }
   async function start(mode, sess, fresh) {
     S.mode = mode; S.user = sess.user;
+    // the demo is used as Gemma Burke, the owner (user 2026-11-27)
+    if (mode === 'demo' && S.user && S.user.id === 'demo') S.user = { ...S.user, name: 'Gemma Burke', email: 'gemma@yorkcottagespa.com', staffId: 's1' };
     if (mode === 'live') { S.gh = GH(sess.token); S.DB = await loadLive(); }
     else S.DB = await loadDemo(fresh);
     S.DB.cfg.staff = S.DB.cfg.staff || []; S.loadedAt = new Date();
@@ -312,7 +314,7 @@
     const st = await start('live', sess); audit('Portal set up by ' + name); return st;
   }
   // admin users (owner): each user's own email + password unlocks the master key
-  async function users() { return S.mode === 'live' ? (await getVault()) || { users: [] } : JSON.parse(localStorage.getItem('yc-admin-demo-users') || 'null') || { users: [{ id: 'demo', name: 'Demo manager', role: 'owner', added: new Date().toISOString() }] }; }
+  async function users() { return S.mode === 'live' ? (await getVault()) || { users: [] } : JSON.parse(localStorage.getItem('yc-admin-demo-users') || 'null') || { users: [{ id: 'demo', name: 'Gemma Burke', role: 'owner', staffId: 's1', added: new Date().toISOString() }] }; }
   async function addUser({ name, email, pass, role, staffId }) {
     if (S.mode === 'demo') { const v = await users(); v.users.push({ id: 'd' + Date.now(), name, email: norm(email), role, staffId: staffId || null, added: new Date().toISOString() }); localStorage.setItem('yc-admin-demo-users', JSON.stringify(v)); return; }
     const v = await getVault(), sess = await sessNow();
