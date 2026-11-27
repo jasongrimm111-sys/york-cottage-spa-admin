@@ -975,3 +975,13 @@ html{touch-action:manipulation}
 .td-right{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
 .td-right .who-pick{margin:0;justify-content:flex-end}
 @media (max-width:700px){ .td-right{align-items:center;width:100%} .td-right .who-pick{justify-content:flex-start;width:100%} }
+
+/* header (2026-11-27): a clear To-Do button on desktop, and a wider search box */
+.bell-t{display:none}
+@media (min-width:981px){
+  .icon-btn.bell{width:auto;padding:0 14px 0 12px;gap:7px;display:inline-flex;align-items:center;border:1px solid var(--line-2);border-radius:999px;height:40px;background:#fff}
+  .icon-btn.bell .bell-t{display:inline;font-size:14px;font-weight:700}
+  .icon-btn.bell .cnt{position:static;margin-left:2px}
+  .search{flex:1 1 420px;max-width:520px}
+  .search input{width:100%}
+}
