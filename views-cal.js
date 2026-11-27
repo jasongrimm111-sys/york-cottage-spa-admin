@@ -155,12 +155,13 @@
         ${rows.map(r => `<tr><td><b>${esc(guestName(r.b, r.n))}</b></td><td><a href="#/booking/${r.b.id}" onclick="document.querySelector('.ov [data-x]').click()">${esc(A.pname(r.b.product))} · ${esc(r.b.ref)}</a></td><td>${esc(food(r.g.food || (cfg.products[r.b.product].foodsIncluded || [])[0]))}${r.g.vegan ? ' <span class="badge">vegan</span>' : ''}</td><td>${esc(r.g.diet || r.g.allergies || r.g.dietary || '') || '<span class="muted">—</span>'}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">Nobody booked yet</td></tr>'}
         </tbody></table></div>` });
   };
+  const cap = x => { const t = String(x || '').replace(/-/g, ' '); return t.charAt(0).toUpperCase() + t.slice(1); };   // 'completed' → 'Completed'
   A.calBooking = async bid => {
     const b = A.DB().bookings.find(x => x.id === bid); if (!b) return; const cfg = A.cfg(), ses = E.session(cfg, b.sessionId);
     const its = (b.items || []).slice().sort((x, y) => ((x.date || b.date) + x.start).localeCompare((y.date || b.date) + y.start));
     const r = await A.modal({ title: esc(A.cust(b)), size: 'wide', ok: 'Open the booking', cancel: 'Close',
-      body: `${dl([['Booking', `${esc(A.pname(b.product))}${ses ? ' · ' + esc(ses.name) : ''} · ${esc(b.ref)}`], ['When', `${fdy(b.date)}${b.nights ? ` · ${b.nights} night${b.nights > 1 ? 's' : ''}` : ''}`], ['Guests', String(b.guests)],
-        ['Rooms', b.product === 'house' ? 'Whole house' : (b.rooms || []).map(bedroom).join(', ')], ['Status', esc(b.status)]])}
+      body: `${dl([['Booking', `${esc(A.pname(b.product))}${ses ? ' · ' + esc(ses.name) : ''} · ${esc(b.ref)}`], ['When', `${fdy(b.date)}${b.nights ? ` · ${b.nights} night${b.nights > 1 ? 's' : ''}` : ''}`], ['Guests', `${b.guests}: ${Array.from({ length: b.guests }, (_, i) => esc(((b.guestList || [])[i] || {}).name || (i === 0 ? A.cust(b) : `Guest ${i + 1}`))).join(', ')}`],
+        ['Rooms', b.product === 'house' ? 'Whole house' : (b.rooms || []).map(bedroom).join(', ')], ['Status', esc(cap(b.status === 'confirmed' && b.arrived ? 'arrived' : b.status))]])}
         ${its.length ? `<h3 style="margin:14px 0 6px;font-size:15px">Treatments</h3><div class="list">${its.map(i => `<div class="li"><span class="when">${i.start}</span><span class="grow"><b>${esc(A.iname(i))}</b><span class="small muted" style="display:block">${esc(guestName(b, i.guest))} · ${esc(A.sname(i.staff))} · ${esc(room(i.troom))}${b.nights ? ' · ' + fd(i.date || b.date) : ''} · ${i.min} min</span></span></div>`).join('')}</div>` : ''}` });
     if (r) location.hash = '#/booking/' + b.id;
   };
