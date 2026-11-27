@@ -224,10 +224,35 @@
     if (d < today()) { A.toast('That day has passed. Hours can only be changed for today and later.'); return; }
     const cfg = A.cfg(), cur = st.shifts && d in st.shifts ? st.shifts[d] : (st.pattern || {})[E.dow(d)];
     const tmp = { pattern: { [E.dow(d)]: cur } };
-    const r = await A.modal({ title: `${esc(st.name)} · ${fdy(d)}`, size: 'wide', ok: 'Save this day', body: `<p class="small" style="margin-bottom:6px"><b>On this date only</b> <span class="muted">(their usual week stays the same)</span></p><div class="seg" id="mode"><button type="button" data-m="work" class="${cur && E.shiftsOf(cur).length ? 'on' : ''}">Working</button><button type="button" data-m="off" class="${!cur || !E.shiftsOf(cur).length ? 'on' : ''}">Day off</button>${st.shifts && d in st.shifts ? '<button type="button" data-m="reset">Back to their usual week</button>' : ''}</div>
-      <div id="wk">${patternEditor({ pattern: { [E.dow(d)]: cur } }).replace(/<tr data-dow="(\d)"/g, (m0, x) => +x === E.dow(d) ? m0 : m0 + ' hidden')}</div>`,
-      onOpen: m => { wirePattern(m); let mode = $('#mode .on', m) ? $('#mode .on', m).dataset.m : 'work'; $$('#mode button', m).forEach(b => b.onclick = () => { mode = b.dataset.m; $$('#mode button', m).forEach(x => x.classList.toggle('on', x === b)); $('#wk', m).hidden = mode !== 'work'; }); $('#wk', m).hidden = mode !== 'work'; m._mode = () => mode; },
-      onOk: m => { const mode = m._mode(); if (mode === 'reset') return { reset: true }; if (mode === 'off') return { day: null }; const p = readPattern(m)[E.dow(d)]; return { day: p || null }; } });
+    // one day only (user 2026-11-27): working or off, the hours, and what's booked; their usual week is untouched
+    const usual = (st.pattern || {})[E.dow(d)], changed = !!(st.shifts && d in st.shifts), sh = E.shiftsOf(cur), brk = (cur && cur.breaks) || [];
+    const hrs = x => E.shiftsOf(x).map(y => `${y.start}–${y.end}`).join(' and ') || 'not working';
+    const booked = A.DB().bookings.filter(E.live).flatMap(b => (b.items || []).filter(it => it.staff === st.id && (it.date || b.date) === d)).length;
+    const row = (a = '', b = '') => `<div class="ds-sh"><input type="time" class="inp" value="${a}" step="300"><span>to</span><input type="time" class="inp" value="${b}" step="300"><button type="button" class="btn sm ghost ds-x" aria-label="Remove">✕</button></div>`;
+    const r = await A.modal({ title: `${esc(st.name)} · ${fdy(d)}`, ok: 'Save', body: `
+      <p class="muted" style="margin-bottom:12px">Changes this date only. Usually ${E.shiftsOf(usual).length ? 'works ' + hrs(usual) : 'off'} on ${E.DAYS_L ? '' : ''}${fdy(d).split(',')[0]}s.${changed ? ' <b>This day has already been changed.</b>' : ''}</p>
+      <div class="ds-pick" id="dsPick"><button type="button" data-m="work" class="${sh.length ? 'on' : ''}"><b>Working</b><small>Set the hours</small></button><button type="button" data-m="off" class="${sh.length ? '' : 'on'}"><b>Day off</b><small>Not working this day</small></button></div>
+      <div id="dsWork" ${sh.length ? '' : 'hidden'}><div class="ds-lbl">Hours</div><div id="dsShifts">${(sh.length ? sh : [{ start: '09:00', end: '17:00' }]).map(x => row(x.start, x.end)).join('')}</div>
+        <button type="button" class="btn sm ghost" id="dsAdd">+ Split the day (add another shift)</button>
+        <div class="ds-lbl" style="margin-top:12px">Set break <span class="muted" style="font-weight:400">(optional; otherwise breaks follow the break rules)</span></div>
+        <div class="ds-sh"><input type="time" class="inp" id="dsB" value="${(brk[0] || {}).start || ''}" step="300"><span>for</span><input type="number" class="inp" id="dsBm" value="${(brk[0] || {}).min || 30}" min="10" max="90" style="width:80px"><span>minutes</span></div></div>
+      ${booked ? `<p class="note warn" style="margin-top:12px">${booked} treatment${booked > 1 ? 's' : ''} booked with ${esc(st.name.split(' ')[0])} this day. If the new hours clash, you’ll choose what to do with ${booked > 1 ? 'them' : 'it'} next.</p>` : ''}
+      <p class="small" style="margin-top:12px">Off sick or on holiday? <a href="#" id="dsOff">Record time off instead</a>, so it shows on their record.${changed ? ` · <a href="#" id="dsReset">Go back to their usual hours</a>` : ''}</p>`,
+      onOpen: (m, close) => {
+        let mode = sh.length ? 'work' : 'off';
+        $$('#dsPick button', m).forEach(b => b.onclick = () => { mode = b.dataset.m; $$('#dsPick button', m).forEach(x => x.classList.toggle('on', x === b)); $('#dsWork', m).hidden = mode !== 'work'; });
+        const wireX = () => $$('.ds-x', m).forEach(x => x.onclick = () => { if ($$('#dsShifts .ds-sh', m).length > 1) x.closest('.ds-sh').remove(); });
+        $('#dsAdd', m).onclick = () => { $('#dsShifts', m).insertAdjacentHTML('beforeend', row()); wireX(); }; wireX();
+        $('#dsOff', m).onclick = e => { e.preventDefault(); close(); A.timeOff(st, {}); };
+        const rs = $('#dsReset', m); if (rs) rs.onclick = e => { e.preventDefault(); m._reset = true; $('[data-ok]', m.closest('.modal') || m) ? $('[data-ok]', m.closest('.modal') || m).click() : null; };
+        m._mode = () => m._reset ? 'reset' : mode;
+      },
+      onOk: m => { const mode = m._mode(); if (mode === 'reset') return { reset: true }; if (mode === 'off') return { day: null };
+        const shifts = $$('#dsShifts .ds-sh', m).map(x => { const [a, b] = $$('input', x); return { start: a.value, end: b.value }; }).filter(x => x.start || x.end);
+        if (!shifts.length || shifts.some(x => !x.start || !x.end || x.end <= x.start)) throw new Error('Check the hours: each shift needs a start and a later end');
+        const sorted = shifts.slice().sort((a, b) => a.start.localeCompare(b.start)); if (sorted.some((x, k) => k && x.start < sorted[k - 1].end)) throw new Error('The shifts overlap');
+        const b0 = $('#dsB', m).value, breaks = b0 ? [{ start: b0, min: +$('#dsBm', m).value || 30 }] : [];
+        return { day: { shifts: sorted, breaks } }; } });
     if (!r) return;
     const cfg2 = clone(cfg), s2 = cfg2.staff.find(s => s.id === st.id); s2.shifts = s2.shifts || {};
     if (r.reset) delete s2.shifts[d]; else s2.shifts[d] = r.day;

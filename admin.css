@@ -914,3 +914,12 @@ html{touch-action:manipulation}
   .cal-bar-l > a.btn, .cal-bar-l .cal-jump{height:38px}
 }
 @media (max-width:700px){ .cal-bar-l > a.btn{grid-column:1 / -1;justify-self:center;margin:0} .cal-bar-l .cal-jump{grid-column:1 / -1;grid-row:3;justify-self:center} }
+
+/* rota: one day's hours (2026-11-27) */
+.ds-pick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.ds-pick button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;border:1.5px solid var(--line-2);border-radius:12px;background:#fff;text-align:left;cursor:pointer}
+.ds-pick button b{font-size:15px}.ds-pick button small{color:var(--muted);font-size:12.5px}
+.ds-pick button.on{border-color:var(--forest);background:var(--forest);color:#fff}.ds-pick button.on small{color:rgba(255,255,255,.75)}
+.ds-lbl{font-size:13px;font-weight:700;margin-bottom:6px}
+.ds-sh{display:flex;align-items:center;gap:8px;margin-bottom:8px}.ds-sh .inp{width:auto}
+#dsShifts .ds-sh:only-child .ds-x{visibility:hidden}
