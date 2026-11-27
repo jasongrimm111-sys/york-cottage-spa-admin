@@ -175,7 +175,7 @@
     ['Run the day', [['today', 'Day view', 'today'], ['calendar', 'Calendars', 'cal'], ['bookings', 'Bookings', 'list'], ['waitlist', 'Waitlist', 'wait']]],
     ['Team', [['staff', 'Staff', 'staff'], ['rota', 'Rota', 'rota'], ['requests', 'Time off & sickness', 'rota']]],
     ['Guests & sales', [['support', 'Support', 'mail'], ['customers', 'Customers', 'cust'], ['marketing', 'Email guests', 'mail'], ['vouchers', 'Gift vouchers', 'gift'], ['promos', 'Discount codes', 'tag'], ['reports', 'Reports', 'chart']]],
-    ['Set-up', [['spa', 'Spa & sessions', 'spa'], ['treatments', 'Treatments', 'treat'], ['rooms', 'Rooms', 'bed'], ['products', 'Booking types', 'box'], ['gallery', 'Gallery', 'img'], ['rates', 'Date prices', 'price'], ['emails', 'Emails', 'mail'], ['rules', 'Rules', 'log'], ['settings', 'Settings', 'cog']]]
+    ['Set-up', [['spa', 'Spa & sessions', 'spa'], ['treatments', 'Treatments', 'treat'], ['rooms', 'Rooms', 'bed'], ['products', 'Booking types', 'box'], ['gallery', 'Gallery', 'img'], ['sitetext', 'Website text', 'log'], ['rates', 'Date prices', 'price'], ['emails', 'Emails', 'mail'], ['rules', 'Rules', 'log'], ['settings', 'Settings', 'cog']]]
   ];
   A.isTher = () => !!(St.S.user && !A.can('staff.view') && A.myStaff());   // sees only their own day
   A.reshell = () => { shell(); route(); saveSt(); };
