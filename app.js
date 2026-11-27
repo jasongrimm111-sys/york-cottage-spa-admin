@@ -153,7 +153,7 @@
         <span style="flex:1"></span>
         ${A.can('view.today') ? `<a class="icon-btn bell" href="#/todo" title="To do" aria-label="To do"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10.3 20a1.9 1.9 0 0 0 3.4 0"/></svg><span class="cnt" data-cnt="todo" hidden></span></a>` : ''}
         ${A.can('bookings.create') ? `<a class="btn pri" href="#/new">${A.ic.plus}<span>New booking</span></a>` : ''}
-        <span class="save-st" id="saveSt"><i></i><span>Saved</span></span>
+        <span class="save-st" id="saveSt"><i></i><span>Saved</span><button type="button" class="reload-btn" id="reloadBtn" title="Refresh: get the latest bookings and changes" aria-label="Refresh"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button></span>
         <div class="me"><button class="me-btn" id="meBtn"><i>${A.initials(S.user.name)}</i><b>${esc(S.user.name.split(' ')[0])}</b></button>
           <div class="me-menu" id="meMenu" hidden><a href="#/settings/users">Users & password</a><a href="#/settings/data">Backup & data</a>${S.mode === 'demo' ? '<button id="resetDemo">Reset the demo data</button>' : ''}<button id="signOut">Sign out</button></div></div>
       </header><main class="view" id="view"></main></div>
@@ -170,13 +170,16 @@
     if (!A.can('view.bookings')) $('.search').style.visibility = 'hidden';
     const rd = $('#resetDemo'); if (rd) rd.onclick = async () => { if (await A.confirm('Reset the demo?', 'This replaces everything in the demo with fresh sample data.', 'Reset')) { localStorage.removeItem(St.DEMO_KEY); await St.startDemo(true); route(); A.toast('Demo reset'); } };
     St.onChange(k => { if (k === 'status') saveSt(); });
+    const rb = $('#reloadBtn'); if (rb) rb.onclick = async () => { if (rb.classList.contains('spin')) return; rb.classList.add('spin');
+      try { await St.reload(); A.refresh(); saveSt(); A.toast('Up to date'); } catch (e) { A.toast('Couldn’t refresh: ' + e.message); } finally { rb.classList.remove('spin'); } };
     search();
     addEventListener('beforeunload', e => { if (St.S.status === 'unsaved' || St.S.status === 'saving') { St.saveNow(); e.preventDefault(); e.returnValue = ''; } });
   }
+  const hm = d => new Date(d).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   function saveSt() {
     const el = $('#saveSt'); if (!el) return; const s = St.S.status;
     el.className = 'save-st ' + s;
-    $('span', el).textContent = s === 'saving' ? 'Saving…' : s === 'unsaved' ? 'Saving…' : s === 'error' ? 'Not saved: ' + St.S.lastError.slice(0, 60) : St.S.mode === 'demo' ? 'Demo only, not saved' : St.S.lastSaved ? 'Saved to York Cottage data' : 'Up to date';
+    $('span', el).textContent = s === 'saving' ? 'Saving…' : s === 'unsaved' ? 'Saving…' : s === 'error' ? 'Not saved: ' + St.S.lastError.slice(0, 60) : St.S.mode === 'demo' ? 'Demo only, not saved' : St.S.lastSaved && St.S.lastSaved >= (St.S.loadedAt || 0) ? `Saved ${hm(St.S.lastSaved)}` : `Up to date · ${hm(St.S.loadedAt || new Date())}`;
     el.title = St.S.lastError || '';
   }
   function counts() {

@@ -248,9 +248,15 @@
     S.mode = mode; S.user = sess.user;
     if (mode === 'live') { S.gh = GH(sess.token); S.DB = await loadLive(); }
     else S.DB = await loadDemo(fresh);
-    S.DB.cfg.staff = S.DB.cfg.staff || [];
+    S.DB.cfg.staff = S.DB.cfg.staff || []; S.loadedAt = new Date();
     if (S.dirty.size) scheduleSave();
     return S;
+  }
+  // fetch the latest data (saves anything waiting first) (user 2026-11-27)
+  async function reload() {
+    if (S.dirty.size || S.status === 'saving' || S.status === 'unsaved') await saveNow();
+    if (S.mode === 'live') S.DB = await loadLive(); else S.DB = await loadDemo();
+    S.DB.cfg.staff = S.DB.cfg.staff || []; S.loadedAt = new Date(); set('status', S.status === 'error' ? 'error' : 'idle');
   }
   async function signOut() { await forget(); sessionStorage.removeItem('yc-admin-sess'); location.hash = ''; location.reload(); }
   // a key must reach all three repositories and be allowed to save
@@ -353,6 +359,6 @@
   }
   function audit(what, ref) { if (!what) return; S.DB.audit.push({ at: new Date().toISOString(), by: S.user ? S.user.name : 'Admin', what, ref: ref || '' }); }
 
-  root.YCStore = { S, CONF, reloadTickets, signIn, resume, renameUser, sessName: async () => { try { const x = await sessNow(); return x && x.user ? x.user.name : ''; } catch (e) { return ''; } }, startDemo, setup, signOut, users, addUser, removeUser, changePassword, replaceToken, consultKey, makeConsultKey, saveConsult, listConsults, touch, saveNow, publish, queue, audit, getVault, month, sha, loadDemo, DEMO_KEY,
+  root.YCStore = { S, CONF, reloadTickets, signIn, resume, renameUser, reload, sessName: async () => { try { const x = await sessNow(); return x && x.user ? x.user.name : ''; } catch (e) { return ''; } }, startDemo, setup, signOut, users, addUser, removeUser, changePassword, replaceToken, consultKey, makeConsultKey, saveConsult, listConsults, touch, saveNow, publish, queue, audit, getVault, month, sha, loadDemo, DEMO_KEY,
     onChange: f => S.listeners.push(f) };
 })(this);
