@@ -195,7 +195,7 @@
     const cfg = A.cfg(), S = St.S;
     // each tab follows the role: settings, users & roles, data
     const TP = { business: 'settings', rules: 'settings', treathours: 'settings', breaks: 'settings', consult: 'settings', users: null, roles: 'users', connect: 'settings', data: 'data', log: 'settings' };
-    const allTabs = [['business', 'Business'], ['rules', 'Booking rules'], ['treathours', 'Treatment hours'], ['breaks', 'Breaks'], ['consult', 'Consultation form'], ['users', A.can('users') ? 'Users' : 'My account'], ['roles', 'Roles'], ['connect', 'Website & payments'], ['data', 'Backup & data'], ['log', 'Activity log']].filter(([k]) => !TP[k] || A.can(TP[k]));
+    const allTabs = [['business', 'Business'], ['rules', 'Booking rules'], ['treathours', 'Treatment hours'], ['breaks', 'Breaks'], ['consult', 'Consultation forms'], ['users', A.can('users') ? 'Users' : 'My account'], ['roles', 'Roles'], ['connect', 'Website & payments'], ['data', 'Backup & data'], ['log', 'Activity log']].filter(([k]) => !TP[k] || A.can(TP[k]));
     if (!allTabs.some(([k]) => k === tab)) tab = allTabs[0][0];
     const T = tabs('settings', allTabs, tab);
     let body = '', wire = () => {};
