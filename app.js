@@ -395,6 +395,7 @@
       const L = JSON.parse(localStorage.getItem('yc-admin-lock') || '{"n":0,"until":0}');
       if (L.until > Date.now()) { am.textContent = `Too many tries. Try again in ${Math.ceil((L.until - Date.now()) / 60000)} minutes.`; return; }
       btn.disabled = true; btn.textContent = 'Signing in…'; am.textContent = '';
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); scrollTo(0, 0);   // close the iPhone keyboard first (user 2026-11-27)
       const ov = document.createElement('div'), t0 = Date.now(); ov.innerHTML = A.loader('Signing you in…', true); document.body.append(ov);
       try { await St.signIn($('#le').value, $('#lp').value, $('#lk').checked); localStorage.removeItem('yc-admin-lock'); await settle(t0, St.S.user && St.S.user.name); boot2(); }
       catch (err) { L.n++; if (L.n >= 5) { L.until = Date.now() + 15 * 60000; L.n = 0; } localStorage.setItem('yc-admin-lock', JSON.stringify(L)); ov.remove(); am.textContent = err.message; btn.disabled = false; btn.textContent = 'Sign in'; }
