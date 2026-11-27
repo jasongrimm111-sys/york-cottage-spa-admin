@@ -28,8 +28,8 @@
       `Just before paying, the times are checked again and <b>held for ${r.holdMinutes || 30} minutes</b>. If two people pay for the same time at once, only the first gets it; the other is asked to choose again and isn’t charged.`,
       'Treatments are planned at the <b>earliest free time</b>. Guests are put side by side only if that delays them by 30 minutes or less.',
       `Treatments can start on the ${(r.slotStep || 30) === 60 ? 'hour' : (r.slotStep || 30) === 30 ? 'hour and half hour' : `${r.slotStep}-minute marks`}, or <b>back to back</b>, as soon as a therapist and room are free again (to the nearest 5 minutes).`,
-      '<b>Treatments only</b> are never offered on a day the spa is booked exclusively (private spa, group or whole house).',
-      '<b>Spa days, spa access, private spa, groups and treatments only</b> can’t be on any day of a whole-house stay, from its arrival day to its departure day.',
+      '<b>Treatments only</b> are never offered on a day the spa is booked exclusively by a private spa or group, or during the hours a whole-house stay has the spa.',
+      'On a <b>whole-house check-in day</b>, morning sessions and treatments only can still be booked (before the house has the spa); on its <b>check-out day</b>, afternoon and evening sessions and treatments only can. Days in between are the house’s alone. <b>Groups</b> can’t be on any day of a whole-house stay.',
       'No therapist is booked over their hours, breaks, time off, food duty, or daily hands-on limit.'
     ]));
 

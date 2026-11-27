@@ -221,11 +221,12 @@
     // treatments only: not on a day the spa is booked exclusively (private spa, group, or the whole house) (user 2026-11-27)
     if (p.kind === 'treat') { const ph = E.productHours(cfg, q.product, q.date); if (ph && ph.on === false) return { ok: false, why: `${p.name} isn’t available on ${['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays'][dow(q.date)]}` }; }
     // spa sessions, private spa and groups: never on any day of a whole-house stay, arrival to departure day (user 2026-11-27)
-    if (p.kind === 'private' || p.kind === 'session' || (p.exclusiveFrom != null && (q.guests || 0) >= p.exclusiveFrom) || q.product === 'group') {
+    if (p.kind === 'stay' && ((p.exclusiveFrom != null && (q.guests || 0) >= p.exclusiveFrom) || q.product === 'group')) {
       const hs = ix.house || {}, span = Array.from({ length: (q.nights || 0) + 1 }, (_, i) => addD(q.date, i));
       if (span.some(d => hs[d])) return { ok: false, why: 'The whole house is booked then' };
     }
-    if (p.kind === 'treat') { if ((ix.house || {})[q.date]) return { ok: false, why: 'The whole house is booked that day' }; if (((ix.spa || {})[q.date] || []).some(x => x[3])) return { ok: false, why: 'The spa is booked exclusively that day' }; }
+    if (p.kind === 'treat') { const ex = ((ix.spa || {})[q.date] || []).filter(x => x[3]);
+      if ((ix.house || {})[q.date] ? ex.some(x => x[0] <= 0 && x[1] >= 1440) : ex.length) return { ok: false, why: (ix.house || {})[q.date] ? 'The whole house is booked that day' : 'The spa is booked exclusively that day' }; }
     if (!q.admin) {
       if (between(today, q.date) > cfg.rules.bookAheadDays) return { ok: false, why: 'Too far ahead' };
       if (between(today, q.date) * 24 < cfg.rules.minNoticeHours) return { ok: false, why: 'Too soon to book online' };
@@ -497,6 +498,7 @@
     const ix = { ...ix0, staff: { ...ix0.staff }, duty: { ...(ix0.duty || {}) } };
     for (const sv of E.servicesFor(cfg, b)) { ix.staff[sv.date] = JSON.parse(JSON.stringify(ix0.staff[sv.date] || {})); ix.duty[sv.date] = { ...((ix0.duty || {})[sv.date] || {}) }; E.ensureDuty(cfg, ix, sv.date, sv.id); }
     const first = needs.some(n => n.date && n.date !== wins[0][0]) ? { ok: false, items: [], fail: {} } : E.schedule(cfg, ix, wins[0][0], [wins[0][1], wins[0][2]], needs, { align });
+    if (first.ok && (cfg.products[b.product] || {}).kind === 'treat') { const hit = first.items.find(i => E.exclusiveAt(ix0, i.date || b.date, T(i.start), T(i.start) + i.min)); if (hit) return { ok: false, items: [], fail: { key: hit.key, why: 'The spa is booked exclusively then' } }; }
     if (first.ok || wins.length === 1) return first;
     const out = []; let cur = ix;
     const groups = [], seen = {};
@@ -528,6 +530,7 @@
     if (!rest.length) return sl;
     return sl.map(d => ({ ...d, times: d.times.filter(x => { const b2 = { ...b, times: { ...(b.times || {}), [need.key]: { date: d.date, start: x.start } } }; return E.plan(cfg, ix0, b2, { needs: E.treatmentNeeds(cfg, b2) }).ok; }) }));
   };
+  E.exclusiveAt = (ix, date, s, e) => ((ix.spa || {})[date] || []).some(x => x[3] && x[0] < e && s < x[1]);
   E.slotsFor = (cfg, ix0, b, need, others = []) => {
     const tr = E.tr(cfg, need.tid); if (!tr) return [];
     const min = need.min || tr.min, buf = E.buf(cfg, tr), step = cfg.rules.slotStep || 15, out = [];
@@ -539,6 +542,7 @@
       for (let t = Math.ceil(lo / step) * step; t + min <= T(w[2]) && t <= T(tt.last); t += step) grid.push(t);
       for (const t of E.startsWith(grid, ix, w[0], lo, T(tt.last), min, T(w[2]))) {
         if (others.some(o => (o.date || b.date) === w[0] && o.guest === need.guest && overlap(t - 5, t + min + 5, T(o.start), T(o.start) + o.min))) continue;
+        if ((cfg.products[b.product] || {}).kind === 'treat' && E.exclusiveAt(ix0, w[0], t, t + min)) continue;
         const st = cfg.staff.filter(x => E.canDoAll(x, need)).sort(E.byPriority).find(x => !E.staffFree(cfg, ix, x, w[0], t, min, buf));
         if (!st) continue;
         if (!E.roomFree(cfg, ix, w[0], tr, t, t + min + buf, 1)) continue;
