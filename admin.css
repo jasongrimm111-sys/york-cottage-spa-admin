@@ -942,3 +942,6 @@ html{touch-action:manipulation}
 .staff-sum .ss-body{padding:0 14px 12px;max-height:340px;overflow:auto}
 .cover-chip{display:inline-block;margin-top:4px;border:1px dashed var(--warn);color:#7a4e0c;background:var(--warn-bg);border-radius:99px;padding:2px 8px;font-size:11.5px;font-weight:700;cursor:pointer}
 .cover-chip.bad{border-color:var(--bad);color:#8c2f2c;background:var(--bad-bg)}
+.cover-chip.plain{border-color:var(--line-2);color:var(--muted);background:transparent;font-weight:600}
+.cover-chip.plain:hover{border-color:var(--forest);color:var(--forest)}
+.cover-chip{white-space:nowrap}
