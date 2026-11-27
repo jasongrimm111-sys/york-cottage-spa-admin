@@ -23,6 +23,20 @@
   A.sname = id => ((A.cfg().staff.find(s => s.id === id)) || {}).name || '—';
   A.scol = id => ((A.cfg().staff.find(s => s.id === id)) || {}).colour || '#8a9a85';
   A.initials = n => String(n || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+  // profile pictures (user 2026-11-27): 'staff:<id>' or 'user:<id>' → a small square JPEG (data URL) in cfg.photos
+  A.photoOf = key => ((St.S.DB && St.S.DB.cfg && St.S.DB.cfg.photos) || {})[key] || '';
+  A.staffPhoto = st => st ? A.photoOf('staff:' + st.id) : '';
+  A.userPhoto = u => u ? (u.staffId && A.photoOf('staff:' + u.staffId)) || A.photoOf('user:' + u.id) : '';
+  A.avStyle = (st, extra = '') => { const p = A.staffPhoto(st); return `background:${(st && st.colour) || 'var(--sage)'}${p ? `;background-image:url(${p});background-size:cover;background-position:center;color:transparent` : ''};${extra}`; };
+  // pick an image file, crop it to a square and shrink it, so it stays small
+  A.pickPhoto = () => new Promise(res => {
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+    inp.onchange = () => { const f = inp.files && inp.files[0]; if (!f) return res(null); const img = new Image(), url = URL.createObjectURL(f);
+      img.onload = () => { const n = 192, c = document.createElement('canvas'); c.width = c.height = n; const s = Math.min(img.width, img.height), ctx = c.getContext('2d');
+        ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, n, n); URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg', 0.82)); };
+      img.onerror = () => { A.toast('That file isn’t a picture we can use'); res(null); }; img.src = url; };
+    inp.click(); });
+  A.setPhoto = (key, data, what) => { const cfg = A.cfg(); cfg.photos = cfg.photos || {}; if (data) cfg.photos[key] = data; else delete cfg.photos[key]; A.change('cfg', null, what || 'Profile picture updated'); };
   A.cust = b => b.customer ? `${b.customer.first || ''} ${b.customer.last || ''}`.trim() : '';
 
   // ---------- icons ----------
@@ -154,7 +168,7 @@
         ${A.can('view.today') ? `<a class="icon-btn bell" href="#/todo" title="To do" aria-label="To do"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10.3 20a1.9 1.9 0 0 0 3.4 0"/></svg><span class="cnt" data-cnt="todo" hidden></span></a>` : ''}
         ${A.can('bookings.create') ? `<a class="btn pri" href="#/new">${A.ic.plus}<span>New booking</span></a>` : ''}
         <span class="save-st" id="saveSt"><i></i><span>Saved</span><button type="button" class="reload-btn" id="reloadBtn" title="Refresh: get the latest bookings and changes" aria-label="Refresh"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button></span>
-        <div class="me"><button class="me-btn" id="meBtn"><i>${A.initials(S.user.name)}</i><b>${esc(S.user.name.split(' ')[0])}</b></button>
+        <div class="me"><button class="me-btn" id="meBtn"><i${A.userPhoto(S.user) ? ` style="background-image:url(${A.userPhoto(S.user)});background-size:cover;color:transparent"` : ''}>${A.initials(S.user.name)}</i><b>${esc(S.user.name.split(' ')[0])}</b></button>
           <div class="me-menu" id="meMenu" hidden><a href="#/settings/users">Users & password</a><a href="#/settings/data">Backup & data</a>${S.mode === 'demo' ? '<button id="resetDemo">Reset the demo data</button>' : ''}<button id="signOut">Sign out</button></div></div>
       </header><main class="view" id="view"></main></div>
       <nav class="tabbar" aria-label="Main"><button id="tbMenu" type="button">${A.ic.menu}<span>Menu</span></button>${[...(A.can('view.today') ? [['today', 'Today', 'today'], ['ahead', 'Future', 'cal']] : A.myStaff() ? [['staffday/' + A.myStaff(), 'My day', 'today']] : []), ...(A.can('view.calendar') ? [['calendar', 'Calendar', 'cal']] : []), ...(A.can('view.bookings') ? [['bookings', 'Bookings', 'list']] : [])].slice(0, 4).map(([r, t, ic]) => `<a href="#/${r}" data-r="${r.split('/')[0]}">${A.ic[ic]}<span>${t}</span>${r === 'todo' ? '<i class="tb-cnt" data-cnt="todo2" hidden></i>' : ''}</a>`).join('')}</nav></div>`;

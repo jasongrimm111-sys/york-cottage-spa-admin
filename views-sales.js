@@ -237,6 +237,7 @@
       wire = el => $('#brSave', el).onclick = async () => { const v = A.read(el); if (v.lunchMin > v.lunchMax || v.breakMin > v.breakMax) { A.toast('Shortest can’t be longer than longest'); return; } if (v.lunchMin < 20 && v.lunchIfOver >= 360) A.toast('Note: UK law needs at least 20 minutes on days over 6 hours'); const cfg2 = clone(cfg); cfg2.rules.breaks = v; if (!(await A.handleImpacts(cfg2, 'Changing the break rules'))) return; cfg.rules.breaks = v; A.change('cfg', null, 'Break rules saved'); A.toast('Saved'); }; }
     if (tab === 'users') { body = `<div class="card" style="max-width:900px"><div class="card-h"><h3>Who can sign in</h3>${A.can('users') ? `<button class="btn pri" id="uAdd">${A.ic.plus} Add a user</button>` : ''}</div><div id="uList" class="muted">Loading…</div>
       <p class="small muted" style="margin-top:10px">What each role can do is set in the <a href="#/settings/roles">Roles</a> tab. Link someone to a staff member to give them their own day sheet.</p></div>
+      <div class="card" style="max-width:520px"><div class="card-h"><h3>My picture</h3></div><div style="display:flex;gap:14px;align-items:center"><span class="av" style="width:64px;height:64px;font-size:22px;background:var(--sage)${A.userPhoto(S.user) ? `;background-image:url(${A.userPhoto(S.user)});background-size:cover;color:transparent` : ''}">${A.initials(S.user.name)}</span><span><button class="btn" id="phUp">${A.userPhoto(S.user) ? 'Change picture' : 'Upload a picture'}</button> ${A.userPhoto(S.user) ? '<button class="btn ghost" id="phRm">Remove</button>' : ''}<br><span class="small muted">Shows in the admin only, never on the website.</span></span></div></div>
       <div class="card" style="max-width:520px"><div class="card-h"><h3>Change my password</h3></div>${A.f.text('cur', 'Current password', '', { type: 'password', ac: 'current-password' })}<div style="height:8px"></div>${A.f.text('nw', 'New password (10+ characters)', '', { type: 'password', ac: 'new-password' })}<button class="btn" id="pwGo" style="margin-top:10px">Change password</button></div>
 `;
       wire = async el => {
@@ -248,6 +249,9 @@
             onOk: async m => St.renameUser(b.dataset.uren, A.read(m).nm) });
           if (r) { St.audit('User renamed: ' + r); A.toast('Name changed to ' + r); if (b.dataset.uren === S.user.id && A.reshell) A.reshell(); A.refresh(); } });
         const ua = $('#uAdd', el); if (ua) ua.onclick = () => A.addUserDialog({});
+        const myKey = () => S.user.staffId ? 'staff:' + S.user.staffId : 'user:' + S.user.id;
+        const pu = $('#phUp', el); if (pu) pu.onclick = async () => { const d = await A.pickPhoto(); if (!d) return; A.setPhoto(myKey(), d, 'Profile picture updated: ' + S.user.name); A.reshell(); A.toast('Picture saved'); };
+        const pr = $('#phRm', el); if (pr) pr.onclick = () => { A.setPhoto(myKey(), null, 'Profile picture removed: ' + S.user.name); A.reshell(); };
         $('#pwGo', el).onclick = async () => { const x = A.read(el); if ((x.nw || '').length < 10) { A.toast('Use at least 10 characters'); return; } try { await St.changePassword(x.cur, x.nw); A.toast('Password changed'); } catch (e) { A.toast(e.message); } };
         const ag = $('#asGo', el); if (ag) ag.onclick = () => { S.realUser = S.realUser || S.user; S.user = { ...S.user, name: A.sname($('#asTher', el).value), role: 'therapist', staffId: $('#asTher', el).value }; A.reshell(); location.hash = '#/staffday/' + S.user.staffId + '/' + today(); };
       }; }
