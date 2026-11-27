@@ -281,6 +281,7 @@
         ${!A.isTher() && !opt.fromToday ? `<select class="inp" id="who" style="width:auto">${cfg.staff.map(s => `<option value="${s.id}" ${s.id === st.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select>` : ''}</div></div>
       ${!day ? '<div class="note">Not working this day.</div>' : ''}
       ${day ? A.myDayCard(st.id, d, { self: St.S.user && St.S.user.staffId === st.id }) : ''}
+      ${A.requestCard && ((St.S.user && St.S.user.staffId === st.id) || A.can('staff.edit')) && !opt.fromToday ? A.requestCard(st.id) : ''}
       <div class="card"><div class="card-h"><h3>Timeline</h3></div><div class="list">${timeline.map(x => x.kind === 'treat' ? `<div class="li tl-click" data-it="${x.i.b.id}|${x.i.key}" style="align-items:flex-start;cursor:pointer"><span class="when">${x.i.start}</span><span class="dot" style="background:${PCOL[x.i.b.product]};margin-top:6px"></span>
           <span class="grow"><b>${esc(A.iname(x.i))} · ${x.i.min} min</b><span class="small muted" style="display:block">${esc((x.i.b.guestList[x.i.guest] || {}).name || (x.i.guest === 0 ? A.cust(x.i.b) : 'Guest ' + (x.i.guest + 1) + ' of ' + A.cust(x.i.b)))} · ${A.pname(x.i.b.product)} · ${esc((cfg.treatRooms.find(r => r.id === x.i.troom) || {}).name || '')} · ends ${E.HM(x.e)}${x.i.buffer ? `, room ready ${E.HM(x.e + x.i.buffer)}` : ''}</span>
           ${(x.i.b.tags || []).length ? (x.i.b.tags || []).map(t => `<span class="badge ${/Pregnant|Access/.test(t) ? 'warn' : ''}">${esc(t)}</span>`).join(' ') + ' ' : ''}${(x.i.b.guestList[x.i.guest] || {}).consult === 'done' ? `<span class="badge ok">Consultation done</span> <button class="btn sm ghost" data-cview="${x.i.b.id}|${x.i.guest}">View form</button>` : '<span class="badge warn">Consultation form needed</span>'}${x.i.b.notes ? `<span class="small" style="display:block;margin-top:4px">Note: ${esc(x.i.b.notes)}</span>` : ''}</span>
@@ -289,7 +290,7 @@
         : `<div class="li"><span class="when">${E.HM(x.s)}</span><span class="dot" style="background:var(--stone)"></span><span class="grow"><b>${x.label}</b><span class="small muted">until ${E.HM(x.e)}${x.fixed ? '' : ' (suggested: a free gap)'}</span></span></div>`).join('') || '<div class="empty"><b>Nothing booked</b></div>'}</div></div>
       <p class="small muted" style="margin-top:10px">${d >= today() ? 'You can move a treatment to any free time inside the guest’s visit, or hand it to a colleague who’s free. The guest is emailed the new time.' : 'This day has passed, so its treatments can’t be moved.'}</p>`,
       wire: el => {
-        const w = $('#who', el); if (w) w.onchange = () => location.hash = `#/staffday/${w.value}/${d}`; A.wireMyDay(el); if (A.wireCalClicks) A.wireCalClicks(el);
+        const w = $('#who', el); if (w) w.onchange = () => location.hash = `#/staffday/${w.value}/${d}`; A.wireMyDay(el); if (A.wireRequests) A.wireRequests(el); if (A.wireCalClicks) A.wireCalClicks(el);
         $$('[data-cview]', el).forEach(b => b.onclick = () => { const [bid, g] = b.dataset.cview.split('|'); A.viewConsults(DB.bookings.find(x => x.id === bid), +g); });
         $$('[data-move]', el).forEach(b => b.onclick = () => { const [bid, key] = b.dataset.move.split('|'); A.moveItem(DB.bookings.find(x => x.id === bid), key); });
       } };

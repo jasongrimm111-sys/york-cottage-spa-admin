@@ -18,6 +18,8 @@
       .forEach(b => add({ key: 'form:' + b.id, group: 'Consultation forms', level: 'info', title: `${cd(b)} form${cd(b) > 1 ? 's' : ''} still to come · ${A.cust(b)}`, sub: `${A.pname(b.product)} ${fd(b.date)}`, href: '#/booking/' + b.id, booking: b, act: 'forms' }));
     live.filter(b => (b.items || []).some(i => !i.staff && (i.date || b.date) >= t))
       .forEach(b => add({ key: 'nostaff:' + b.id, group: 'Treatments', level: 'bad', title: `Treatment with no therapist · ${A.cust(b)}`, sub: `${fd(b.date)} · choose a therapist or move it`, href: '#/edit/' + b.id, booking: b }));
+    // time off and shift swaps waiting for a manager (user 2026-11-27)
+    if (A.pendingRequests && A.can('staff.edit')) A.pendingRequests().forEach(r => out.push({ key: 'rq:' + r.id, group: 'Team requests', level: 'warn', title: `${(cfg.staff.find(s => s.id === r.staffId) || {}).name || 'Someone'} asked for ${r.kind === 'swap' ? 'a shift swap' : 'time off'}`, sub: r.kind === 'swap' ? fd(r.date) : `${fd(r.from)}${r.to && r.to !== r.from ? ' – ' + fd(r.to) : ''}`, href: '#/requests' }));
     const ix = E.index(cfg, DB.bookings);
     DB.waitlist.filter(w => w.status === 'waiting' && w.date >= t && E.dateCheck(cfg, ix, { product: w.product, date: w.date, guests: w.guests, nights: w.nights, admin: true }).ok)
       .forEach(w => add({ key: 'wl:' + w.id, group: 'Waitlist', level: 'ok', title: `Space now free for ${w.name.replace(/^Sample: /, '')}`, sub: `${A.pname(w.product)} · ${fd(w.date)} · ${w.guests} guest${w.guests > 1 ? 's' : ''}`, href: '#/new?wl=' + w.id, act: 'book' }));
