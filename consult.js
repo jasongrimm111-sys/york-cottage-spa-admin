@@ -64,7 +64,10 @@
 
   // forms (user 2026-11-27): several forms, each used for some treatments (or all). A guest gets every form that
   // matches their treatments, as one combined form. Older set-ups had one list of questions: that becomes the first form.
-  C.forms = c => { c = c || {}; if (!Array.isArray(c.forms) || !c.forms.length) { const old = c.questions && c.questions.length && c.questions.map(q => q.id).join(',') !== OLD_DEFAULT_IDS; c.forms = [{ id: 'general', name: 'Treatment consultation', all: true, treatments: [], questions: old ? c.questions : C.defaults() }]; } return c.forms; };
+  C.forms = c => { c = c || {}; if (!Array.isArray(c.forms) || !c.forms.length) { const old = c.questions && c.questions.length && c.questions.map(q => q.id).join(',') !== OLD_DEFAULT_IDS; c.forms = [{ id: 'general', name: 'Treatment consultation', all: true, treatments: [], questions: old ? c.questions : C.defaults() }]; }
+    // a form saved before the York Cottage questions arrived, still with only the first starting questions, gets them
+    c.forms.forEach(f => { if (f.id === 'general' && (f.questions || []).map(q => q.id).join(',') === OLD_DEFAULT_IDS) { f.questions = C.defaults(); c.questions = f.questions; } });
+    return c.forms; };
   C.formsFor = (c, tids) => C.forms(c).filter(f => f.all || (f.treatments || []).some(t => (tids || []).includes(t)));
   // the questions for some forms, each form's questions under its name (when there's more than one)
   C.questionsFor = (c, forms) => { const out = [], seen = new Set();

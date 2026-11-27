@@ -213,7 +213,7 @@
     c.staff = c.staff.map(s => ({ id: s.id, active: s.active, priority: s.priority, cover: !!s.cover, treatments: s.treatments, duties: s.duties, pattern: s.pattern, shifts: s.shifts, maxHands: s.maxHands, breakRules: s.breakRules, off: (s.off || []).map(o => ({ from: o.from, to: o.to, start: o.start, end: o.end })) }));
     c.promos = await Promise.all((c.promos || []).filter(p => p.active !== false).map(async p => { const o = { ...p, hash: await sha('yc:' + String(p.code).trim().toUpperCase()) }; delete o.code; delete o.used; if (p.banner && p.banner.on) o.show = p.code; return o; }));
     delete c.emails;
-    if (c.consult) c.consult = { questions: c.consult.questions, endpoint: c.consult.endpoint, publicKey: c.consult.publicKey };
+    if (c.consult) c.consult = { questions: c.consult.questions, forms: c.consult.forms, consentText: c.consult.consentText, retentionMonths: c.consult.retentionMonths, endpoint: c.consult.endpoint, publicKey: c.consult.publicKey };   // the website's online form needs the forms
     c.business = { ...c.business, vatNumber: undefined };
     return c;
   }
