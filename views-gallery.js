@@ -5,7 +5,10 @@
 (function () {
   const A = window.YCA, St = window.YCStore;
   const { $, $$, esc, uid } = A;
-  const lib = () => { const c = A.cfg(); return c.gallery = c.gallery || []; };
+  const lib = () => { const c = A.cfg(); c.gallery = c.gallery || [];
+    // the starting pictures got descriptions and tags later: fill them in where still blank
+    if (!c._galNamed) { const d = (window.YC_DEFAULTS && YC_DEFAULTS.gallery) || []; c.gallery.forEach(p => { const x = d.find(y => y.id === p.id); if (x) { if (!p.alt) p.alt = x.alt; if (!(p.tags || []).length) p.tags = x.tags; } }); Object.defineProperty(c, '_galNamed', { value: true, enumerable: false }); }
+    return c.gallery; };
   A.picLibrary = lib;
   A.picTags = () => [...new Set(lib().flatMap(p => p.tags || []))].sort();
 

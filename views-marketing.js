@@ -18,7 +18,11 @@
   // starting points for common emails (user 2026-11-27): everything can be edited before sending. [Square brackets] are for the team to fill in.
   const SIGN = 'The York Cottage Spa Team';
   // the spa's own photos (copied from the website into img/email/ so they always load in emails)
-  const PHOTOS = [['pool-lounge', 'Pool and lounge'], ['pool', 'The pool'], ['loungers', 'Loungers'], ['relax', 'Relaxation room'], ['spa-hall', 'The spa'], ['garden', 'The garden'], ['house', 'The cottage'], ['bedroom', 'A bedroom'], ['grazing', 'Grazing board'], ['afternoon-tea', 'Afternoon tea']];
+  const PHOTOS = [['pool-lounge', 'The pool lounge, with armchairs beside the indoor pool', 'spa, pool, relax'], ['pool', 'Loungers beside the indoor pool', 'spa, pool, relax'],
+    ['loungers', 'Wooden loungers with soft cushions and blankets', 'spa, relax'], ['relax', 'Rosemary-infused water in the relaxation room', 'spa, relax, food & drink'],
+    ['spa-hall', 'The spa: a long, light room with daybeds and the pool', 'spa, relax, pool'], ['garden', 'York Cottage across the lawn on a sunny day', 'outside, garden, cottage, summer'],
+    ['house', 'The front of York Cottage with its willow tree', 'outside, cottage'], ['bedroom', 'A double bedroom with gold cushions', 'bedroom, stay'],
+    ['grazing', 'A colourful grazing board', 'food & drink, events'], ['afternoon-tea', 'Afternoon tea with sandwiches, scones and cakes', 'food & drink, afternoon tea']];
   const photoURL = k => A.siteURL() + 'img/email/' + k + '.jpg';
   // starting points for common emails (user 2026-11-27): each has a photo and an AI picture idea; [square brackets] are for the team to fill in
   const TEMPLATES = [
@@ -142,7 +146,7 @@
         // choose a picture: the picture library (gallery + uploads, filter by tag), the email photos, or upload your own (user 2026-11-27)
         $('#cpPhoto', el).onclick = async () => {
           const libPics = () => (A.picLibrary ? A.picLibrary() : []).map(p => ({ url: p.full || p.src, thumb: p.src, label: p.alt || '', tags: p.tags || [] }));
-          const pics = () => [...libPics(), ...PHOTOS.map(([k, l]) => ({ url: photoURL(k), thumb: photoURL(k), label: l, tags: ['email photos'] }))];
+          const pics = () => [...libPics(), ...PHOTOS.map(([k, l, t]) => ({ url: photoURL(k), thumb: photoURL(k), label: l, tags: t.split(', ') }))];
           const tags = () => [...new Set(pics().flatMap(p => p.tags))].sort();
           let tf = '';
           const grid = () => pics().filter(p => !tf || p.tags.includes(tf)).map(p => `<button type="button" data-ph="${esc(p.url)}"><img src="${esc(p.thumb)}" alt="" loading="lazy">${p.label ? `<span>${esc(p.label)}</span>` : ''}</button>`).join('');
@@ -155,7 +159,7 @@
                 $('#phGrid', m).innerHTML = grid();
                 $$('[data-t]', m).forEach(b => b.onclick = () => { tf = b.dataset.t; draw(); });
                 $$('[data-ph]', m).forEach(b => b.onclick = () => close(b.dataset.ph)); };
-              draw();
+              draw(); setTimeout(() => { const b = $('.m-b', m); if (b) b.scrollTop = 0; const f = $('#phTags .chip', m); if (f) f.focus({ preventScroll: true }); }, 80);   // start at the top (user 2026-11-27)
               $('[data-up]', m).onclick = async () => { const n = await A.pickAndUpload({ tags: ['email'], hidden: true }, false); if (n.length) close(n[0].full || n[0].src); };
               $('[data-use]', m).onclick = () => { const u = $('#phURL', m).value.trim(); if (/^https:\/\/\S+$/.test(u)) close(u); else A.toast('Paste a web address starting https://'); };
             } });
