@@ -39,7 +39,7 @@
         rows.forEach((r, i) => { r.style.display = i >= st.p * st.n && i < (st.p + 1) * st.n ? '' : 'none'; });
         pager.innerHTML = `<span class="small muted">Showing ${st.p * st.n + 1}–${Math.min(rows.length, (st.p + 1) * st.n)} of ${rows.length}</span><span class="grow"></span>
           <select class="inp" aria-label="Rows per page">${[25, 50, 100].map(n => `<option value="${n}" ${n === st.n ? 'selected' : ''}>${n} a page</option>`).join('')}</select>
-          <button type="button" class="btn sm" data-pg="-1" ${st.p === 0 ? 'disabled' : ''}>${A.ic.left} Previous</button><span class="small">Page ${st.p + 1} of ${pages}</span><button type="button" class="btn sm" data-pg="1" ${st.p >= pages - 1 ? 'disabled' : ''}>Next ${A.ic.right}</button>`;
+          <button type="button" class="btn sm" data-pg="-1" ${st.p === 0 ? 'disabled' : ''} aria-label="Previous page">${A.ic.left}<span class="pg-t">Previous</span></button><span class="small pg-n">Page ${st.p + 1} of ${pages}</span><button type="button" class="btn sm" data-pg="1" ${st.p >= pages - 1 ? 'disabled' : ''} aria-label="Next page"><span class="pg-t">Next</span>${A.ic.right}</button>`;
         pager.querySelector('select').onchange = e => { st.n = +e.target.value; st.p = 0; draw(); };
         pager.querySelectorAll('[data-pg]').forEach(b => b.onclick = () => { st.p += +b.dataset.pg; draw(); (host.getBoundingClientRect().top < 0) && host.scrollIntoView({ block: 'start' }); });
       };

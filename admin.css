@@ -1064,3 +1064,22 @@ html{touch-action:manipulation}
   .cal-modes{display:flex!important;width:100%}
   .cal-modes a{flex:1 1 0;text-align:center;padding:7px 4px}
 }
+/* pager spacing (2026-11-27): inside the card with room, one line on phones */
+.pager{padding:12px 16px;margin:0;border-top:1px solid var(--line);gap:10px}
+.card > .pager,.card.flush > .pager{margin:0}
+.pager .btn{gap:4px}
+@media (max-width:700px){
+  .pager{padding:10px 12px;gap:8px}
+  .pager > .small.muted{flex-basis:100%}
+  .pager .grow{display:none}
+  .pager .pg-t{display:none}
+  .pager .btn{width:36px;padding:0;justify-content:center}
+  .pager .pg-n{flex:1;text-align:center}
+}
+/* Day view on phones: the day controls sit in the middle (the hidden Today placeholder takes no room) */
+@media (max-width:700px){
+  .td-right .acts{justify-content:center}
+  .td-right .acts a[aria-hidden="true"]{display:none}
+}
+@media (max-width:700px){ .pager .btn{height:34px;min-width:36px} }
+@media (max-width:700px){ .td-right .acts{width:auto;align-self:center;flex-wrap:nowrap} .td-right #todayPick{flex:0 0 auto!important;width:170px!important} }
