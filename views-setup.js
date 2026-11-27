@@ -197,7 +197,7 @@
     const staff = cfg.staff.filter(s => s.active !== false && (!me || s.id === me));
     const cell = (st, d) => {
       const day = E.staffDay(cfg, st, d), list = (ixAll.staff[d] || {})[st.id] || [], hands = list.filter(x => x[3] !== 'duty').reduce((a, x) => a + (x[2] || 0), 0), duty = list.filter(x => x[3] === 'duty');
-      const off = (st.off || []).find(o => o.from <= d && d <= (o.to || o.from) && !o.start), over = st.shifts && d in st.shifts;
+      const off = (st.off || []).find(o => o.from <= d && d <= (o.to || o.from) && !o.start), over = st.shifts && d in st.shifts && A.dayKey(st.shifts[d]) !== A.dayKey((st.pattern || {})[E.dow(d)]);
       if (!day) return `<td class="off${d === t ? ' is-today' : ''}" data-cell="${st.id}|${d}">${off ? `<span class="badge">${esc(off.kind)}</span>` : 'Off'}${list.length ? '<br><span class="badge bad">Has bookings!</span>' : ''}</td>`;
       const cap = st.maxHands || cfg.rules.maxHandsOn;
       const needed = list.length > 0;
@@ -221,12 +221,14 @@
       } };
   };
   // change one person's hours for one date (or give them the day off)
+  // a day's hours as a comparable key (shifts + set breaks), so 'changed' only shows when it really differs
+  A.dayKey = x => JSON.stringify(x && E.shiftsOf(x).length ? { s: E.shiftsOf(x).map(y => [y.start, y.end]), b: (x.breaks || []).map(y => [y.start, +y.min || 30]) } : null);
   A.dayShift = async (st, d) => {
     if (d < today()) { A.toast('That day has passed. Hours can only be changed for today and later.'); return; }
     const cfg = A.cfg(), cur = st.shifts && d in st.shifts ? st.shifts[d] : (st.pattern || {})[E.dow(d)];
     const tmp = { pattern: { [E.dow(d)]: cur } };
     // one day only (user 2026-11-27): working or off, the hours, and what's booked; their usual week is untouched
-    const usual = (st.pattern || {})[E.dow(d)], changed = !!(st.shifts && d in st.shifts), sh = E.shiftsOf(cur), brk = (cur && cur.breaks) || [];
+    const usual = (st.pattern || {})[E.dow(d)], changed = !!(st.shifts && d in st.shifts) && A.dayKey(st.shifts[d]) !== A.dayKey((st.pattern || {})[E.dow(d)]), sh = E.shiftsOf(cur), brk = (cur && cur.breaks) || [];
     const hrs = x => E.shiftsOf(x).map(y => `${y.start}–${y.end}`).join(' and ') || 'not working';
     const booked = A.DB().bookings.filter(E.live).flatMap(b => (b.items || []).filter(it => it.staff === st.id && (it.date || b.date) === d)).length;
     const row = (a = '', b = '') => `<div class="ds-sh"><input type="time" class="inp" value="${a}" step="300"><span>to</span><input type="time" class="inp" value="${b}" step="300"><button type="button" class="btn sm ghost ds-x" aria-label="Remove">✕</button></div>`;
@@ -268,7 +270,7 @@
     const cfg2 = clone(cfg), s2 = cfg2.staff.find(s => s.id === st.id); s2.shifts = s2.shifts || {};
     if (r.reset) delete s2.shifts[d]; else s2.shifts[d] = r.day;
     if (!(await A.handleImpacts(cfg2, `Changing ${st.name}’s hours on ${fd(d)}`, (b, it) => it.staff === st.id && (it.date || b.date) === d))) return;
-    st.shifts = st.shifts || {}; if (r.reset) delete st.shifts[d]; else st.shifts[d] = r.day;
+    st.shifts = st.shifts || {}; if (r.reset || A.dayKey(r.day) === A.dayKey((st.pattern || {})[E.dow(d)])) delete st.shifts[d]; else st.shifts[d] = r.day;
     A.change('cfg', null, `Hours for ${st.name} on ${d} ${r.reset ? 'reset' : r.day ? 'changed' : 'set to a day off'}`); A.toast('Saved'); A.refresh();
   };
   A.pickDuty = async (svId, d) => {
