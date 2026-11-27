@@ -381,7 +381,7 @@
       ((ix.staff[date] = ix.staff[date] || {})[st.id] = ix.staff[date][st.id] || []).push([t, t + min + buf, min]);
       ((ix.troom[date] = ix.troom[date] || {})[room.id] = ix.troom[date][room.id] || []).push(tag ? [t, t + min + buf, tag] : [t, t + min + buf]);
       (guestBusy[it.guest] = guestBusy[it.guest] || []).push([t, t + min]);
-      out.push({ key: it.key, guest: it.guest, tid: it.tid, ...(it.with && it.with.length ? { with: it.with.slice() } : {}), min, buffer: buf, start: HM(t), staff: st.id, troom: room.id, date, ...(tag ? { pair: tag } : {}) });
+      out.push({ key: it.key, guest: it.guest, tid: it.tid, ...(it.with && it.with.length ? { with: it.with.slice() } : {}), ...(it.baseMin ? { baseMin: it.baseMin } : {}), min, buffer: buf, start: HM(t), staff: st.id, troom: room.id, date, ...(tag ? { pair: tag } : {}) });
     };
     const guestFree = (g, t, e) => !(guestBusy[g] || []).some(x => overlap(t - 5, e + 5, x[0], x[1]));
     const load = st => handsOn((ix.staff[date] || {})[st.id] || []);
@@ -633,8 +633,8 @@
     const p = cfg.products[b.product], out = [];
     (b.guestList || []).forEach((g, i) => {
       const inc = E.includedFor(cfg, b.product), bl = tr => b.blueLight && cfg.rules.blueLight ? Math.max(tr.min, cfg.rules.blueLightMin) : tr.min;
-      if (inc.length && E.includedPick(cfg, b.product) === 'all') inc.forEach((tr, j) => out.push({ key: `g${i}-inc${j || ''}`, guest: i, tid: tr.id, min: bl(tr), included: true }));
-      else if (inc.length) { const tr = inc.find(t => t.id === g.included) || inc[0]; out.push({ key: `g${i}-inc`, guest: i, tid: tr.id, min: bl(tr), included: true }); }
+      if (inc.length && E.includedPick(cfg, b.product) === 'all') inc.forEach((tr, j) => out.push({ key: `g${i}-inc${j || ''}`, guest: i, tid: tr.id, min: bl(tr), included: true, ...(bl(tr) !== tr.min ? { baseMin: bl(tr) } : {}) }));
+      else if (inc.length) { const tr = inc.find(t => t.id === g.included) || inc[0]; out.push({ key: `g${i}-inc`, guest: i, tid: tr.id, min: bl(tr), included: true, ...(bl(tr) !== tr.min ? { baseMin: bl(tr) } : {}) }); }
       // an extra treatment of the same kind as the included one (a massage with the included massage) extends it into one
       // longer treatment, times added together (user, 2026-11-27); other extras stay separate
       const incNeed = out.find(n => n.guest === i && n.included && !String(n.key).slice(-1).match(/\d/)) || out.find(n => n.guest === i && n.included);
@@ -665,7 +665,8 @@
     return out;
   };
   // the name of a treatment as booked: "20-minute aromatherapy massage + Back to Basics Massage" when one extends the other
-  E.itemName = (cfg, it) => [it.tid, ...((it && it.with) || [])].map(t => (E.tr(cfg, t) || {}).name || t).join(' + ');
+  E.itemName = (cfg, it) => [it.tid, ...((it && it.with) || [])].map((t, i) => { const n = (E.tr(cfg, t) || {}).name || t; return i === 0 && it.baseMin ? E.minName(n, it.baseMin) : n; }).join(' + ');
+  E.minName = (name, min) => String(name).replace(/^\d+[- ]minute/i, m => min + (m.includes(' ') ? ' ' : '-') + 'minute');
   E.canDoAll = (st, it) => E.canDo(st, it.tid) && ((it && it.with) || []).every(t => E.canDo(st, t));
 
   // ---------- prices ----------
