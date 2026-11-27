@@ -230,7 +230,7 @@
     const booked = A.DB().bookings.filter(E.live).flatMap(b => (b.items || []).filter(it => it.staff === st.id && (it.date || b.date) === d)).length;
     const row = (a = '', b = '') => `<div class="ds-sh"><input type="time" class="inp" value="${a}" step="300"><span>to</span><input type="time" class="inp" value="${b}" step="300"><button type="button" class="btn sm ghost ds-x" aria-label="Remove">✕</button></div>`;
     const r = await A.modal({ title: `${esc(st.name)} · ${fdy(d)}`, ok: booked ? 'Next' : 'Save', body: `
-      <p class="muted" style="margin-bottom:12px">Changes this date only. Usually ${E.shiftsOf(usual).length ? 'works ' + hrs(usual) : 'off'} on ${E.DAYS_L ? '' : ''}${fdy(d).split(',')[0]}s.${changed ? ' <b>This day has already been changed.</b>' : ''}</p>
+      <p class="muted" style="margin-bottom:12px">Changes this date only. Usually ${E.shiftsOf(usual).length ? 'works ' + hrs(usual) : 'off'} on ${new Date(d + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long' })}s.${changed ? ' <b>This day has already been changed.</b>' : ''}</p>
       <div class="ds-pick" id="dsPick"><button type="button" data-m="work" class="${sh.length ? 'on' : ''}"><b>Working</b><small>Set the hours</small></button><button type="button" data-m="off" class="${sh.length ? '' : 'on'}"><b>Day off</b><small>Not working this day</small></button></div>
       <div id="dsWork" ${sh.length ? '' : 'hidden'}><div class="ds-lbl">Hours</div><div id="dsShifts">${(sh.length ? sh : [{ start: '09:00', end: '17:00' }]).map(x => row(x.start, x.end)).join('')}</div>
         <button type="button" class="btn sm ghost" id="dsAdd">+ Split the day (add another shift)</button>
