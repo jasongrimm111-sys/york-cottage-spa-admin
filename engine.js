@@ -260,6 +260,8 @@
       const rooms = E.pickRooms(cfg, ix, q.product, q.date, n, g);
       if (!rooms) return { ok: false, why: 'No rooms left' };
       const fit = E.includedFit(cfg, ix, { product: q.product, date: q.date, nights: n, guests: g }); if (fit) return { ok: false, why: fit };
+      // the included food (e.g. the grazing board) needs someone on shift to serve it (user 2026-11-27)
+      if ((p.food || (p.foodsIncluded || []).length) && !q.admin) { const sw = E.serviceOK(cfg, ix, q.product, q.date); if (sw) return { ok: false, why: sw }; }
       return { ok: true, rooms };
     }
     if (p.kind === 'house') {
