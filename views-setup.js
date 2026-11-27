@@ -202,7 +202,7 @@
       const cap = st.maxHands || cfg.rules.maxHandsOn;
       const needed = list.length > 0;
       return `<td data-cell="${st.id}|${d}" class="${d < t ? 'past' : ''} ${needed ? '' : 'notneeded'}${d === t ? ' is-today' : ''}" style="cursor:pointer" title="${d < t ? 'This day has passed' : 'Change hours for this day'}"><span class="sh">${day.spans.map(s => E.HM(s[0]) + '–' + E.HM(s[1])).join('<br>')}</span>${over ? ' <span class="badge info" title="Changed for this day">changed</span>' : ''}<span class="need ${needed ? 'yes' : ''}">${needed ? 'Needed' : 'Not needed yet'}</span>
-        <span class="ld"><i style="width:${Math.min(100, hands / cap * 100)}%;background:${hands > cap * .9 ? 'var(--warn)' : st.colour}"></i></span><span class="small muted">${hrs(hands)} treatments${duty.length ? ' · food service' : ''}</span><a class="see-day" href="#/staffday/${st.id}/${d}" title="Their treatments, lunch and food service this day">See their day →</a></td>`;
+        <span class="ld"><i style="width:${Math.min(100, hands / cap * 100)}%;background:${hands > cap * .9 ? 'var(--warn)' : st.colour}"></i></span><span class="small muted">${hrs(hands)} treatments${duty.length ? ' · food service' : ''}</span></td>`;
     };
     return { html: `<div class="vh"><div><div class="eyebrow">Team</div><h1>Rota</h1><p>${mon === t ? 'The next 7 days' : `7 days from ${fdy(mon)}`}. ${me ? '' : 'Click a day to change someone’s hours just for that day.'}</p></div>
       <div class="acts"><a class="btn" href="#/rota/${E.addD(mon, -7)}">${A.ic.left}</a><a class="btn" href="#/rota">Next 7 days</a><a class="btn" href="#/rota/${E.addD(mon, 7)}">${A.ic.right}</a><button class="btn" onclick="print()">${A.ic.print}</button></div></div>
@@ -223,6 +223,15 @@
   // change one person's hours for one date (or give them the day off)
   // a day's hours as a comparable key (shifts + set breaks), so 'changed' only shows when it really differs
   A.dayKey = x => JSON.stringify(x && E.shiftsOf(x).length ? { s: E.shiftsOf(x).map(y => [y.start, y.end]), b: (x.breaks || []).map(y => [y.start, +y.min || 30]) } : null);
+  A.dayTasks = (st, d) => {
+    const cfg = A.cfg(), DB = A.DB(), ix = E.index(cfg, DB.bookings), list = (ix.staff[d] || {})[st.id] || [];
+    const mine = DB.bookings.filter(E.live).flatMap(b => (b.items || []).filter(i => i.staff === st.id && (i.date || b.date) === d).map(i => ({ ...i, b }))).sort((a, b) => a.start.localeCompare(b.start));
+    const duty = list.filter(x => x[3] === 'duty'), day = E.staffDay(cfg, st, d), breaks = day && E.suggestBreaks ? E.suggestBreaks(cfg, st, d, ix).filter(b => b.kind !== 'Free') : [];
+    const rows = [...mine.map(i => ({ s: E.T(i.start), html: `<a class="li" href="#/booking/${i.b.id}" data-dsgo><span class="when">${i.start}</span><span class="dot" style="background:${PCOL[i.b.product]}"></span><span class="grow"><b>${esc(A.iname(i))} · ${i.min} min</b><span class="small muted" style="display:block">${esc((i.b.guestList[i.guest] || {}).name || A.cust(i.b))} · ${esc(A.pname(i.b.product))} · ${esc((cfg.treatRooms.find(r => r.id === i.troom) || {}).name || '')}</span></span></a>` })),
+      ...duty.map(x => ({ s: x[0], html: `<div class="li"><span class="when">${E.HM(x[0])}</span><span class="dot" style="background:var(--clay)"></span><span class="grow"><b>🍽 ${esc((E.service(cfg, x[4], d) || {}).name || 'Food service')}</b><span class="small muted" style="display:block">until ${E.HM(x[1])}</span></span></div>` })),
+      ...breaks.map(b => ({ s: b.s, html: `<div class="li"><span class="when">${E.HM(b.s)}</span><span class="dot" style="background:var(--stone)"></span><span class="grow"><b>${esc(b.kind)}</b><span class="small muted" style="display:block">until ${E.HM(b.e)}</span></span></div>` }))].sort((a, b) => a.s - b.s);
+    return { count: mine.length, html: !day && !mine.length ? '<p class="muted">Not working this day, and nothing booked with them.</p>' : rows.length ? `<div class="list ds-day">${rows.map(r => r.html).join('')}</div><p class="small muted" style="margin-top:8px">Click a treatment to open its booking.</p>` : '<p class="muted">Nothing booked with them yet.</p>' };
+  };
   A.dayShift = async (st, d) => {
     if (d < today()) { A.toast('That day has passed. Hours can only be changed for today and later.'); return; }
     const cfg = A.cfg(), cur = st.shifts && d in st.shifts ? st.shifts[d] : (st.pattern || {})[E.dow(d)];
@@ -242,7 +251,9 @@
     const same = v => !v.reset && norm(v.day) === norm(cur);
     const clashes = v => { const cfg2 = clone(cfg), s2 = cfg2.staff.find(s => s.id === st.id); s2.shifts = s2.shifts || {}; if (v.reset) delete s2.shifts[d]; else s2.shifts[d] = v.day; return A.impacts(cfg2, (b, it) => it.staff === st.id && (it.date || b.date) === d).length; };
     const r = await A.modal({ title: `${esc(st.name)} · ${fdy(d)}`, ok: 'Done', body: `
-      <p style="margin:-4px 0 10px"><a href="#/staffday/${st.id}/${d}" class="small" data-close-go>See ${esc(st.name.split(' ')[0])}’s treatments, lunch and food service this day →</a></p>
+      <div class="ds-tabs" role="tablist"><button type="button" class="on" data-dstab="hours">Working hours</button><button type="button" data-dstab="day">Their day <span class="tt-n">${A.dayTasks(st, d).count}</span></button></div>
+      <div data-dspane="day" hidden>${A.dayTasks(st, d).html}</div>
+      <div data-dspane="hours">
       <p class="muted" style="margin-bottom:12px">Changes this date only. Usually ${E.shiftsOf(usual).length ? 'works ' + hrs(usual) : 'off'} on ${new Date(d + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long' })}s.${changed ? ' <b>This day has already been changed.</b>' : ''}</p>
       <div class="ds-pick" id="dsPick"><button type="button" data-m="work" class="${sh.length ? 'on' : ''}"><b>Working</b><small>Set the hours</small></button><button type="button" data-m="off" class="${sh.length ? '' : 'on'}"><b>Day off</b><small>Not working this day</small></button></div>
       <div id="dsWork" ${sh.length ? '' : 'hidden'}><div class="ds-lbl">Hours</div><div id="dsShifts">${(sh.length ? sh : [{ start: '09:00', end: '17:00' }]).map(x => row(x.start, x.end)).join('')}</div>
@@ -250,14 +261,15 @@
         <div class="ds-lbl" style="margin-top:12px">Set break <span class="muted" style="font-weight:400">(optional; otherwise breaks follow the break rules)</span></div>
         <div class="ds-sh"><input type="time" class="inp" id="dsB" value="${(brk[0] || {}).start || ''}" step="300"><span>for</span><input type="number" class="inp" id="dsBm" value="${(brk[0] || {}).min || 30}" min="10" max="90" style="width:80px"><span>minutes</span></div></div>
       ${booked ? `<p class="note warn" style="margin-top:12px">${booked} treatment${booked > 1 ? 's' : ''} booked with ${esc(st.name.split(' ')[0])} this day. If a change clashes with ${booked > 1 ? 'them' : 'it'}, the button says <b>Next</b> and you choose what to do with ${booked > 1 ? 'them' : 'it'} before anything is saved.</p>` : ''}
-      <p class="small" style="margin-top:12px">Off sick or on holiday? <a href="#" id="dsOff">Record time off instead</a>, so it shows on their record.${changed ? ` · <a href="#" id="dsReset">Go back to their usual hours</a>` : ''}</p>`,
+      <p class="small" style="margin-top:12px">Off sick or on holiday? <a href="#" id="dsOff">Record time off instead</a>, so it shows on their record.${changed ? ` · <a href="#" id="dsReset">Go back to their usual hours</a>` : ''}</p></div>`,
       onOpen: (m, close) => {
         let mode = sh.length ? 'work' : 'off';
         $$('#dsPick button', m).forEach(b => b.onclick = () => { mode = b.dataset.m; $$('#dsPick button', m).forEach(x => x.classList.toggle('on', x === b)); $('#dsWork', m).hidden = mode !== 'work'; });
         const wireX = () => $$('.ds-x', m).forEach(x => x.onclick = () => { if ($$('#dsShifts .ds-sh', m).length > 1) x.closest('.ds-sh').remove(); });
         $('#dsAdd', m).onclick = () => { $('#dsShifts', m).insertAdjacentHTML('beforeend', row()); wireX(); }; wireX();
         $('#dsOff', m).onclick = e => { e.preventDefault(); close(); A.timeOff(st, {}); };
-        const go = $('[data-close-go]', m); if (go) go.onclick = () => close();
+        $$('[data-dstab]', m).forEach(b => b.onclick = () => { $$('[data-dstab]', m).forEach(x => x.classList.toggle('on', x === b)); $$('[data-dspane]', m).forEach(x => x.hidden = x.dataset.dspane !== b.dataset.dstab); });
+        $$('[data-dsgo]', m).forEach(a => a.onclick = () => close());
         const rs = $('#dsReset', m); if (rs) rs.onclick = e => { e.preventDefault(); m._reset = true; $('[data-ok]', m.closest('.modal') || m) ? $('[data-ok]', m.closest('.modal') || m).click() : null; };
         m._mode = () => m._reset ? 'reset' : mode;
         // the button follows what you've changed
