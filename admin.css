@@ -1016,3 +1016,12 @@ html{touch-action:manipulation}
 .tg-food-chip b{font-size:12.5px;white-space:nowrap}
 .tg-food-chip span{font-weight:500;font-size:11.5px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .tg-food-chip:hover{background:#f0dfcd}
+/* calendar: names wrap onto more lines when the block has room; anything that still doesn't fit is clipped (user 2026-11-27) */
+.tg-ev b,.tg-ev span{white-space:normal;overflow-wrap:normal;word-break:normal;text-overflow:clip}
+.tg-tr{white-space:normal;align-items:flex-start;text-overflow:clip;overflow-wrap:normal;word-break:normal}
+/* narrow booking blocks (week view, side-by-side bookings): show the name in full rather than overlapping treatment markers */
+.tg-ev{container-type:inline-size}
+@container (max-width: 210px){
+  .tg-ev .tg-tr{display:none}
+  .tg-ev.has-tr > b,.tg-ev.has-tr > span:not(.tg-trs){max-width:none}
+}
