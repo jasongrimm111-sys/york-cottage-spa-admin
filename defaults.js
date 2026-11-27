@@ -116,9 +116,9 @@
       { id: 'grazing', name: 'Sweet & savoury grazing board', desc: 'Meats, cheese & sweet treats · vegan available', products: ['day', 'private', 'group', 'break', 'break2'], vegan: true, active: true }
     ],
     treatments: [
-      { id: 'inc-massage', cat: 'Massage', name: '20-minute aromatherapy massage', min: 20, buffer: 10, price: 0, sell: false, includedWith: ['day', 'private', 'break', 'break2', 'group'], active: true, desc: 'A relaxing back, neck and shoulder massage with aromatherapy oils.' },
-      { id: 'inc-facial', cat: 'Facials', name: '20-minute aromatherapy facial', min: 20, buffer: 10, price: 0, sell: false, includedWith: ['day', 'break', 'break2', 'group'], active: true, desc: 'A short aromatherapy facial.' },
-      { id: 'inc-lux-facial', cat: 'Facials', name: '20-minute luxury facial', min: 20, buffer: 10, price: 0, sell: false, includedWith: ['private'], active: true, desc: 'A short luxury facial.' },
+      { id: 'inc-massage', cat: 'Massage', name: '20-Minute Aromatherapy Massage', min: 20, buffer: 10, price: 0, sell: false, includedWith: ['day', 'private', 'break', 'break2', 'group'], active: true, desc: 'A relaxing back, neck and shoulder massage with aromatherapy oils.' },
+      { id: 'inc-facial', cat: 'Facials', name: '20-Minute Aromatherapy Facial', min: 20, buffer: 10, price: 0, sell: false, includedWith: ['day', 'break', 'break2', 'group'], active: true, desc: 'A short aromatherapy facial.' },
+      { id: 'inc-lux-facial', cat: 'Facials', name: '20-Minute Luxury Facial', min: 20, buffer: 10, price: 0, sell: false, includedWith: ['private'], active: true, desc: 'A short luxury facial.' },
       { id: 'basics', cat: 'Facials', name: 'Back to Basics Facial', min: 30, buffer: 15, price: 50, active: true, desc: 'Aromatherapy facial with double cleanse, exfoliation, shoulder massage, serum and moisturiser.' },
       { id: 'radiance', cat: 'Facials', name: 'Recipe for Radiance Relaxation Facial', min: 45, buffer: 15, price: 70, active: true, desc: 'Aromatherapy facial with double cleanse, tone, exfoliation and mask, a chest, neck, shoulder and scalp massage, serum and moisturiser.' },
       { id: 'tension', cat: 'Massage', name: 'Tension Melt Back, Neck & Shoulder Massage', min: 30, buffer: 15, price: 50, active: true, desc: 'Focused massage to ease tight backs, necks and shoulders.' },

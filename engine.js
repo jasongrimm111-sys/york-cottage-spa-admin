@@ -666,7 +666,7 @@
   };
   // the name of a treatment as booked: "20-minute aromatherapy massage + Back to Basics Massage" when one extends the other
   E.itemName = (cfg, it) => [it.tid, ...((it && it.with) || [])].map((t, i) => { const n = (E.tr(cfg, t) || {}).name || t; return i === 0 && it.baseMin ? E.minName(n, it.baseMin) : n; }).join(' + ');
-  E.minName = (name, min) => String(name).replace(/^\d+[- ]minute/i, m => min + (m.includes(' ') ? ' ' : '-') + 'minute');
+  E.minName = (name, min) => String(name).replace(/^\d+([- ])(minute)/i, (m, sep, w) => min + sep + w);
   E.canDoAll = (st, it) => E.canDo(st, it.tid) && ((it && it.with) || []).every(t => E.canDo(st, t));
 
   // ---------- prices ----------
