@@ -19,7 +19,7 @@
   const findB = id => A.DB().bookings.find(b => b.id === id || b.ref === id);
 
   // ---------- emails ----------
-  A.siteURL = () => (A.cfg().business.siteUrl || 'https://jasongrimm111-sys.github.io/york-cottage-spa/').replace(/\/?$/, '/');
+  A.siteURL = () => (A.cfg().business.siteUrl || 'https://yorkcottages.grimmittgames.com/').replace(/\/?$/, '/');
   A.payURL = (b, amount) => A.siteURL() + `pay.html?ref=${encodeURIComponent(b.ref)}&amt=${(+amount).toFixed(2)}`;
   A.details = b => {
     const cfg = A.cfg(), p = cfg.products[b.product], lines = [`${p.name} · ${A.whenText(b)}`, `${b.guests} guest${b.guests === 1 ? '' : 's'}`];

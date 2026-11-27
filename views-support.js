@@ -4,7 +4,7 @@
   const A = window.YCA, E = window.YCEngine, St = window.YCStore, V = A.views;
   const { $, $$, esc, today } = A;
   const T = () => { const DB = A.DB(); DB.tickets = DB.tickets || []; return DB.tickets; };
-  const site = () => ((A.cfg().business || {}).siteUrl || 'https://jasongrimm111-sys.github.io/york-cottage-spa/').replace(/\/?$/, '/');
+  const site = () => ((A.cfg().business || {}).siteUrl || 'https://yorkcottages.grimmittgames.com/').replace(/\/?$/, '/');
   const ago = at => { const m = Math.round((Date.now() - new Date(at)) / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; };
   const when = at => new Date(at).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   const custOf = t => { const cs = A.DB().customers || {}, e = String(t.customer || t.email || '').toLowerCase(); const k = Object.keys(cs).find(x => x.toLowerCase() === e); return k ? { key: k, c: cs[k] } : null; };
