@@ -88,7 +88,7 @@
         <button class="btn kiosk-back" id="kBack">Continue</button></div>`;
       $('#kBack', ov).onclick = () => {
         ov.innerHTML = `<div class="kiosk-in kiosk-done"><div class="kiosk-hello" style="font-size:34px">${esc(guestName(b, g))}’s form is saved</div>
-          ${flags.length ? `<div class="note warn" style="text-align:left;margin:16px 0"><b>Check before the treatment:</b> ${flags.map(esc).join(' · ')}</div>` : '<div class="note ok" style="margin:16px 0">Nothing flagged</div>'}
+          ${flags.length ? `<div class="note warn" style="text-align:center;margin:16px 0"><b>Check before the treatment:</b> ${flags.map(esc).join(' · ')}</div>` : '<div class="note ok" style="margin:16px 0">Nothing flagged</div>'}
           <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn" id="kView">Read the answers</button><button class="btn pri" id="kList">Back to the list</button></div></div>`;
         $('#kList', ov).onclick = close; $('#kView', ov).onclick = async () => { close(); A.viewConsults(b, g); };
       };
