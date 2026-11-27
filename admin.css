@@ -955,3 +955,5 @@ html{touch-action:manipulation}
 .rota th.is-today .today-tag{display:block;font-size:10px;letter-spacing:.14em;text-transform:uppercase;opacity:.8;margin-bottom:1px}
 .rota td.is-today{background:#f3efe4;box-shadow:inset 2px 0 0 var(--forest),inset -2px 0 0 var(--forest)}
 .rota td.is-today[data-cell]:hover{box-shadow:inset 0 0 0 2px var(--forest)}
+.rota .see-day{display:block;margin-top:4px;font-size:11.5px;font-weight:700;color:var(--clay);text-decoration:none;opacity:.75}
+.rota .see-day:hover{opacity:1;text-decoration:underline}

@@ -202,7 +202,7 @@
       const cap = st.maxHands || cfg.rules.maxHandsOn;
       const needed = list.length > 0;
       return `<td data-cell="${st.id}|${d}" class="${d < t ? 'past' : ''} ${needed ? '' : 'notneeded'}${d === t ? ' is-today' : ''}" style="cursor:pointer" title="${d < t ? 'This day has passed' : 'Change hours for this day'}"><span class="sh">${day.spans.map(s => E.HM(s[0]) + '–' + E.HM(s[1])).join('<br>')}</span>${over ? ' <span class="badge info" title="Changed for this day">changed</span>' : ''}<span class="need ${needed ? 'yes' : ''}">${needed ? 'Needed' : 'Not needed yet'}</span>
-        <span class="ld"><i style="width:${Math.min(100, hands / cap * 100)}%;background:${hands > cap * .9 ? 'var(--warn)' : st.colour}"></i></span><span class="small muted">${hrs(hands)} treatments${duty.length ? ' · food service' : ''}</span></td>`;
+        <span class="ld"><i style="width:${Math.min(100, hands / cap * 100)}%;background:${hands > cap * .9 ? 'var(--warn)' : st.colour}"></i></span><span class="small muted">${hrs(hands)} treatments${duty.length ? ' · food service' : ''}</span><a class="see-day" href="#/staffday/${st.id}/${d}" title="Their treatments, lunch and food service this day">See their day →</a></td>`;
     };
     return { html: `<div class="vh"><div><div class="eyebrow">Team</div><h1>Rota</h1><p>${mon === t ? 'The next 7 days' : `7 days from ${fdy(mon)}`}. ${me ? '' : 'Click a day to change someone’s hours just for that day.'}</p></div>
       <div class="acts"><a class="btn" href="#/rota/${E.addD(mon, -7)}">${A.ic.left}</a><a class="btn" href="#/rota">Next 7 days</a><a class="btn" href="#/rota/${E.addD(mon, 7)}">${A.ic.right}</a><button class="btn" onclick="print()">${A.ic.print}</button></div></div>
@@ -216,7 +216,7 @@
       ${(cfg.services || []).filter(s => s.active !== false).map(sv => `<tr><td><b>${esc(sv.name)}</b></td>${days.map(d => { const who = ((ixAll.duty[d] || {})[sv.id]), n = ((ixAll.food[d] || {})[sv.id]) || 0; return `<td class="small">${n ? `${n} guest${n > 1 ? 's' : ''}<br>${who && who.length ? who.map(A.sname).map(esc).join(', ') : '<span class="badge bad">Nobody free</span>'}` : '<span class="muted">—</span>'}${!me && n ? `<br><button class="btn sm ghost" data-duty="${sv.id}|${d}">Change</button>` : ''}</td>`; }).join('')}</tr>`).join('')}
       </tbody></table></div>`,
       wire: el => {
-        if (!me) $$('[data-cell]', el).forEach(c => c.onclick = () => { const [sid, d] = c.dataset.cell.split('|'); A.dayShift(cfg.staff.find(s => s.id === sid), d); });
+        if (!me) $$('[data-cell]', el).forEach(c => c.onclick = e => { if (e.target.closest('a')) return; const [sid, d] = c.dataset.cell.split('|'); A.dayShift(cfg.staff.find(s => s.id === sid), d); });
         $$('[data-duty]', el).forEach(b => b.onclick = () => { const [sv, d] = b.dataset.duty.split('|'); A.pickDuty(sv, d); });
       } };
   };
@@ -230,14 +230,24 @@
     const hrs = x => E.shiftsOf(x).map(y => `${y.start}–${y.end}`).join(' and ') || 'not working';
     const booked = A.DB().bookings.filter(E.live).flatMap(b => (b.items || []).filter(it => it.staff === st.id && (it.date || b.date) === d)).length;
     const row = (a = '', b = '') => `<div class="ds-sh"><input type="time" class="inp" value="${a}" step="300"><span>to</span><input type="time" class="inp" value="${b}" step="300"><button type="button" class="btn sm ghost ds-x" aria-label="Remove">✕</button></div>`;
-    const r = await A.modal({ title: `${esc(st.name)} · ${fdy(d)}`, ok: booked ? 'Next' : 'Save', body: `
+    const readDay = m => { const mode = m._mode(); if (mode === 'reset') return { reset: true }; if (mode === 'off') return { day: null };
+      const shifts = $$('#dsShifts .ds-sh', m).map(x => { const [a, b] = $$('input', x); return { start: a.value, end: b.value }; }).filter(x => x.start || x.end);
+      if (!shifts.length || shifts.some(x => !x.start || !x.end || x.end <= x.start)) throw new Error('Check the hours: each shift needs a start and a later end');
+      const sorted = shifts.slice().sort((a, b) => a.start.localeCompare(b.start)); if (sorted.some((x, k) => k && x.start < sorted[k - 1].end)) throw new Error('The shifts overlap');
+      const b0 = $('#dsB', m).value, breaks = b0 ? [{ start: b0, min: +$('#dsBm', m).value || 30 }] : [];
+      return { day: { shifts: sorted, breaks } }; };
+    const norm = x => JSON.stringify(x && E.shiftsOf(x).length ? { s: E.shiftsOf(x).map(y => [y.start, y.end]), b: (x.breaks || []).map(y => [y.start, +y.min || 30]) } : null);
+    const same = v => !v.reset && norm(v.day) === norm(cur);
+    const clashes = v => { const cfg2 = clone(cfg), s2 = cfg2.staff.find(s => s.id === st.id); s2.shifts = s2.shifts || {}; if (v.reset) delete s2.shifts[d]; else s2.shifts[d] = v.day; return A.impacts(cfg2, (b, it) => it.staff === st.id && (it.date || b.date) === d).length; };
+    const r = await A.modal({ title: `${esc(st.name)} · ${fdy(d)}`, ok: 'Done', body: `
+      <p style="margin:-4px 0 10px"><a href="#/staffday/${st.id}/${d}" class="small" data-close-go>See ${esc(st.name.split(' ')[0])}’s treatments, lunch and food service this day →</a></p>
       <p class="muted" style="margin-bottom:12px">Changes this date only. Usually ${E.shiftsOf(usual).length ? 'works ' + hrs(usual) : 'off'} on ${new Date(d + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long' })}s.${changed ? ' <b>This day has already been changed.</b>' : ''}</p>
       <div class="ds-pick" id="dsPick"><button type="button" data-m="work" class="${sh.length ? 'on' : ''}"><b>Working</b><small>Set the hours</small></button><button type="button" data-m="off" class="${sh.length ? '' : 'on'}"><b>Day off</b><small>Not working this day</small></button></div>
       <div id="dsWork" ${sh.length ? '' : 'hidden'}><div class="ds-lbl">Hours</div><div id="dsShifts">${(sh.length ? sh : [{ start: '09:00', end: '17:00' }]).map(x => row(x.start, x.end)).join('')}</div>
         <button type="button" class="btn sm ghost" id="dsAdd">+ Split the day (add another shift)</button>
         <div class="ds-lbl" style="margin-top:12px">Set break <span class="muted" style="font-weight:400">(optional; otherwise breaks follow the break rules)</span></div>
         <div class="ds-sh"><input type="time" class="inp" id="dsB" value="${(brk[0] || {}).start || ''}" step="300"><span>for</span><input type="number" class="inp" id="dsBm" value="${(brk[0] || {}).min || 30}" min="10" max="90" style="width:80px"><span>minutes</span></div></div>
-      ${booked ? `<p class="note warn" style="margin-top:12px">${booked} treatment${booked > 1 ? 's' : ''} booked with ${esc(st.name.split(' ')[0])} this day. If the new hours clash, you’ll choose what to do with ${booked > 1 ? 'them' : 'it'} on the next screen before anything is saved.</p>` : ''}
+      ${booked ? `<p class="note warn" style="margin-top:12px">${booked} treatment${booked > 1 ? 's' : ''} booked with ${esc(st.name.split(' ')[0])} this day. If a change clashes with ${booked > 1 ? 'them' : 'it'}, the button says <b>Next</b> and you choose what to do with ${booked > 1 ? 'them' : 'it'} before anything is saved.</p>` : ''}
       <p class="small" style="margin-top:12px">Off sick or on holiday? <a href="#" id="dsOff">Record time off instead</a>, so it shows on their record.${changed ? ` · <a href="#" id="dsReset">Go back to their usual hours</a>` : ''}</p>`,
       onOpen: (m, close) => {
         let mode = sh.length ? 'work' : 'off';
@@ -245,16 +255,16 @@
         const wireX = () => $$('.ds-x', m).forEach(x => x.onclick = () => { if ($$('#dsShifts .ds-sh', m).length > 1) x.closest('.ds-sh').remove(); });
         $('#dsAdd', m).onclick = () => { $('#dsShifts', m).insertAdjacentHTML('beforeend', row()); wireX(); }; wireX();
         $('#dsOff', m).onclick = e => { e.preventDefault(); close(); A.timeOff(st, {}); };
+        const go = $('[data-close-go]', m); if (go) go.onclick = () => close();
         const rs = $('#dsReset', m); if (rs) rs.onclick = e => { e.preventDefault(); m._reset = true; $('[data-ok]', m.closest('.modal') || m) ? $('[data-ok]', m.closest('.modal') || m).click() : null; };
         m._mode = () => m._reset ? 'reset' : mode;
+        // the button follows what you've changed
+        const okB = (m.closest('.modal') || m.parentElement || m).querySelector('[data-ok]') || document.querySelector('.m-f [data-ok]');
+        const upd = () => { if (!okB) return; let v; try { v = readDay(m); } catch (e) { okB.textContent = 'Save'; return; } okB.textContent = same(v) ? 'Done' : clashes(v) ? 'Next' : 'Save'; };
+        ['input', 'change'].forEach(ev => m.addEventListener(ev, upd)); m.addEventListener('click', () => setTimeout(upd, 0)); upd();
       },
-      onOk: m => { const mode = m._mode(); if (mode === 'reset') return { reset: true }; if (mode === 'off') return { day: null };
-        const shifts = $$('#dsShifts .ds-sh', m).map(x => { const [a, b] = $$('input', x); return { start: a.value, end: b.value }; }).filter(x => x.start || x.end);
-        if (!shifts.length || shifts.some(x => !x.start || !x.end || x.end <= x.start)) throw new Error('Check the hours: each shift needs a start and a later end');
-        const sorted = shifts.slice().sort((a, b) => a.start.localeCompare(b.start)); if (sorted.some((x, k) => k && x.start < sorted[k - 1].end)) throw new Error('The shifts overlap');
-        const b0 = $('#dsB', m).value, breaks = b0 ? [{ start: b0, min: +$('#dsBm', m).value || 30 }] : [];
-        return { day: { shifts: sorted, breaks } }; } });
-    if (!r) return;
+      onOk: m => { const v = readDay(m); return same(v) ? { unchanged: true } : v; } });
+    if (!r || r.unchanged) return;
     const cfg2 = clone(cfg), s2 = cfg2.staff.find(s => s.id === st.id); s2.shifts = s2.shifts || {};
     if (r.reset) delete s2.shifts[d]; else s2.shifts[d] = r.day;
     if (!(await A.handleImpacts(cfg2, `Changing ${st.name}’s hours on ${fd(d)}`, (b, it) => it.staff === st.id && (it.date || b.date) === d))) return;
