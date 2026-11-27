@@ -172,6 +172,7 @@
     return { html: `${asBar}<div class="vh td-head"><div><div class="eyebrow">${isToday ? fdy(t) : rel}</div><h1>${isToday ? greet : fdy(t)}</h1></div>${ahead ? `<div class="acts">${t > tmw ? `<a class="btn" href="#/ahead/${E.addD(t, -1)}${asQ ? '?as=' + asQ : ''}" title="Previous day">${A.ic.left}</a>` : `<span class="btn" aria-disabled="true" style="opacity:.35">${A.ic.left}</span>`}<input type="date" class="inp" id="todayPick" value="${t}" min="${tmw}" style="width:auto" aria-label="Choose a day"><a class="btn" href="#/ahead/${E.addD(t, 1)}${asQ ? '?as=' + asQ : ''}" title="Next day">${A.ic.right}</a>${t > tmw ? `<a class="btn" href="#/ahead">Tomorrow</a>` : ''}</div>` : ''}</div>
       <div class="td-bar"><div class="td-stats">${stat(guests, 'guests', `${arr.length} arriving · ${dep.length} leaving`)}${stat(items.length, 'treatments', `${staffToday.length} working`)}${stat(`${roomsUsed}<small>/${roomsAll}</small>`, isToday ? 'rooms tonight' : 'rooms that night', '')}${stat(gbp(takings), 'taken', `${pend.length} awaiting payment`)}</div></div>
             ${closedToday.length ? `<div class="note warn" style="margin-bottom:14px">Closed ${isToday ? 'today' : 'this day'}: ${closedToday.map(c => esc(c.reason || 'closure')).join(', ')}</div>` : ''}
+            ${A.staffingNote && t >= real ? A.staffingNote(t) : ''}
       ${ribbon}
       <div class="grid g-side">
         <div>

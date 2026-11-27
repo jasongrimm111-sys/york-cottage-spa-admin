@@ -355,7 +355,11 @@
   // turnover after a treatment: its own, but never less than the minimum handover (Settings → Booking rules)
   E.buf = (cfg, tr) => Math.max((tr && tr.buffer) || 0, cfg.rules.minHandover || 0);
   // therapist order: priority 1 first (Staff → Edit), then the rest
-  E.byPriority = (a, b) => (a.priority || 99) - (b.priority || 99);
+  E.byPriority = (a, b) => (!!a.cover - !!b.cover) || (a.priority || 99) - (b.priority || 99);
+  // cover therapists (Staff → "Cover only") are only booked when the regular therapists can't take it (user 2026-11-27)
+  E.coverLast = (a, b) => !!a.cover - !!b.cover;
+  // hands-on minutes in the week (Mon–Sun) around a date, for "share fairly across the week"
+  E.weekLoad = (ix, st, date) => { let mon = date; while (dow(mon) !== 1) mon = E.addD(mon, -1); let m = 0; for (let i = 0; i < 7; i++) m += (((ix.staff || {})[E.addD(mon, i)] || {})[st.id] || []).filter(x => x[3] !== 'duty').reduce((a, x) => a + (x[2] || 0), 0); return m; };
   E.roomFree = (cfg, ix, date, tr, t, end, need, tag) => {
     const trs = [].concat(tr), rooms = cfg.treatRooms.filter(r => r.active !== false && trs.every(tr => (!tr.roomIds || !tr.roomIds.length || tr.roomIds.includes(r.id)) && (!tr.rooms || !tr.rooms.length || tr.rooms.every(tag => (r.tags || []).includes(tag)))) && !E.closedBetween(cfg, date, ['troom:' + r.id], t, end));
     for (const r of rooms) if (E.roomOK(r, (ix.troom[date] || {})[r.id] || [], t, end, need, tag)) return r;
@@ -406,7 +410,7 @@
       let done = false, why = 'No therapist free in that time';
       if ((cfg.rules.share || 'fill') === 'fill' && g.length === 1) {
         const it = g[0], inUse = st => ((ix.staff[date] || {})[st.id] || []).some(x => x[3] !== 'duty');
-        const order = cfg.staff.filter(st => E.canDoAll(st, it) && (!it.staff || it.staff === st.id)).sort((a, b) => (inUse(b) - inUse(a)) || E.byPriority(a, b));
+        const order = cfg.staff.filter(st => E.canDoAll(st, it) && (!it.staff || it.staff === st.id)).sort((a, b) => E.coverLast(a, b) || (inUse(b) - inUse(a)) || E.byPriority(a, b));
         // earliest time first (busiest therapist only breaks ties), so guests aren't pushed late in the session
         // (user 2026-11-27); side by side with another guest only if that costs at most 30 minutes
         const fit = t => { if (!guestFree(it.guest, t, t + min)) return null; for (const st of order) { if (E.staffFree(cfg, ix, st, date, t, it.min || tr.min, buf)) continue; const room = E.roomFree(cfg, ix, date, tr, t, t + min + buf, 1); if (room) return { st, room }; why = 'No treatment room free'; } return null; };
@@ -426,9 +430,10 @@
         const used = [], picks = [];
         for (const it of g) {
           const cands = cfg.staff.filter(st => !used.includes(st.id) && E.canDoAll(st, it) && (!it.staff || it.staff === st.id))
-            .filter(st => !E.staffFree(cfg, ix, st, date, t, it.min || tr.min, buf)).sort((a, b) => (cfg.rules.share || 'fill') === 'fill'
-              ? E.byPriority(a, b) || load(b) - load(a)      // fill by priority: therapist 1 first
-              : load(a) - load(b) || finishAfter(a, t + min + buf) - finishAfter(b, t + min + buf));   // share the work evenly
+            .filter(st => !E.staffFree(cfg, ix, st, date, t, it.min || tr.min, buf)).sort((a, b) => E.coverLast(a, b) || ((cfg.rules.share || 'fill') === 'fill'
+              ? E.byPriority(a, b) || load(b) - load(a)      // fill in order: the first therapist's day, then the next
+              : (cfg.rules.share === 'week' ? E.weekLoad(ix, a, date) - E.weekLoad(ix, b, date) : 0)   // fair across the week
+                || load(a) - load(b) || finishAfter(a, t + min + buf) - finishAfter(b, t + min + buf)));   // share the day evenly
           if (!cands.length) break;
           used.push(cands[0].id); picks.push(cands[0]);
         }

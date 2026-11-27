@@ -72,7 +72,7 @@
     // ---- scheduling ----
     out.push(card('plan', 'How treatments are planned', '', [
       `Every treatment is followed by at least <b>${r.minHandover ?? 15} minutes</b> to reset the room (longer if the treatment says so).`,
-      `When more than one therapist is working: ${(r.share || 'fill') === 'fill' ? '<b>use one therapist where possible</b>, by their priority in Staff, then the next' : '<b>share treatments evenly</b>'}.`,
+      `When more than one therapist is working: ${(r.share || 'fill') === 'fill' ? `<b>fill one therapist’s day before using the next</b>, in this order: ${cfg.staff.filter(s => s.active !== false && !s.cover && (s.treatments || []).length).sort(E.byPriority).map(s => esc(s.name)).join(', ')}` : r.share === 'week' ? '<b>share fairly across the week</b> (whoever has done least that week first)' : '<b>share evenly between everyone on shift</b> that day'}. Cover therapists${cfg.staff.some(s => s.cover) ? ` (${cfg.staff.filter(s => s.cover).map(s => esc(s.name)).join(', ')})` : ''} are only booked when the others are full.`,
       r.groupTogether ? `Groups of <b>${r.groupTogetherFrom || 2} or more</b> are treated side by side where it costs at most 30 minutes.` : 'Guests in a group aren’t specially put side by side.',
       `A therapist does at most <b>${mins(r.maxHandsOn || 360)}</b> of hands-on treatments a day (unless their own limit is set in Staff).`,
       `Treatment rooms: ${(cfg.treatRooms || []).filter(x => x.active !== false).map(x => `${esc(x.name)} (${x.beds} bed${x.beds > 1 ? 's' : ''})`).join(', ')}.`,

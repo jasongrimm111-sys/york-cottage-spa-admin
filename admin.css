@@ -873,3 +873,10 @@ html{touch-action:manipulation}
 .mail-body{white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.55;background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px;max-height:60vh;overflow:auto}
 .sms-bubble{background:#e9e9eb;color:#111;border-radius:18px 18px 18px 4px;padding:10px 14px;max-width:360px;white-space:pre-wrap;font-size:15px;line-height:1.4;margin:6px 0 8px}
 .li.click{cursor:pointer}.li.click:hover{background:rgba(0,0,0,.025)}
+
+/* fill order + cover notes (2026-11-27) */
+.fill-order{list-style:none;padding:0;margin:6px 0 0;display:grid;gap:6px;max-width:460px}
+.fill-order li{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;padding:6px 10px;background:#fff;counter-increment:fo}
+.fill-order li::before{content:counter(fo);font-weight:700;color:var(--muted);width:16px}
+.fill-order .grow{flex:1}
+.staff-note{display:flex;align-items:center;gap:12px;margin-bottom:14px}.staff-note .grow{flex:1}
