@@ -190,7 +190,8 @@
   // ============ ROTA (week) ============
   V.rota = (start) => {
     const cfg = A.cfg(), DB = A.DB(), t = today();
-    let mon = start || t; while (E.dow(mon) !== 1) mon = E.addD(mon, -1);
+    // the next 7 days from today (user 2026-11-27); the arrows move a week at a time
+    const mon = /^\d{4}-\d\d-\d\d$/.test(start || '') ? start : t;
     const days = Array.from({ length: 7 }, (_, i) => E.addD(mon, i)), ixAll = E.index(cfg, DB.bookings);
     const me = !A.can('staff.view') ? A.myStaff() : null;
     const staff = cfg.staff.filter(s => s.active !== false && (!me || s.id === me));
@@ -203,10 +204,10 @@
       return `<td data-cell="${st.id}|${d}" class="${d < t ? 'past' : ''} ${needed ? '' : 'notneeded'}" style="cursor:pointer" title="${d < t ? 'This day has passed' : 'Change hours for this day'}"><span class="sh">${day.spans.map(s => E.HM(s[0]) + '–' + E.HM(s[1])).join('<br>')}</span>${over ? ' <span class="badge info" title="Changed for this day">changed</span>' : ''}<span class="need ${needed ? 'yes' : ''}">${needed ? 'Needed' : 'Not needed yet'}</span>
         <span class="ld"><i style="width:${Math.min(100, hands / cap * 100)}%;background:${hands > cap * .9 ? 'var(--warn)' : st.colour}"></i></span><span class="small muted">${hrs(hands)} treatments${duty.length ? ' · food service' : ''}</span></td>`;
     };
-    return { html: `<div class="vh"><div><div class="eyebrow">Team</div><h1>Rota</h1><p>Week of ${fdy(mon)}. ${me ? '' : 'Click a day to change someone’s hours just for that day.'}</p></div>
-      <div class="acts"><a class="btn" href="#/rota/${E.addD(mon, -7)}">${A.ic.left}</a><a class="btn" href="#/rota">This week</a><a class="btn" href="#/rota/${E.addD(mon, 7)}">${A.ic.right}</a><button class="btn" onclick="print()">${A.ic.print}</button></div></div>
+    return { html: `<div class="vh"><div><div class="eyebrow">Team</div><h1>Rota</h1><p>${mon === t ? 'The next 7 days' : `7 days from ${fdy(mon)}`}. ${me ? '' : 'Click a day to change someone’s hours just for that day.'}</p></div>
+      <div class="acts"><a class="btn" href="#/rota/${E.addD(mon, -7)}">${A.ic.left}</a><a class="btn" href="#/rota">Next 7 days</a><a class="btn" href="#/rota/${E.addD(mon, 7)}">${A.ic.right}</a><button class="btn" onclick="print()">${A.ic.print}</button></div></div>
       ${!me && A.staffingCard && A.can('staff.edit') ? A.staffingCard() : ''}
-      <div class="rota card flush"><table><thead><tr><th>Who</th>${days.map(d => `<th${d === t ? ' style="color:var(--clay)"' : ''}>${fd(d)}</th>`).join('')}<th>Week</th></tr></thead><tbody>
+      <div class="rota card flush"><table><thead><tr><th>Who</th>${days.map(d => `<th${d === t ? ' style="color:var(--clay)"' : ''}>${fd(d)}</th>`).join('')}<th>7 days</th></tr></thead><tbody>
       ${!me ? `<tr class="need-row"><td><b>Therapists needed</b><br><span class="small muted">with treatments or food cover</span></td>${days.map(d => { const working = staff.filter(st => E.staffDay(cfg, st, d)).length, needed = staff.filter(st => ((ixAll.staff[d] || {})[st.id] || []).length).length; return `<td><b>${needed}</b> <span class="small muted">of ${working} working</span>${d >= t && A.coverChip ? A.coverChip(d) : ''}</td>`; }).join('')}<td></td></tr>` : ''}
       ${staff.slice().sort(E.byPriority).map(st => { const tot = days.reduce((a, d) => { const x = E.staffDay(cfg, st, d); return a + (x ? x.spans.reduce((y, s) => y + s[1] - s[0], 0) : 0); }, 0);
         return `<tr><td><span class="dot" style="background:${st.colour}"></span> <b>${esc(st.name)}</b><br><span class="small muted">${esc(st.role || '')}</span></td>${days.map(d => cell(st, d)).join('')}<td class="tnum">${hrs(tot)}</td></tr>`; }).join('')}
