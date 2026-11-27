@@ -131,7 +131,11 @@
   };
 
   // read completed forms
-  A.viewConsults = async (b, g) => {
+  // a "loading" screen while the forms are fetched and opened (they can take a moment) (user 2026-11-27)
+  const loading = on => { let l = document.getElementById('cLoad'); if (!on) { if (l) l.remove(); return; }
+    if (!l) { l = document.createElement('div'); l.id = 'cLoad'; l.className = 'cload'; l.innerHTML = '<div class="cload-b"><span class="cload-s"></span><b>Opening the form…</b><small>Unlocking the answers securely</small></div>'; document.body.appendChild(l); } };
+  A.viewConsults = async (b, g) => { loading(true); try { return await viewConsults(b, g); } finally { loading(false); } };
+  const viewConsults = async (b, g) => {
     try { await ensureDemoForms(b); } catch (e) { console.warn(e); }
     let list = []; try { list = await St.listConsults(b); } catch (e) { A.toast('Couldn’t load the forms: ' + e.message); return; }
     if (g != null) list = list.filter(x => +x.g === +g || x.g === 'all');
@@ -154,6 +158,7 @@
     opened.sort((p, q) => (+p.x.g - +q.x.g) || String((q.f || {}).signedAt || q.x.at).localeCompare(String((p.f || {}).signedAt || p.x.at)));
     const seenG = new Set(); opened.forEach(o => { const k = String(o.x.g); if (seenG.has(k)) o.x.old = true; else { seenG.add(k); o.x.edited = opened.some(p => p !== o && String(p.x.g) === k); } });
     const cur = opened.filter(o => !o.x.old), old = opened.filter(o => o.x.old);
+    loading(false);
     const r = await A.modal({ title: 'Consultation form' + (cur.length > 1 ? 's' : ''), size: 'wide', ok: 'Close', cancel: '', foot: '<button class="btn" onclick="print()" style="margin-right:auto">Print</button>',
       body: `<p class="small muted">${esc(A.cust(b))} · ${b.ref} · ${fdy(b.date)}. Health information: keep it private, and don’t copy it into notes.</p>${opened.map((o, i) => o.x.old ? '' : show(o, i)).join('')}
         ${old.length ? `<details class="ca-old"><summary>Earlier version${old.length > 1 ? 's' : ''} (${old.length}), before ${old.length > 1 ? 'corrections' : 'a correction'}</summary>${opened.map((o, i) => o.x.old ? show(o, i) : '').join('')}</details>` : ''}`,
@@ -184,7 +189,7 @@
       <div class="cd-list">${rows.map(r => `<div class="card cd-row ${r.st === 'done' ? 'is-done' : ''}">
           <div class="cd-time">${r.start}</div>
           <div class="cd-who"><b>${esc(guestName(r.b, r.g))}</b><div class="small muted">${r.its.map(i => esc(tn(i.tid))).join(' · ')} · ${esc(r.b.ref)}</div><div class="small muted">Form: ${guestForms(r.b, r.g).map(f => esc(f.name)).join(' + ')}</div></div>
-          <div class="cd-st">${badge(r.st)}</div>
+
           <div class="cd-act">${r.st === 'done' ? A.consultBtn(r.b, r.g, '') : `<button class="btn pri" data-ch="${r.b.id}|${r.g}">Hand to ${esc(guestName(r.b, r.g).split(' ')[0])}</button>`}</div></div>`).join('') || '<div class="card"><div class="empty"><b>Nobody to show</b>No treatments booked for this day' + (mineOnly ? ' with you' : '') + '.</div></div>'}</div>`,
       wire: el => {
         const go = d => { location.hash = '#/consults/' + d; };
