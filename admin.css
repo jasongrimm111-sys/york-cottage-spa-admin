@@ -1348,3 +1348,10 @@ body:has(.kiosk) .toast{z-index:6100}
 /* toggles are only as wide as their buttons, wherever they sit (never stretched across a column) (user 2026-11-27) */
 .seg:not(.cal-modes){width:max-content;max-width:100%;flex:none}
 .seg:not(.cal-modes) button{flex:0 0 auto}
+
+/* marketing audience: tick several */
+.aud-opts{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;max-height:170px;overflow:auto}
+.aud-opt{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-2);border-radius:99px;padding:5px 12px;font-size:13px;cursor:pointer;background:#fff}
+.aud-opt input{width:15px;height:15px;accent-color:var(--forest)}
+.aud-opt.on,.aud-opt:has(input:checked){border-color:var(--forest);background:#eef2ec}
+.aud-pick>span small{font-weight:400;margin-left:4px}

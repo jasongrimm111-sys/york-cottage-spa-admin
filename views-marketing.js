@@ -47,9 +47,10 @@
 
   const show = t => esc(String(t || '').replace(/\{first\}/g, '(first name)').replace(/\{name\}/g, '(name)'));
   // who gets it (user 2026-11-27): narrow the news-and-offers list by when they last came, how often, what they booked...
-  const AUD0 = { last: 'any', months: 6, minVisits: 0, minSpend: 0, product: '', upcoming: 'any', tag: '' };
+  const AUD0 = { last: 'any', months: 6, minVisits: 0, minSpend: 0, products: [], treatments: [], upcoming: 'any', tags: [] };
+  const audOf = cp => { const a = { ...AUD0, ...(cp.aud || {}) }; if (a.product && !(cp.aud || {}).products) a.products = [a.product]; if (a.tag && !(cp.aud || {}).tags) a.tags = [a.tag]; return a; };   // older single choices
   const ago = m => { const d = new Date(today() + 'T12:00:00Z'); d.setUTCMonth(d.getUTCMonth() - m); return d.toISOString().slice(0, 10); };
-  const audienceOf = cp => { const a = { ...AUD0, ...(cp.aud || {}) }, t = today(), DB = A.DB();
+  const audienceOf = cp => { const a = audOf(cp), t = today(), DB = A.DB();
     return A.marketingList().filter(c => {
       const live = (c.bookings || []).filter(b => E.live(b)), past = live.filter(b => b.date <= t), next = live.filter(b => b.date > t);
       const last = past.reduce((m, b) => b.date > m ? b.date : m, ''), m = +a.months || 0;
@@ -58,21 +59,23 @@
       if (a.last === 'never' && past.length) return false;
       if (+a.minVisits && past.length < +a.minVisits) return false;
       if (+a.minSpend && live.reduce((x, b) => x + E.paid(b), 0) < +a.minSpend) return false;
-      if (a.product && !live.some(b => b.product === a.product)) return false;
+      if (a.products.length && !live.some(b => a.products.includes(b.product))) return false;
+      if (a.treatments.length && !live.some(b => (b.items || []).some(i => [i.tid, ...(i.with || [])].some(x => a.treatments.includes(x))))) return false;
       if (a.upcoming === 'exclude' && next.length) return false;
       if (a.upcoming === 'only' && !next.length) return false;
-      if (a.tag) { const k = Object.keys(DB.customers).find(x => x.toLowerCase() === c.email.toLowerCase()); if (!((DB.customers[k] || {}).tags || []).includes(a.tag)) return false; }
+      if (a.tags.length) { const k = Object.keys(DB.customers).find(x => x.toLowerCase() === c.email.toLowerCase()); if (!((DB.customers[k] || {}).tags || []).some(x => a.tags.includes(x))) return false; }
       return true; }); };
-  const audText = cp => { const a = { ...AUD0, ...(cp.aud || {}) }, bits = [];
+  const audText = cp => { const a = audOf(cp), bits = [], list = xs => xs.length > 2 ? xs.slice(0, -1).join(', ') + ' or ' + xs[xs.length - 1] : xs.join(' or ');
     if (a.last === 'over') bits.push(`last came more than ${a.months} month${a.months == 1 ? '' : 's'} ago`);
     if (a.last === 'within') bits.push(`came in the last ${a.months} month${a.months == 1 ? '' : 's'}`);
     if (a.last === 'never') bits.push('haven’t visited yet');
     if (+a.minVisits > 1) bits.push(`${a.minVisits}+ visits`);
     if (+a.minSpend) bits.push(`spent £${a.minSpend}+`);
-    if (a.product) bits.push('booked ' + A.pname(a.product));
+    if (a.products.length) bits.push('booked ' + list(a.products.map(A.pname)));
+    if (a.treatments.length) bits.push('had ' + list(a.treatments.map(x => (E.tr(A.cfg(), x) || {}).name || x)));
     if (a.upcoming === 'exclude') bits.push('no visit booked');
     if (a.upcoming === 'only') bits.push('have a visit booked');
-    if (a.tag) bits.push('tagged ' + a.tag);
+    if (a.tags.length) bits.push('tagged ' + list(a.tags));
     return bits.length ? bits.join(' · ') : 'everyone on the list'; };
   const STATUS = { draft: ['Draft', ''], sending: ['Sending', 'info'], sent: ['Sent', 'ok'] };
   const statsOf = cp => { const DB = A.DB(), its = DB.outbox.filter(o => o.campaign === cp.id && !o.test), n = its.length || cp.count || 0;
@@ -104,8 +107,9 @@
 
   A.views.campaign = id => {
     const cp = list().find(x => x.id === id); if (!cp) return '<div class="empty"><b>Email not found</b></div>';
-    const aud = audienceOf(cp), all = A.marketingList(), me = (A.cfg().business || {}).email || '', au = { ...AUD0, ...(cp.aud || {}) };
+    const aud = audienceOf(cp), all = A.marketingList(), me = (A.cfg().business || {}).email || '', au = audOf(cp);
     const tags = [...new Set(Object.values(A.DB().customers).flatMap(c => c.tags || []))].sort();
+    const pick = (k, label, none, opts, sel) => `<div class="fld aud-pick" style="margin-top:10px"><span>${label} <small class="muted">${sel.length ? sel.length + ' chosen · any of them' : none}</small></span><div class="aud-opts">${opts.map(([v, t]) => `<label class="aud-opt ${sel.includes(v) ? 'on' : ''}"><input type="checkbox" data-aud="${k}" value="${esc(v)}" ${sel.includes(v) ? 'checked' : ''}> ${esc(t)}</label>`).join('')}</div></div>`;
     if (cp.status !== 'draft') return report(cp);
     return { html: `<div class="vh"><div><div class="eyebrow">Email guests</div><h1>${show(cp.subject) || 'New email'}</h1><p>Draft · goes to <b>${aud.length}</b> guest${aud.length === 1 ? '' : 's'}: ${esc(audText(cp))}.</p></div>
         <div class="acts"><button class="btn ghost danger" id="cpDel">Delete draft</button></div></div>
@@ -126,20 +130,21 @@
             <p class="small muted" style="margin-top:6px">The subject starts with [Test]. Tests aren’t counted in the report.</p></div>
           <div class="card" id="cpAud"><div class="card-h"><h3>Who gets it</h3><span class="small muted">${aud.length} of ${all.length} on the list</span></div>
             <div class="row r2">${A.f.sel('a_last', 'Last visit', au.last, [['any', 'Any time'], ['over', 'More than … ago'], ['within', 'Within the last …'], ['never', 'Haven’t visited yet']])}
-              ${A.f.sel('a_months', 'Months', au.months, [1, 2, 3, 6, 9, 12, 18, 24].map(m => [m, m + ' month' + (m === 1 ? '' : 's')]))}</div><div style="height:8px"></div>
+              ${au.last === 'over' || au.last === 'within' ? A.f.sel('a_months', au.last === 'over' ? 'More than' : 'Within the last', au.months, [1, 2, 3, 6, 9, 12, 18, 24].map(m => [m, m + ' month' + (m === 1 ? '' : 's') + (au.last === 'over' ? ' ago' : '')])) : '<span></span>'}</div><div style="height:8px"></div>
             <div class="row r2">${A.f.sel('a_minVisits', 'Visits', au.minVisits, [[0, 'Any number'], [1, '1 or more'], [2, '2 or more'], [3, '3 or more'], [5, '5 or more']])}
               ${A.f.sel('a_minSpend', 'Spent in total', au.minSpend, [[0, 'Any amount'], [100, '£100 or more'], [250, '£250 or more'], [500, '£500 or more'], [1000, '£1,000 or more']])}</div><div style="height:8px"></div>
-            <div class="row r2">${A.f.sel('a_product', 'Has booked', au.product, [['', 'Anything'], ...Object.entries(A.cfg().products).map(([k, p]) => [k, p.name])])}
-              ${A.f.sel('a_upcoming', 'A visit already booked', au.upcoming, [['any', 'Doesn’t matter'], ['exclude', 'Leave them out'], ['only', 'Only them']])}</div>
-            ${tags.length ? `<div style="height:8px"></div>${A.f.sel('a_tag', 'Customer tag', au.tag, [['', 'Any'], ...tags])}` : ''}
+            ${A.f.sel('a_upcoming', 'A visit already booked', au.upcoming, [['any', 'Doesn’t matter'], ['exclude', 'Leave them out'], ['only', 'Only them']])}
+            ${pick('products', 'Has booked', 'Any booking type', Object.entries(A.cfg().products).map(([k, p]) => [k, p.name]), au.products)}
+            ${pick('treatments', 'Has had', 'Any treatment', (A.cfg().treatments || []).filter(x => x.active !== false).map(x => [x.id, x.name]), au.treatments)}
+            ${tags.length ? pick('tags', 'Customer tag', 'Any tag', tags.map(x => [x, x]), au.tags) : ''}
             <p class="small muted" style="margin-top:8px">Only guests who agreed to news and offers are ever included.</p></div>
           <div class="card"><div class="card-h"><h3>Send to guests</h3></div><p>${aud.length ? `Goes to <b>${aud.length}</b> guest${aud.length === 1 ? '' : 's'}. They’re sent a few seconds apart by the email job, usually starting within the hour.` : all.length ? 'No guests match <b>Who gets it</b>. Try widening it.' : 'Nobody is on the list yet: tick “Happy to get news and offers” on a customer’s page.'}</p>
             ${aud.length ? `<details style="margin:8px 0"><summary class="small" style="cursor:pointer">See who</summary><div class="small muted" style="max-height:180px;overflow:auto;margin-top:6px">${aud.map(c => esc(c.name || c.email) + ' · ' + esc(c.email)).join('<br>')}</div></details>` : ''}
             <button class="btn pri" id="cpSend" ${aud.length ? '' : 'disabled'}>Send to ${aud.length} guest${aud.length === 1 ? '' : 's'}</button></div></div>
       </div>`,
       wire: el => {
-        $$('#cpAud select', el).forEach(x => x.addEventListener('change', () => { read(); A.change('campaigns'); A.refresh(); }));
-        const read = () => { const v = A.read(el); cp.aud = { last: v.a_last, months: +v.a_months || 6, minVisits: +v.a_minVisits || 0, minSpend: +v.a_minSpend || 0, product: v.a_product || '', upcoming: v.a_upcoming || 'any', tag: v.a_tag || '' }; Object.assign(cp, { subject: v.subject, preheader: v.preheader, heading: v.heading, body: v.body, image: (v.image || '').trim(), button: { label: v.btnLabel, url: (v.btnUrl || '').trim() }, testTo: v.testTo }); };
+        $$('#cpAud select, #cpAud [data-aud]', el).forEach(x => x.addEventListener('change', () => { read(); A.change('campaigns'); A.refresh(); }));
+        const read = () => { const v = A.read(el); const ticks = k => $$(`#cpAud [data-aud=${k}]:checked`, el).map(x => x.value); cp.aud = { last: v.a_last, months: +v.a_months || +(cp.aud || {}).months || 6, minVisits: +v.a_minVisits || 0, minSpend: +v.a_minSpend || 0, upcoming: v.a_upcoming || 'any', products: ticks('products'), treatments: ticks('treatments'), tags: ticks('tags') }; Object.assign(cp, { subject: v.subject, preheader: v.preheader, heading: v.heading, body: v.body, image: (v.image || '').trim(), button: { label: v.btnLabel, url: (v.btnUrl || '').trim() }, testTo: v.testTo }); };
         const prev = () => { read(); $('#cpPrev', el).srcdoc = html(cp, aud[0] || { first: 'Sophie', name: 'Sophie Turner' }); };
         let tm; el.addEventListener('input', () => { clearTimeout(tm); tm = setTimeout(prev, 300); }); prev();
         const setPic = url => { read(); cp.image = url; A.change('campaigns'); A.refresh(); };
