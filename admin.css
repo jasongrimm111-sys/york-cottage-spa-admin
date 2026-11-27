@@ -1025,3 +1025,9 @@ html{touch-action:manipulation}
   .tg-ev .tg-tr{display:none}
   .tg-ev.has-tr > b,.tg-ev.has-tr > span:not(.tg-trs){max-width:none}
 }
+/* food services (lunch, grazing board) sit underneath the bookings and treatments (user 2026-11-27) */
+.tg-food{z-index:0}
+.tg-ev{z-index:2}
+.tg-ev:hover{z-index:4}
+.tg-food-chip{justify-content:flex-end}
+.tg-food-chip{flex-direction:column-reverse;justify-content:flex-start}
