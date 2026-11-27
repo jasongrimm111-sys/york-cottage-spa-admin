@@ -178,6 +178,17 @@
         voucher: { on: true, subject: 'Your York Cottage gift voucher', body: 'Hello {name},\n\nHere is your gift voucher: {code}\nValue: {value} · valid until {expires}\n\nYork Cottage Spa' }
       }
     },
+    // text messages (user 2026-11-27): switched on here for the whole platform; each booking says email, text or both.
+    // Sent by the data job through Twilio (secrets TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, optional SMS_FROM).
+    sms: { on: false, sender: 'YorkCottage', off: {}, templates: {
+      confirm: 'York Cottage: you’re booked for {product} on {when} (ref {ref}). Manage it: {manageLink}',
+      preArrival: 'York Cottage: see you on {when}. {consultLine}Manage your booking: {manageLink}',
+      dayOf: 'York Cottage: we look forward to seeing you today. {arrive}Questions? Call {phone}',
+      changed: 'York Cottage: your booking {ref} has changed. New details: {manageLink}',
+      cancel: 'York Cottage: your booking {ref} for {when} is cancelled.',
+      balance: 'York Cottage: the balance of {due} for {ref} is due by {dueDate}. Pay here: {payLink}',
+      review: 'Thank you for visiting York Cottage. We’d love a review: {reviewLink}',
+      waitlist: 'York Cottage: a space has come up for {product} on {when}. Book before {until}: {bookLink}' } },
     // alerts to the team (user 2026-11-27): new bookings and booking requests to the manager, schedule changes to each therapist
     alerts: { email: '', newBooking: true, requests: true, therapists: true },
     policies: {

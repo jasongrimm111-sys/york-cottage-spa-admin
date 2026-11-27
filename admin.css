@@ -867,3 +867,9 @@ html{touch-action:manipulation}
 .reload-btn:hover{color:var(--ink);border-color:var(--ink)}
 .reload-btn.spin svg{animation:rl-spin .8s linear infinite}
 @keyframes rl-spin{to{transform:rotate(360deg)}}
+
+/* message log: exactly what was sent (2026-11-27) */
+.mail-h{grid-template-columns:90px 1fr;margin-bottom:12px}
+.mail-body{white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.55;background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px;max-height:60vh;overflow:auto}
+.sms-bubble{background:#e9e9eb;color:#111;border-radius:18px 18px 18px 4px;padding:10px 14px;max-width:360px;white-space:pre-wrap;font-size:15px;line-height:1.4;margin:6px 0 8px}
+.li.click{cursor:pointer}.li.click:hover{background:rgba(0,0,0,.025)}

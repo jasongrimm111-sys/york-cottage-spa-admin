@@ -63,18 +63,33 @@
     const cfg = A.cfg(), st = { sent: 'Sent', done: 'Sent', queued: 'Waiting to send', waiting: 'Waiting for email set-up', failed: 'Failed', skipped: 'Not sent (sample guest)', demo: 'Demo (not sent)' }[o.status] || o.status;
     const from = o.from || `${(cfg.emails || {}).fromName || cfg.business.name} <the sending address once email is set up>`, reply = o.replyTo || (cfg.emails || {}).replyTo || cfg.business.email;
     const row = (k, v) => v ? `<dt>${k}</dt><dd>${v}</dd>` : '';
+    if (o.type === 'sms') return A.modal({ title: 'Text message', ok: 'Close', cancel: '', body: `<dl class="kv mail-h">${row('From', esc(o.from || (cfg.sms || {}).sender || 'YorkCottage'))}${row('To', esc(o.to || ''))}${row('Created', `${ft(o.at)}${o.by ? ' · by ' + esc(o.by) : ''}`)}${row('Sent', o.done ? ft(o.done) : '')}${row('Status', `<span class="badge ${o.status === 'sent' ? 'ok' : o.status === 'failed' ? 'bad' : 'info'}">${esc(st)}</span>${o.error ? ' <span class="small muted">' + esc(o.error) + '</span>' : ''}`)}${row('Booking', o.ref ? `<a href="#/booking/${o.bookingId || ''}">${esc(o.ref)}</a>` : '')}</dl><div class="sms-bubble">${esc(o.body || '')}</div><p class="small muted">${(o.body || '').length} characters · ${Math.ceil((o.body || '').length / 153) || 1} text${(o.body || '').length > 160 ? 's' : ''}</p>` });
     return A.modal({ title: esc(o.subject || o.type), size: 'wide', ok: 'Close', cancel: '', body: `<dl class="kv mail-h">${row('From', esc(from))}${row('To', esc(o.to || ''))}${row('Reply-to', esc(reply))}${row('Subject', `<b>${esc(o.subject || '')}</b>`)}${row('Created', `${ft(o.at)}${o.by ? ' · by ' + esc(o.by) : ''}`)}${row('Sent', o.done ? ft(o.done) : '')}${row('Status', `<span class="badge ${o.status === 'sent' || o.status === 'done' ? 'ok' : o.status === 'failed' ? 'bad' : 'info'}">${esc(st)}</span>${o.error ? ' <span class="small muted">' + esc(o.error) + '</span>' : ''}`)}${row('Booking', o.ref ? `<a href="#/booking/${o.bookingId || ''}">${esc(o.ref)}</a>` : '')}${row('Kind', o.type === 'paylink' ? 'Email with a payment link' : '')}</dl>
       <pre class="mail-body">${esc(o.body || '')}</pre>` });
   };
-  A.mailRows = list => list.length ? `<div class="list">${list.slice().reverse().map(o => `<div class="li click" data-mail="${o.id}"><span class="grow"><b>${esc(o.subject || o.template)}</b><span class="small muted">${ft(o.at)} · ${esc(o.to || '')}${o.by ? ' · ' + esc(o.by) : ''}</span></span><span class="badge ${o.status === 'sent' || o.status === 'done' ? 'ok' : o.status === 'failed' ? 'bad' : 'info'}">${o.status === 'demo' ? 'Demo' : o.status === 'skipped' ? 'not sent' : o.status}</span></div>`).join('')}</div>` : '<p class="muted">No emails yet.</p>';
+  A.mailRows = list => list.length ? `<div class="list">${list.slice().reverse().map(o => `<div class="li click" data-mail="${o.id}"><span class="grow"><b>${o.type === 'sms' ? '💬 Text: ' + esc((o.body || '').slice(0, 60)) + ((o.body || '').length > 60 ? '…' : '') : esc(o.subject || o.template)}</b><span class="small muted">${ft(o.at)} · ${esc(o.to || '')}${o.by ? ' · ' + esc(o.by) : ''}</span></span><span class="badge ${o.status === 'sent' || o.status === 'done' ? 'ok' : o.status === 'failed' ? 'bad' : 'info'}">${o.status === 'demo' ? 'Demo' : o.status === 'skipped' ? 'not sent' : o.status}</span></div>`).join('')}</div>` : '<p class="muted">No emails yet.</p>';
   A.wireMail = el => $$('[data-mail]', el).forEach(r => r.onclick = () => { const o = A.DB().outbox.find(x => x.id === r.dataset.mail); if (o) A.mailModal(o); });
   // each booking's private "Manage my booking" link (needs the website's receiver switched on)
   A.manageURL = b => { const c = A.cfg().consult || {}; if (!c.endpoint || !b || !b.ref) return '';
     if (!b.manageToken) { b.manageToken = Array.from({ length: 24 }, () => 'abcdefghijkmnopqrstuvwxyz23456789'[Math.floor(Math.random() * 33)]).join(''); A.change('booking', b); }
     return A.siteURL() + `manage.html?ref=${encodeURIComponent(b.ref)}&m=${b.date.slice(0, 7)}&k=${b.manageToken}`; };
   // queue an email (the data repo's GitHub Action sends it); in the demo it is shown instead
+  // text messages: on for the platform, and the guest chose text or both (user 2026-11-27)
+  A.smsOn = () => !!(A.cfg().sms || {}).on;
+  A.ukPhone = p => { let x = String(p || '').replace(/[^\d+]/g, ''); if (x.startsWith('00')) x = '+' + x.slice(2); if (x.startsWith('07')) x = '+44' + x.slice(1); return /^\+\d{10,15}$/.test(x) ? x : ''; };
+  A.wants = (b, ch) => { const n = (b && b.notify) || 'email', ph = A.ukPhone((b.customer || {}).phone); return ch === 'email' ? n !== 'sms' || !A.smsOn() || !ph : A.smsOn() && n !== 'email' && !!ph; };
+  A.sendSms = (key, b, extra = {}) => {
+    const cfg = A.cfg(), sm = cfg.sms || {}, t = (sm.templates || {})[key]; if (!t || (sm.off || {})[key] || !A.wants(b, 'sms')) return null;
+    const q = b.quote || E.quote(cfg, b), ses = E.session(cfg, b.sessionId), cu = A.consultURL ? A.consultURL(b) : '';
+    const v = { first: (b.customer || {}).first || '', ref: b.ref, product: A.pname(b.product), when: A.whenText(b), manageLink: A.manageURL(b) || A.siteURL(), consultLink: cu, consultLine: cu ? `Please fill in your consultation form: ${cu} ` : '', phone: cfg.business.phone || '',
+      arrive: ses ? `Please arrive at ${ses.arrive || ses.start}. ` : '', due: gbp(extra.amount != null ? extra.amount : due(b), 2), dueDate: q.balanceDue ? fdy(q.balanceDue) : '', payLink: extra.link || A.payURL(b, extra.amount != null ? extra.amount : due(b)), reviewLink: cfg.business.googleReviewUrl || A.siteURL() };
+    const body = t.replace(/\{(\w+)\}/g, (m0, k) => v[k] != null ? v[k] : m0);
+    return St.queue({ type: 'sms', template: key, bookingId: b.id, ref: b.ref, to: A.ukPhone(b.customer.phone), subject: 'Text message', body });
+  };
   A.sendEmail = async (key, b, extra = {}, show = true) => {
-    const m = A.renderEmail(key, b, extra); if (!m || !m.to) { A.toast('No email address on this booking'); return null; }
+    const sms = A.sendSms(key, b, extra);
+    if (!A.wants(b, 'email')) { if (sms) { (b.emails = b.emails || []).push({ at: sms.at, template: key, subject: 'Text message', outbox: sms.id }); A.toast('Text message queued'); } return sms; }
+    const m = A.renderEmail(key, b, extra); if (!m || !m.to) { A.toast(sms ? 'Text message queued (no email address)' : 'No email address on this booking'); return sms; }
     const job = St.queue({ type: key === 'pay' || key === 'balance' ? 'paylink' : 'email', template: key, bookingId: b.id, ref: b.ref, amount: extra.amount, ...m });
     (b.emails = b.emails || []).push({ at: job.at, template: key, subject: m.subject, outbox: job.id });
     if (show && St.S.mode === 'demo') await A.modal({ title: 'Email preview', size: 'wide', ok: 'Done', cancel: '', body: `<div class="note info">Demo: in the live portal this is sent by email${key === 'pay' || key === 'balance' ? ', with a real Stripe payment link once Stripe is connected' : ''}.</div><div class="kv"><dt>To</dt><dd>${esc(m.to)}</dd><dt>Subject</dt><dd><b>${esc(m.subject)}</b></dd></div><pre style="white-space:pre-wrap;font-family:inherit;background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px">${esc(m.body)}</pre>` });
@@ -376,7 +391,7 @@
               ${q.balance && q.balanceDue && owe > 0 ? `<div class="small muted"><span>${q.deposit < q.total ? `Deposit ${gbp(q.deposit)} · balance due ${fdy(q.balanceDue)}` : ''}</span></div>` : ''}${q.damage ? `<div class="small muted"><span>£${q.damage} damage deposit to pre-authorise before arrival</span></div>` : ''}</div>
             ${b.status !== 'cancelled' && b.date >= today() ? `<p class="small muted" style="margin-top:10px">If cancelled now: ${esc(E.cancelTerms(cfg, b).text.replace(/^Cancelling /, '').replace(/^on the day/i, 'on the day'))}</p>` : ''}</div>
           <div class="card"><div class="card-h"><h3>Guest</h3>${b.customer && b.customer.email ? `<a class="btn sm ghost" href="#/customer/${encodeURIComponent(b.customer.email.toLowerCase())}">Profile</a>` : ''}</div>
-            <dl class="kv" style="grid-template-columns:70px 1fr"><dt>Name</dt><dd>${esc(A.cust(b))}</dd><dt>Email</dt><dd>${b.customer && b.customer.email ? `<a href="mailto:${esc(b.customer.email)}">${esc(b.customer.email)}</a>` : '—'}</dd><dt>Phone</dt><dd>${b.customer && b.customer.phone ? `<a href="tel:${esc(b.customer.phone)}">${esc(b.customer.phone)}</a>` : '—'}</dd></dl>
+            <dl class="kv" style="grid-template-columns:70px 1fr"><dt>Name</dt><dd>${esc(A.cust(b))}</dd><dt>Email</dt><dd>${b.customer && b.customer.email ? `<a href="mailto:${esc(b.customer.email)}">${esc(b.customer.email)}</a>` : '—'}</dd>${A.smsOn() ? `<dt>Updates</dt><dd>${{ email: 'Email', sms: 'Text message', both: 'Email and text' }[b.notify || 'email']}</dd>` : ''}<dt>Phone</dt><dd>${b.customer && b.customer.phone ? `<a href="tel:${esc(b.customer.phone)}">${esc(b.customer.phone)}</a>` : '—'}</dd></dl>
             ${other.length ? `<a class="btn sm" style="margin-top:10px" href="${custLink}">See their ${other.length} other booking${other.length > 1 ? 's' : ''}</a>` : '<p class="small muted" style="margin-top:8px">First booking with us</p>'}</div>
           ${b.status !== 'cancelled' ? `<div class="card"><div class="fld"><span>Arrival</span><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${A.arrivalCell(b)}</div></div>
             ${b.date <= today() && !b.arrived ? `<label class="sw" style="margin-top:10px"><input type="checkbox" id="noShowT" ${b.noShow ? 'checked' : ''}> Didn’t turn up (no-show)</label><p class="small muted" style="margin-top:4px">Keeps the payment under the terms and shows in the reports.</p>` : ''}
@@ -636,6 +651,7 @@
           </div>
           <div class="card"><div class="card-h"><h3>5 · Contact</h3></div>
             <div class="row r2">${A.f.text('customer.first', 'First name', B.customer.first, { ac: 'off' })}${A.f.text('customer.last', 'Last name', B.customer.last)}${A.f.text('customer.email', 'Email', B.customer.email, { type: 'email', list: 'custList' })}${A.f.text('customer.phone', 'Phone', B.customer.phone, { type: 'tel' })}</div>
+            ${A.smsOn() ? `<div class="row r2" style="margin-top:12px">${A.f.sel('notify', 'Send them updates by', B.notify || 'email', [['email', 'Email'], ['sms', 'Text message'], ['both', 'Email and text']])}</div>` : ''}
             <datalist id="custList">${Object.values(A.customers()).slice(0, 400).map(c => `<option value="${esc(c.email)}">${esc(c.name)}</option>`).join('')}</datalist>
             <div class="row r2" style="margin-top:12px">${A.f.sel('source', 'How they booked', B.source, [['phone', 'Phone'], ['email', 'Email'], ['walk-in', 'In person'], ['web', 'Website'], ['admin', 'Other']])}${A.f.chips('tags', 'Tags', B.tags, ['VIP', 'Birthday', 'Anniversary', 'Hen party', 'Corporate', 'Pregnant guest', 'Access needs', 'Returning'], { sm: true })}</div>
             <div class="row r2" style="margin-top:12px">${A.f.area('notes', 'Notes the guest gave (dietary, celebrations)', B.notes, { rows: 2 })}${A.f.area('internal', 'Staff notes (never shown to the guest)', B.internal, { rows: 2 })}</div></div>
@@ -735,7 +751,7 @@
     };
     const save = async el => {
       const msg = $('#saveMsg', el), P = p();
-      Object.assign(B, (() => { const v = A.read(el.querySelector('.be > div')); return { customer: { ...B.customer, ...v.customer }, source: v.source, tags: v.tags, notes: v.notes, internal: v.internal }; })());
+      Object.assign(B, (() => { const v = A.read(el.querySelector('.be > div')); return { customer: { ...B.customer, ...v.customer }, source: v.source, tags: v.tags, notes: v.notes, internal: v.internal, ...(v.notify ? { notify: v.notify } : {}) }; })());
       if (!B.date) { msg.textContent = 'Choose a date'; return; }
       if ((P.kind === 'session' || P.kind === 'private') && !B.sessionId) { msg.textContent = 'Choose a session'; return; }
       if (!B.customer.first && !B.customer.last) { msg.textContent = 'Add the guest’s name'; return; }
