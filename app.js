@@ -315,8 +315,9 @@
       const L = JSON.parse(localStorage.getItem('yc-admin-lock') || '{"n":0,"until":0}');
       if (L.until > Date.now()) { am.textContent = `Too many tries. Try again in ${Math.ceil((L.until - Date.now()) / 60000)} minutes.`; return; }
       btn.disabled = true; btn.textContent = 'Signing in…'; am.textContent = '';
+      const ov = document.createElement('div'); ov.innerHTML = A.loader('Signing you in…', true); document.body.append(ov);
       try { await St.signIn($('#le').value, $('#lp').value, $('#lk').checked); localStorage.removeItem('yc-admin-lock'); boot2(); }
-      catch (err) { L.n++; if (L.n >= 5) { L.until = Date.now() + 15 * 60000; L.n = 0; } localStorage.setItem('yc-admin-lock', JSON.stringify(L)); am.textContent = err.message; btn.disabled = false; btn.textContent = 'Sign in'; }
+      catch (err) { L.n++; if (L.n >= 5) { L.until = Date.now() + 15 * 60000; L.n = 0; } localStorage.setItem('yc-admin-lock', JSON.stringify(L)); ov.remove(); am.textContent = err.message; btn.disabled = false; btn.textContent = 'Sign in'; }
     };
     const sf = $('#setupF');
     if (sf) sf.onsubmit = async e => {
@@ -329,8 +330,12 @@
     };
   }
   function boot2() { shell(); route(); saveSt(); }
+  // the loading screen: the lotus draws itself, then breathes (user 2026-11-27)
+  const LOTUS = ['M160 190 L160 45 C215 62 268 92 305 132','M600 190 L600 45 C545 62 492 92 455 132','M380 25 C455 115 515 215 515 325 C515 415 455 470 380 485 C305 470 245 415 245 325 C245 215 305 115 380 25 Z','M10 180 C150 172 290 212 345 300 C368 337 380 360 380 385 L380 488 C235 488 125 455 82 382 C52 330 27 258 10 180 Z','M750 180 C610 172 470 212 415 300 C392 337 380 360 380 385 L380 488 C525 488 635 455 678 382 C708 330 733 258 750 180 Z'];
+  const ORDER = [2, 3, 4, 0, 1];
+  A.loader = (msg, overlay) => `<div class="yc-load${overlay ? ' over' : ''}" role="status" aria-live="polite"><div class="yl-mark"><span class="yl-ring"></span><svg viewBox="-20 -20 800 540" fill="none" stroke="currentColor" stroke-width="22" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">${LOTUS.map((d, i) => `<path pathLength="1" d="${d}" style="--d:${ORDER.indexOf(i) * .22}s"/>`).join('')}</svg></div><b>York Cottage</b><small>${msg || 'Loading…'}</small></div>`;
   async function boot() {
-    document.body.innerHTML = '<div style="min-height:100vh;display:grid;place-items:center;color:#6b6f68">Loading…</div>';
+    document.body.innerHTML = A.loader('Loading…');
     try { if (await St.resume()) return boot2(); } catch (e) { console.error(e); }
     const v = await St.getVault();
     authScreen(v ? 'login' : 'setup');
