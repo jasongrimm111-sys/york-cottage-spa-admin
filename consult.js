@@ -8,6 +8,14 @@
   C.validEmail = v => { v = String(v || '').trim(); if (!v || v.length > 254) return false;
     const m = /^([A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+)@((?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,})$/.exec(v);
     return !!m && m[1].length <= 64 && m[1][0] !== '.' && m[1].slice(-1) !== '.' && !m[1].includes('..'); };
+  C.DIAL = [['+44', '🇬🇧 +44'], ['+353', '🇮🇪 +353'], ['+33', '🇫🇷 +33'], ['+49', '🇩🇪 +49'], ['+34', '🇪🇸 +34'], ['+39', '🇮🇹 +39'], ['+31', '🇳🇱 +31'], ['+32', '🇧🇪 +32'], ['+351', '🇵🇹 +351'], ['+41', '🇨🇭 +41'], ['+48', '🇵🇱 +48'], ['+46', '🇸🇪 +46'], ['+47', '🇳🇴 +47'], ['+45', '🇩🇰 +45'], ['+30', '🇬🇷 +30'], ['+1', '🇺🇸 🇨🇦 +1'], ['+61', '🇦🇺 +61'], ['+64', '🇳🇿 +64'], ['+27', '🇿🇦 +27'], ['+971', '🇦🇪 +971'], ['+91', '🇮🇳 +91'], ['+86', '🇨🇳 +86'], ['+81', '🇯🇵 +81']];
+  // the number without its dialling code or leading 0, e.g. "07700 900123" → "7700 900123"
+  C.national = v => String(v || '').trim().replace(/^0+(?=\d)/, '');
+  C.splitPhone = v => { v = String(v || '').trim(); if (!v) return { code: '+44', num: '' };
+    const d = C.DIAL.map(x => x[0]).sort((a, b) => b.length - a.length).find(c => v.replace(/[\s()-]/g, '').startsWith(c) || v.startsWith('00' + c.slice(1)));
+    if (d) { const rest = v.replace(/[\s()-]/g, '').startsWith(d) ? v.replace(/^\s*\+?\s*/, '').slice(d.length - 1) : v.slice(d.length + 1); return { code: d, num: C.national(rest.trim()) }; }
+    return { code: '+44', num: C.national(v) }; };
+  C.validNational = v => { const n = C.national(v), d = n.replace(/[^\d]/g, ''); return d.length >= 7 && d.length <= 12 && /^[\d\s()-]+$/.test(n); };
   C.validPhone = v => { const d = String(v || '').replace(/[^\d]/g, ''); return d.length >= 10 && d.length <= 15 && /^[\d\s+()-]+$/.test(String(v).trim()); };
   const te = new TextEncoder(), td = new TextDecoder();
   const b64 = u8 => { let s = ''; new Uint8Array(u8).forEach(c => s += String.fromCharCode(c)); return btoa(s); };
@@ -45,12 +53,12 @@
     { id: 'news', type: 'optin', label: 'Yes, send me special offers and news from York Cottage Spa by email', help: 'You can unsubscribe at any time.' },
     { id: 'h_health', type: 'heading', label: 'General health' },
     { id: 'gp', type: 'short', label: 'GP', help: 'Your doctor’s name and surgery' },
-    { id: 'stress', type: 'choice', label: 'How would you describe your stress levels?', options: ['Low', 'Medium', 'High'] },
-    { id: 'energy', type: 'choice', label: 'How would you describe your energy levels?', options: ['Low', 'Medium', 'High'] },
+    { id: 'stress', type: 'choice', label: 'How would you describe your stress levels?', options: ['Low', 'Medium', 'High'], required: true },
+    { id: 'energy', type: 'choice', label: 'How would you describe your energy levels?', options: ['Low', 'Medium', 'High'], required: true },
     YN('anxiety', 'Do you struggle with anxiety?'),
     YN('pain', 'Do you struggle with pain?'),
     YN('meds', 'Are you taking any medication?'),
-    { id: 'massage_before', type: 'choice', label: 'Have you ever had a massage treatment before?', options: ['Yes', 'No'] },
+    { id: 'massage_before', type: 'choice', label: 'Have you ever had a massage treatment before?', options: ['Yes', 'No'], required: true },
     { id: 'pregnant', type: 'choice', label: 'Could you be pregnant or are you trying to become pregnant?', options: ['I am', 'Yes', 'No'], flagOn: ['I am', 'Yes'], required: true },
     YN('breastfeeding', 'Are you breastfeeding?'),
     { id: 'h_cond', type: 'heading', label: 'Conditions / symptoms' },
@@ -98,14 +106,16 @@
   C.formHTML = (qs, opt = {}) => {
     const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const q = x => {
-      if (x.type === 'yesno') return `<fieldset class="cq" data-q="${x.id}"><legend>${esc(x.label)}</legend><div class="cq-yn"><label><input type="radio" name="q_${x.id}" value="no"> No</label><label><input type="radio" name="q_${x.id}" value="yes"> Yes</label></div>${x.detail ? `<textarea class="cq-detail" name="d_${x.id}" rows="2" placeholder="${esc(x.detail)}" hidden></textarea>` : ''}</fieldset>`;
+      if (x.type === 'yesno') return `<fieldset class="cq" data-q="${x.id}"><legend>${esc(x.label)} <span class="cq-req">*</span></legend><div class="cq-yn"><label><input type="radio" name="q_${x.id}" value="no"> No</label><label><input type="radio" name="q_${x.id}" value="yes"> Yes</label></div>${x.detail ? `<textarea class="cq-detail" name="d_${x.id}" rows="2" placeholder="${esc(x.detail)}" hidden></textarea>` : ''}</fieldset>`;
       const help = x.help ? `<p class="cq-help">${esc(x.help)}</p>` : '', req = x.required ? ' <span class="cq-req">*</span>' : '';
       if (x.type === 'optin') return `<label class="cq-consent cq-optin" data-q="${x.id}"><input type="checkbox" name="q_${x.id}" ${(opt.prefill || {}).optin ? 'checked' : ''}> <span><b>${esc(x.label)}</b>${x.help ? `<small>${esc(x.help)}</small>` : ''}</span></label>`;
       if (x.type === 'heading') return `<h3 class="cq-h">${esc(x.label)}</h3>${help}`;
       if (x.type === 'info') return `<div class="cq-info"><b>${esc(x.label)}</b>${help}</div>`;
       if (x.type === 'choice') return `<fieldset class="cq" data-q="${x.id}"><legend>${esc(x.label)}${req}</legend>${help}<div class="cq-yn">${(x.options || []).map(o => `<label><input type="radio" name="q_${x.id}" value="${esc(o)}"> ${esc(o)}</label>`).join('')}</div></fieldset>`;
       if (x.type === 'multi') return `<fieldset class="cq" data-q="${x.id}"><legend>${esc(x.label)}${req}</legend>${help}<div class="cq-yn">${(x.options || []).map(o => `<label><input type="checkbox" name="q_${x.id}" value="${esc(o)}"> ${esc(o)}</label>`).join('')}</div></fieldset>`;
-      if (x.type === 'short') return `<fieldset class="cq" data-q="${x.id}"><legend>${esc(x.label)}${req}</legend>${help}<input class="cq-in" name="q_${x.id}" ${x.fill === 'email' ? 'type="email" autocomplete="email"' : x.fill === 'phone' ? 'type="tel" autocomplete="tel"' : 'autocomplete="off"'} value="${esc(((opt.prefill || {})[x.fill]) || '')}"></fieldset>`;
+      if (x.type === 'short' && x.fill === 'phone') { const ph = C.splitPhone((opt.prefill || {}).phone);
+        return `<fieldset class="cq" data-q="${x.id}"><legend>${esc(x.label)}${req}</legend>${help}<div class="cq-phone"><select class="cq-in cq-dial" name="qc_${x.id}" aria-label="Dialling code">${C.DIAL.map(([c, l]) => `<option value="${c}" ${c === ph.code ? 'selected' : ''}>${l}</option>`).join('')}</select><input class="cq-in" name="q_${x.id}" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="7700 900123" value="${esc(ph.num)}"></div></fieldset>`; }
+      if (x.type === 'short') return `<fieldset class="cq" data-q="${x.id}"><legend>${esc(x.label)}${req}</legend>${help}<input class="cq-in" name="q_${x.id}" ${x.fill === 'email' ? 'type="email" autocomplete="email" inputmode="email"' : 'autocomplete="off"'} value="${esc(((opt.prefill || {})[x.fill]) || '')}"></fieldset>`;
       if (x.type === 'date') return `<fieldset class="cq" data-q="${x.id}"><legend>${esc(x.label)}${req}</legend>${help}<input class="cq-in" type="date" name="q_${x.id}"></fieldset>`;
       return `<fieldset class="cq" data-q="${x.id}"><legend>${esc(x.label)}${req}</legend>${help}<textarea name="q_${x.id}" rows="3"></textarea></fieldset>`;
     };
@@ -142,6 +152,7 @@
       bars.forEach(bar => { bar.querySelector('i').style.width = pc + '%'; const t = bar.querySelector('span'); if (t) t.textContent = pc >= 100 ? (bar.dataset.short ? 'All done' : 'All done: send your answers below') : pc ? (bar.dataset.short ? pc + '%' : `${pc}% done`) : (bar.dataset.short ? '0%' : 'Let’s get started'); bar.classList.toggle('full', pc >= 100); }); };
     f.addEventListener('input', upd); f.addEventListener('change', upd); f.addEventListener('pointerup', () => setTimeout(upd, 50)); upd(); };
   C.wireKeys = root => { const f = root.querySelector('form.cform-q'); if (!f) return;
+    f.querySelectorAll('.cq-phone input').forEach(i => i.addEventListener('blur', () => { const n = C.national(i.value); if (n !== i.value) { i.value = n; i.dispatchEvent(new Event('input', { bubbles: true })); } }));
     f.addEventListener('submit', e => e.preventDefault());
     const stops = () => { const seen = new Set(); return [...f.querySelectorAll('input,textarea,select,button')].filter(el => { if (el.disabled || el.type === 'hidden' || el.closest('[hidden]')) return false;
       if (el.type === 'radio') { if (seen.has(el.name)) return false; seen.add(el.name); } return true; }); };
@@ -166,7 +177,7 @@
         const v = val();
         if (q.required && !v) return q.fill === 'email' ? 'Please add your email address' : 'Please answer this question';
         if (v && q.fill === 'email' && !C.validEmail(v)) return 'That doesn’t look like an email address, e.g. name@example.com';
-        if (v && q.fill === 'phone' && !C.validPhone(v)) return 'Please check the phone number';
+        if (v && q.fill === 'phone' && !C.validNational(v)) return 'Please check the phone number, e.g. 7700 900123';
         return ''; } }); });
     const cons = f.querySelector('.cq-consent:not(.cq-optin)'); if (cons) out.push({ el: cons, check: () => f.elements.consent.checked ? '' : 'Please tick to agree before you send' });
     const sig = f.querySelector('.cq-sig'); if (sig) out.push({ el: sig, check: () => sig._drawn ? '' : 'Please sign in the box' });
@@ -174,7 +185,7 @@
     return out; };
   const mark = (u, msg) => { u.el.classList.toggle('cq-bad', !!msg); let e = u.el.querySelector(':scope > .cq-err') || (u.el.nextElementSibling && u.el.nextElementSibling.classList.contains('cq-err') ? u.el.nextElementSibling : null);
     if (!msg) { if (e) e.remove(); return; }
-    if (!e) { e = document.createElement('p'); e.className = 'cq-err'; e.setAttribute('role', 'alert'); if (u.el.matches('.cq-r,.cq-sig,.cq-consent')) u.el.after(e); else u.el.appendChild(e); }
+    if (!e) { e = document.createElement('p'); e.className = 'cq-err'; e.setAttribute('role', 'alert'); if (u.el.matches('.cq-sig,.cq-consent')) u.el.after(e); else u.el.appendChild(e); }
     e.textContent = msg; };
   C.wireValidate = (root, qs) => { const us = units(root, qs); if (!us.length) return; const f = root.querySelector('form.cform-q'), seen = new Set();
     const idx = el => us.findIndex(u => u.el === el || u.el.contains(el));
@@ -203,7 +214,7 @@
       if (q.type === 'multi') { ans[q.id] = [...f.querySelectorAll(`input[name="q_${q.id}"]:checked`)].map(x => x.value); if (q.required && !ans[q.id].length) return { ok: false, msg: 'Please answer: ' + q.label }; continue; }
       if (q.type === 'yesno') { const r = f.querySelector(`input[name="q_${q.id}"]:checked`); if (!r) return { ok: false, msg: 'Please answer: ' + q.label }; ans[q.id] = { yes: r.value === 'yes', detail: r.value === 'yes' ? v('d_' + q.id).trim() : '' }; if (ans[q.id].yes && q.detail && !ans[q.id].detail) return { ok: false, msg: 'Please add a little detail for: ' + q.label }; }
       else if (q.type === 'choice') { const r = f.querySelector(`input[name="q_${q.id}"]:checked`); ans[q.id] = r ? r.value : ''; if (q.required && !ans[q.id]) return { ok: false, msg: 'Please answer: ' + q.label }; }
-      else { ans[q.id] = v('q_' + q.id).trim(); if (q.required && !ans[q.id]) return { ok: false, msg: 'Please answer: ' + q.label }; }
+      else { ans[q.id] = v('q_' + q.id).trim(); if (q.fill === 'phone' && ans[q.id]) ans[q.id] = (v('qc_' + q.id) || '+44') + ' ' + C.national(ans[q.id]); if (q.required && !ans[q.id]) return { ok: false, msg: 'Please answer: ' + q.label }; }
     }
     if (!f.elements.consent.checked) return { ok: false, msg: 'Please tick to confirm the information is correct' };
     const sig = root.querySelector('.cq-sig');
@@ -225,7 +236,7 @@
     .cq-consent{display:flex;gap:12px;align-items:flex-start;font-size:15px;line-height:1.5;background:#fff;border:1.5px solid rgba(35,40,35,.16);border-radius:14px;padding:14px 16px;cursor:pointer}.cq-consent:has(input:checked){border-color:#2f3b32;background:#f3f5f1}.cq-terms{border:1px solid rgba(35,40,35,.14);border-radius:14px;background:#fff;overflow:hidden}.cq-terms-h{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#f4ede4}.cq-terms-x{border:1px solid rgba(35,40,35,.2);background:#fff;border-radius:99px;padding:5px 14px;font:inherit;font-size:13px;cursor:pointer}
     .cq-terms-b{padding:14px 16px;font-size:14px;line-height:1.65;color:#3c4038;max-height:46vh;overflow:auto}.cq-terms-b p{margin:0 0 10px}.cq-tlink{color:#9a5d3f;font-weight:700;text-decoration:underline}
     .cq-optin span{display:flex;flex-direction:column;gap:2px}.cq-optin small{font-size:13px;color:#6b6f68;font-weight:400}.cq-consent input{width:22px;height:22px;margin-top:1px;accent-color:#2f3b32;flex:none}
-    .cq-msg{color:#b0413e;font-weight:600;min-height:20px}.cq-bad{border-color:#d36b5e!important;box-shadow:0 0 0 3px rgba(211,107,94,.12)!important}.cq-r.cq-bad{background:#fdf0ee}label.cq-bad{box-shadow:none!important;border-color:transparent!important}.cq-bad .cq-in,.cq-bad textarea,.cq-bad input:not([type=radio]):not([type=checkbox]){border-color:#d36b5e}.cq-err{color:#b0413e;font-size:13.5px;font-weight:600;margin:8px 0 0;clear:both}.cq-r+.cq-err{padding:0 16px 10px;margin:0;background:#fdf0ee}.cq-sig+.cq-err,.cq-consent+.cq-err{margin-top:6px}.cq-h{font-family:'Cormorant Garamond',Georgia,serif;font-weight:500;font-size:28px;margin:14px 0 -2px;line-height:1.15}.cq-help{font-size:14px;color:#6b6f68;margin:4px 0 0;white-space:pre-line;clear:both}.cq-req{color:#b0413e}
+    .cq-msg{color:#b0413e;font-weight:600;min-height:20px}.cq-bad{border-color:#d36b5e!important;box-shadow:0 0 0 3px rgba(211,107,94,.12)!important}.cq-r.cq-bad{background:#fdf0ee}label.cq-bad{box-shadow:none!important;border-color:transparent!important}.cq-bad .cq-in,.cq-bad textarea,.cq-bad input:not([type=radio]):not([type=checkbox]){border-color:#d36b5e}.cq-err{color:#b0413e;font-size:13.5px;font-weight:600;margin:8px 0 0;clear:both}.cq-r{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px}.cq-r>.cq-err{grid-column:1/-1;margin:2px 0 0}.cq-phone{display:grid;grid-template-columns:minmax(118px,auto) 1fr;gap:8px}.cq-dial{appearance:auto}.cq-sig+.cq-err,.cq-consent+.cq-err{margin-top:6px}.cq-h{font-family:'Cormorant Garamond',Georgia,serif;font-weight:500;font-size:28px;margin:14px 0 -2px;line-height:1.15}.cq-help{font-size:14px;color:#6b6f68;margin:4px 0 0;white-space:pre-line;clear:both}.cq-req{color:#b0413e}
     .cq-info{border-radius:16px;background:#f4ede4;padding:16px 18px;font-size:15px}.cq-info b{display:block;font-size:16px;margin-bottom:2px}.cq-info .cq-help{font-size:13.5px;line-height:1.6;color:#55594f}
     .cq-grp{background:#fff;border:1px solid rgba(35,40,35,.1);border-radius:16px;overflow:hidden}.cq-grp-h{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;background:#f4ede4;font-size:14px;font-weight:600}
     .cq-none{border:1.5px solid #2f3b32;background:#fff;color:#2f3b32;border-radius:99px;padding:8px 16px;font:inherit;font-size:14px;font-weight:700;cursor:pointer}.cq-none:hover{background:#2f3b32;color:#fff}

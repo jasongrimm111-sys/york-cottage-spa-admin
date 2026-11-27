@@ -1288,3 +1288,15 @@ html{touch-action:manipulation}
 .inp.inp-bad{border-color:#c8574a;box-shadow:0 0 0 3px rgba(200,87,74,.12)}
 .em-err{display:block;color:#b0413e;font-size:12.5px;font-weight:600;margin-top:5px}
 .k-intro p{margin:0 0 10px}.k-intro p:last-child{margin-bottom:0}
+
+/* hand-over form on a landscape iPad or wider: the long yes/no checklists go into two columns */
+@media (min-width:1000px){
+  .kiosk .kiosk-in{max-width:980px}
+  .kiosk .cq-grp{display:grid;grid-template-columns:1fr 1fr}
+  .kiosk .cq-grp-h{grid-column:1/-1}
+  .kiosk .cq-r:nth-child(odd){border-left:1px solid rgba(35,40,35,.08)}
+}
+
+/* pop-ups and messages open above the full-screen consultation form */
+body:has(.kiosk) .ov{z-index:6000}
+body:has(.kiosk) .toast{z-index:6100}

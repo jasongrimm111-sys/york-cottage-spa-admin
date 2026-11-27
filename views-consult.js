@@ -67,7 +67,7 @@
         ${C.formHTML(fqs, { name: ((b.guestList || [])[g] || {}).name || (g === 0 ? A.cust(b) : ''), consent: cc().consentText, prefill: g === 0 ? { email: (b.customer || {}).email || '', phone: (b.customer || {}).phone || '', optin: !!custRec((b.customer || {}).email).marketing } : {} })}
         <div class="k-foot"><p class="kiosk-lock">🔒 Your answers are encrypted on this tablet and only York Cottage can read them.</p><button class="btn pri k-send" id="kGo">Send my answers →</button></div></div>`;
       C.wireForm(ov, qs); ov.scrollTop = 0;
-      $('[data-x]', ov).onclick = async () => { if (await A.confirm('Cancel this form?', 'Nothing has been saved. You can start it again from the list.', 'Cancel the form', true)) close(); };
+      $('[data-x]', ov).onclick = async () => { if (await A.modal({ title: 'Cancel this form?', body: '<p>Nothing has been saved. You can start it again from the list.</p>', ok: 'Yes, cancel the form', cancel: 'Keep going', danger: true })) close(); };
       $('#kGo', ov).onclick = async e => { const v = C.readForm(ov, qs), msg = $('.cq-msg', ov);
         if (!v.ok) { msg.textContent = v.msg; return; }
         e.target.disabled = true; e.target.textContent = 'Saving…';
@@ -86,8 +86,43 @@
     formStep();
   };
 
+  // demo only (user 2026-11-27): guests marked as done get a realistic filled-in form the first time it's opened
+  const rnd = seed => { let h = 2166136261; for (const ch of seed) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return ((h >>> 0) % 10000) / 10000; }; };
+  const sigImage = name => { const cv = document.createElement('canvas'); cv.width = 900; cv.height = 260; const cx = cv.getContext('2d');
+    cx.fillStyle = 'rgba(0,0,0,0)'; cx.fillRect(0, 0, 900, 260); cx.fillStyle = '#1d2a22'; cx.font = 'italic 86px "Segoe Script","Brush Script MT","Lucida Handwriting",cursive'; cx.textBaseline = 'middle';
+    cx.save(); cx.translate(60, 140); cx.rotate(-0.04); cx.fillText(name, 0, 0); cx.restore(); return cv.toDataURL('image/png'); };
+  const sampleForm = (b, g) => {
+    const r = rnd(b.id + '|' + g), pick = a => a[Math.floor(r() * a.length)], qs = guestQs(b, g), name = guestName(b, g), a = {};
+    const yesOdds = { allergies: .18, back: .12, meds: .2, pain: .15, anxiety: .12, skin: .06, arthritis: .05, bruising: .07, surgery: .04 };
+    const details = { allergies: pick(['Nut allergy (peanuts)', 'Allergic to lavender oil', 'Sensitive to latex']), back: pick(['Lower back stiffness from desk work', 'Old disc injury, please go gently on the lower back']), meds: pick(['Antihistamines for hay fever', 'Blood pressure tablets (amlodipine)', 'The contraceptive pill']), pain: 'Tension in my neck and shoulders', anxiety: 'Mild, I prefer a quiet room', skin: 'Eczema on my hands', arthritis: 'Some arthritis in my knees', bruising: 'Small bruise on my left shin', surgery: 'Knee surgery about two years ago' };
+    const said = [];
+    for (const q of qs) {
+      if (q.type === 'yesno') { const y = r() < (yesOdds[q.id] || 0); a[q.id] = { yes: y, detail: y && q.detail ? (details[q.id] || 'Please be gentle') : '' }; if (y && details[q.id]) said.push(details[q.id]); }
+      else if (q.type === 'choice') a[q.id] = q.id === 'pregnant' ? 'No' : q.id === 'gender' ? pick(['Female', 'Female', 'Female', 'Male', 'Other / Prefer not to say']) : q.id === 'massage_before' ? pick(['Yes', 'Yes', 'No']) : q.id === 'stress' || q.id === 'energy' ? pick(['Low', 'Medium', 'Medium', 'High']) : pick(q.options || ['']);
+      else if (q.type === 'multi') a[q.id] = (q.options || []).filter(() => r() < .35);
+      else if (q.type === 'optin') a[q.id] = r() < .45;
+      else if (q.fill === 'email') a[q.id] = g === 0 ? ((b.customer || {}).email || '') : name.toLowerCase().replace(/[^a-z]+/g, '.') + '@example.com';
+      else if (q.fill === 'phone') { const ph = C.splitPhone(g === 0 ? ((b.customer || {}).phone || '') : '07700 9' + String(Math.floor(r() * 90000) + 10000)); a[q.id] = ph.num ? ph.code + ' ' + ph.num : ''; }
+      else if (q.id === 'gp') a[q.id] = pick(['Dr Patel, Bozeat Surgery', 'Dr Hughes, Wollaston Surgery', 'Dr Okafor, Rushden Medical Centre', 'Dr Wright, Olney Health Centre']);
+      else if (q.id === 'details') a[q.id] = said.join('. ');
+      else if (q.id === 'other') a[q.id] = r() < .85 ? 'None' : 'Occasional migraines';
+      else if (q.type === 'date') a[q.id] = '';
+      else if (q.type === 'text' || q.type === 'short') a[q.id] = '';
+    }
+    const y = 1958 + Math.floor(r() * 42), dob = `${y}-${String(1 + Math.floor(r() * 12)).padStart(2, '0')}-${String(1 + Math.floor(r() * 28)).padStart(2, '0')}`;
+    const online = r() < .55, at = new Date((b.date || today()) + 'T' + (online ? '19:' : '09:') + String(10 + Math.floor(r() * 49)) + ':00'); if (online) at.setDate(at.getDate() - 1 - Math.floor(r() * 4));
+    return { via: online ? 'online' : 'tablet', at: at.toISOString(), answers: { name, dob, a, consent: true, sign: name, sigImg: sigImage(name), signedAt: at.toISOString(), questions: qs } };
+  };
+  const ensureDemoForms = async b => {
+    if (St.S.mode !== 'demo') return;
+    const c = cc(); if (!c.publicKey) { c.publicKey = await St.makeConsultKey(); A.change('cfg'); }
+    const have = await St.listConsults(b), gs = (b.guestList || []).map((x, g) => g).filter(g => ((b.guestList[g] || {}).consult === 'done') && !have.some(h => +h.g === g));
+    for (const g of gs) { const f = sampleForm(b, g); await St.saveConsult(b, g, await C.seal(c.publicKey, f.answers), f.via); const recs = St.S.DB.consults || []; const last = recs[recs.length - 1]; if (last) last.at = f.at; }
+  };
+
   // read completed forms
   A.viewConsults = async (b, g) => {
+    try { await ensureDemoForms(b); } catch (e) { console.warn(e); }
     let list = []; try { list = await St.listConsults(b); } catch (e) { A.toast('Couldn’t load the forms: ' + e.message); return; }
     if (g != null) list = list.filter(x => +x.g === +g || x.g === 'all');
     if (!list.length) { A.toast('No form yet' + (g != null ? ' for ' + guestName(b, g) : '')); return; }
@@ -98,7 +133,7 @@
     const show = ({ x, f, err }) => err ? `<div class="note bad">A form from ${ft(x.at)} couldn’t be opened (it was made with an older key).</div>` : `<div class="card" style="margin-bottom:12px">
       <div class="card-h"><h3>${esc(f.name)}</h3><span class="small muted">${x.via === 'online' ? 'Online, before the visit' : 'On the tablet'} · ${ft(f.signedAt || x.at)}</span></div>
       ${C.flags(f.questions, f.a).length ? `<div class="note warn" style="margin-bottom:10px"><b>Check before the treatment:</b> ${C.flags(f.questions, f.a).map(esc).join(' · ')}</div>` : '<div class="note ok" style="margin-bottom:10px">Nothing flagged</div>'}
-      <div class="ca">${[['Date of birth', f.dob ? fd(f.dob) : '—']].map(([q, a]) => `<div class="ca-r"><span>${q}</span><b>${esc(a)}</b></div>`).join('')}
+      <div class="ca">${[['Date of birth', f.dob ? new Date(f.dob + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—']].map(([q, a]) => `<div class="ca-r"><span>${q}</span><b>${esc(a)}</b></div>`).join('')}
         ${(f.questions || []).map(q => { if (q.type === 'heading') return `<div class="ca-h">${esc(q.label)}</div>`; if (q.type === 'info') return '';
           const a = (f.a || {})[q.id], flag = C.flags([q], f.a || {}).length; return `<div class="ca-r ${flag ? 'flag' : ''}"><span>${esc(q.label)}</span><b>${flag ? '⚑ ' : ''}${esc(C.answerText(q, a))}</b></div>`; }).join('')}
         <div class="ca-h">Signed</div><div class="ca-r"><span>${esc(f.sign)} · ${f.consent ? 'agreed to the terms and confirmed the information is correct' : ''}</span><b>${ft(f.signedAt || x.at)}</b></div>
