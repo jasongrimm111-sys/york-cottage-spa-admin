@@ -22,6 +22,8 @@
   A.iname = it => E.itemName ? E.itemName(A.cfg(), it) : A.tname(it.tid);   // a booked treatment, with any it was extended by
   A.sname = id => ((A.cfg().staff.find(s => s.id === id)) || {}).name || '—';
   A.scol = id => ((A.cfg().staff.find(s => s.id === id)) || {}).colour || '#8a9a85';
+  // guests' names in a booking (user 2026-11-27): the lead guest first, unnamed ones as "Guest 2" etc.
+  A.guestNames = (b, opt = {}) => Array.from({ length: (b && b.guests) || 0 }, (_, i) => ((b.guestList || [])[i] || {}).name || (i === 0 ? A.cust(b) : `Guest ${i + 1}`)).slice(opt.others ? 1 : 0);
   A.initials = n => String(n || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
   // profile pictures (user 2026-11-27): 'staff:<id>' or 'user:<id>' → a small square JPEG (data URL) in cfg.photos
   A.photoOf = key => ((St.S.DB && St.S.DB.cfg && St.S.DB.cfg.photos) || {})[key] || '';

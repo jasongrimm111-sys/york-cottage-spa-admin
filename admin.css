@@ -1048,3 +1048,4 @@ html{touch-action:manipulation}
 .tg-ev b,.tg-ev span:not(.tg-tr):not(.tg-trs),.tg-food-chip b,.tg-food-chip span{text-overflow:ellipsis}
 .tg-tr{display:block}
 .tg-tr > *{display:inline}
+.with-names{display:block;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.35;margin:1px 0 2px}
