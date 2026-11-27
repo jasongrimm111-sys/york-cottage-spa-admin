@@ -693,18 +693,21 @@
     E.extraCharges(cfg, b).forEach(c => { const t = E.tr(cfg, c.tid); tsum += c.price; if (t.head && p.kind !== 'treat') off += c.price * cfg.rules.headSpaOff / 100; });
     (b.addOns || []).forEach(a => lines.push({ k: 'addon', label: a.label, amount: +a.amount || 0 }));
     if (tsum) lines.push({ k: 'treat', label: 'Treatments', amount: tsum });
-    if (off) lines.push({ k: 'headoff', label: `Head spa ${cfg.rules.headSpaOff}% off`, amount: -Math.round(off * 100) / 100 });
+    // only one discount per booking: the head spa offer, a discount code or a staff discount, whichever saves most (user 2026-11-27)
     let total = lines.reduce((a, l) => a + l.amount, 0);
+    const offers = [];
+    if (off) offers.push({ k: 'headoff', label: `Head spa ${cfg.rules.headSpaOff}% off`, d: Math.round(off * 100) / 100 });
     if (b.promo && +b.promo.value) {
-      const base = lines.filter(l => b.promo.on === 'all' || l.k === 'base' || (b.promo.on === 'treat' && l.k === 'treat')).reduce((a, l) => a + l.amount, 0);
+      const base = lines.filter(l => b.promo.on === 'all' || (b.promo.on === 'treat' ? l.k === 'treat' : l.k === 'base')).reduce((a, l) => a + l.amount, 0);
       const d = Math.min(base, b.promo.type === 'pct' ? Math.round(base * b.promo.value) / 100 : +b.promo.value);
-      if (d > 0) { lines.push({ k: 'promo', label: `Code ${b.promo.code}` + (b.promo.type === 'pct' ? ` (${b.promo.value}% off)` : ''), amount: -d }); total -= d; }
+      if (d > 0) offers.push({ k: 'promo', label: `Code ${b.promo.code}` + (b.promo.type === 'pct' ? ` (${b.promo.value}% off)` : ''), d });
     }
     if (b.discount && +b.discount.value) {
-      const d = b.discount.type === 'pct' ? Math.round(total * b.discount.value) / 100 : +b.discount.value;
-      lines.push({ k: 'discount', label: 'Discount' + (b.discount.reason ? ' · ' + b.discount.reason : '') + (b.discount.type === 'pct' ? ` (${b.discount.value}%)` : ''), amount: -d });
-      total -= d;
+      const d = Math.min(total, b.discount.type === 'pct' ? Math.round(total * b.discount.value) / 100 : +b.discount.value);
+      offers.push({ k: 'discount', label: 'Discount' + (b.discount.reason ? ' · ' + b.discount.reason : '') + (b.discount.type === 'pct' ? ` (${b.discount.value}%)` : ''), d });
     }
+    const best = offers.reduce((a, o) => !a || o.d > a.d || (o.d === a.d && o.k === 'discount') ? o : a, null);
+    if (best) { lines.push({ k: best.k, label: best.label + (offers.length > 1 ? ' (only one discount per booking)' : ''), amount: -best.d }); total -= best.d; }
     if (b.totalOverride != null && b.totalOverride !== '') { lines.push({ k: 'override', label: 'Price set by staff', amount: +b.totalOverride - total }); total = +b.totalOverride; }
     total = Math.max(0, Math.round(total * 100) / 100);
     const pay = p.pay || { deposit: 100 }, t0 = today || localISO();
