@@ -26,6 +26,8 @@
   }
   function emailHtml(text, opt = {}) {
     const b = opt.business || {}, site = (opt.site || '').replace(/\/?$/, '/'), logo = opt.logo || site + 'img/email-logo.png';
+    // guests' booking emails open with a photo of the spa (user 2026-11-27); marketing emails use their own picture (or none)
+    if (!opt.image && !opt.internal && !opt.unsubscribe && opt.photo !== false) opt = { ...opt, image: site + 'img/email/pool-lounge.jpg' };
     const contact = [b.address && esc(b.address), b.phone && `<a href="tel:${esc(String(b.phone).replace(/\s/g, ''))}" style="color:#6b6f68;text-decoration:none">${esc(b.phone)}</a>`, b.email && `<a href="mailto:${esc(b.email)}" style="color:#6b6f68;text-decoration:none">${esc(b.email)}</a>`].filter(Boolean).join(' · ');
     return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${esc(opt.subject || b.name || 'York Cottage Spa')}</title></head>
 <body style="margin:0;padding:0;background:#f6f1e9">
