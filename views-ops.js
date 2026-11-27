@@ -98,9 +98,11 @@
 
   // ============ TODAY ============
   V.ahead = (d) => V.today(d, { ahead: true });
+  const asQ0 = () => { const q = new URLSearchParams((location.hash.split('?')[1] || '')).get('as'); return q && q !== 'all' ? q : ''; };
   V.today = (d, opt = {}) => {
-    const real = today(), tmw = E.addD(real, 1), ahead = !!opt.ahead, base = ahead ? 'ahead' : 'today';
-    const t = ahead ? (/^\d{4}-\d\d-\d\d$/.test(d || '') && d >= tmw ? d : tmw) : real, DB = A.DB(), cfg = A.cfg(), isToday = t === real;
+    const real = today(), tmw = E.addD(real, 1), want = /^\d{4}-\d\d-\d\d$/.test(d || '') ? d : '', ahead = !!(want && want > real), base = ahead ? 'ahead' : 'today';
+    const t = ahead ? want : real, DB = A.DB(), cfg = A.cfg(), isToday = t === real;
+    const dayHref = x => (x <= real ? '#/today' : '#/ahead/' + x) + (asQ0() ? '?as=' + asQ0() : '');
     // "View as": ?as=<staff id> in the link; someone who is also a therapist sees their own list by default
     const asQ = new URLSearchParams((location.hash.split('?')[1] || '')).get('as'), asId = asQ === 'all' ? '' : (asQ || '');
     // whose day: picture buttons rather than a dropdown (user, 2026-11-26)
@@ -169,7 +171,7 @@
         <div class="rb"><div class="rb-in"><div class="rb-hours"><span class="rb-gut"></span><div class="rb-scale">${hrsTicks.join('')}</div></div>${rows}${nowOn ? `<div class="rb-nowwrap"><span class="rb-gut"></span><div class="rb-nowtrack"><i class="rb-now" style="left:${pc(nowM)}"><em>${E.HM(nowM)}</em></i></div></div>` : ''}</div></div></div>`;
     })();
     const stat = (n, label, sub) => `<div class="td-stat"><b>${n}</b><span>${label}</span>${sub ? `<small>${sub}</small>` : ''}</div>`;
-    return { html: `${asBar}<div class="vh td-head"><div><div class="eyebrow">${isToday ? fdy(t) : rel}</div><h1>${isToday ? greet : fdy(t)}</h1></div>${ahead ? `<div class="acts">${t > tmw ? `<a class="btn" href="#/ahead/${E.addD(t, -1)}${asQ ? '?as=' + asQ : ''}" title="Previous day">${A.ic.left}</a>` : `<span class="btn" aria-disabled="true" style="opacity:.35">${A.ic.left}</span>`}<input type="date" class="inp" id="todayPick" value="${t}" min="${tmw}" style="width:auto" aria-label="Choose a day"><a class="btn" href="#/ahead/${E.addD(t, 1)}${asQ ? '?as=' + asQ : ''}" title="Next day">${A.ic.right}</a></div>` : ''}</div>
+    return { html: `${asBar}<div class="vh td-head"><div><div class="eyebrow">${isToday ? fdy(t) : rel}</div><h1>${isToday ? greet : fdy(t)}</h1></div><div class="acts">${t > real ? `<a class="btn" href="${dayHref(E.addD(t, -1))}" title="Previous day">${A.ic.left}</a>` : `<span class="btn" aria-disabled="true" style="opacity:.35">${A.ic.left}</span>`}<input type="date" class="inp" id="todayPick" value="${t}" min="${real}" style="width:auto" aria-label="Choose a day"><a class="btn" href="${dayHref(E.addD(t, 1))}" title="Next day">${A.ic.right}</a>${t > real ? `<a class="btn" href="#/today${asQ ? '?as=' + asQ : ''}">Today</a>` : ''}</div></div>
       <div class="td-bar"><div class="td-stats">${stat(guests, 'guests', `${arr.length} arriving · ${dep.length} leaving`)}${stat(items.length, 'treatments', `${staffToday.length} working`)}${stat(`${roomsUsed}<small>/${roomsAll}</small>`, isToday ? 'rooms tonight' : 'rooms that night', '')}${stat(gbp(takings), 'taken', `${pend.length} awaiting payment`)}</div></div>
             ${closedToday.length ? `<div class="note warn" style="margin-bottom:14px">Closed ${isToday ? 'today' : 'this day'}: ${closedToday.map(c => esc(c.reason || 'closure')).join(', ')}</div>` : ''}
             ${A.staffingNote && t >= real ? A.staffingNote(t) : ''}
@@ -189,7 +191,7 @@
             ${next7.map(x => `<a class="hbar" href="${x.d === real ? '#/today' : '#/ahead/' + x.d}" style="text-decoration:none"><span>${fd(x.d)}</span><span class="bar"><i style="width:${x.n / mx * 100}%"></i></span><b>${x.n}</b></a>`).join('')}<p class="small muted">Guests visiting or staying each day</p></div>` : ''}
         </div>
       </div>`,
-      wire: el => { A.wireMove(el); const tp = $('#todayPick', el); if (tp) tp.onchange = () => { if (tp.value) A.goDay('#/ahead/' + (tp.value > today() ? tp.value : E.addD(today(), 1)) + (asQ ? '?as=' + asQ : '')); }; A.wireArrive(el); A.wireMyDay(el); if (A.wireCalClicks) A.wireCalClicks(el);
+      wire: el => { A.wireMove(el); const tp = $('#todayPick', el); if (tp) tp.onchange = () => { if (tp.value) A.goDay((tp.value > today() ? '#/ahead/' + tp.value : '#/today') + (asQ ? '?as=' + asQ : '')); }; A.wireArrive(el); A.wireMyDay(el); if (A.wireCalClicks) A.wireCalClicks(el);
         asWire(el);
         // phones: the day's timeline scrolls sideways; start it with the current time in view (user, 2026-11-27)
         const rb = $('.rb', el), nw = $('.rb-now', el);

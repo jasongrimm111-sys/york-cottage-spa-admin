@@ -146,7 +146,7 @@
 
   // ---------- shell ----------
   const NAV = [
-    ['Run the day', [['today', 'Today', 'today'], ['ahead', 'Future days', 'cal'], ['calendar', 'Calendar', 'cal'], ['roomcal', 'Room calendar', 'bed'], ['bookings', 'Bookings', 'list'], ['waitlist', 'Waitlist', 'wait']]],
+    ['Run the day', [['today', 'Today', 'today'], ['calendar', 'Calendars', 'cal'], ['bookings', 'Bookings', 'list'], ['waitlist', 'Waitlist', 'wait']]],
     ['Team', [['staff', 'Staff', 'staff'], ['rota', 'Rota', 'rota'], ['requests', 'Time off & sickness', 'rota']]],
     ['Guests & sales', [['support', 'Support', 'mail'], ['customers', 'Customers', 'cust'], ['vouchers', 'Gift vouchers', 'gift'], ['promos', 'Discount codes', 'tag'], ['reports', 'Reports', 'chart']]],
     ['Set-up', [['spa', 'Spa & sessions', 'spa'], ['treatments', 'Treatments', 'treat'], ['rooms', 'Rooms', 'bed'], ['products', 'Booking types', 'box'], ['rates', 'Date prices', 'price'], ['emails', 'Emails', 'mail'], ['rules', 'Rules', 'log'], ['settings', 'Settings', 'cog']]]
@@ -171,7 +171,7 @@
         <div class="me"><button class="me-btn" id="meBtn"><i${A.userPhoto(S.user) ? ` style="background-image:url(${A.userPhoto(S.user)});background-size:cover;color:transparent"` : ''}>${A.initials(S.user.name)}</i><b>${esc(S.user.name.split(' ')[0])}</b></button>
           <div class="me-menu" id="meMenu" hidden><a href="#/settings/users">Users & password</a><a href="#/settings/data">Backup & data</a>${S.mode === 'demo' ? '<button id="resetDemo">Reset the demo data</button>' : ''}<button id="signOut">Sign out</button></div></div>
       </header><main class="view" id="view"></main></div>
-      <nav class="tabbar" aria-label="Main"><button id="tbMenu" type="button">${A.ic.menu}<span>Menu</span></button>${[...(A.can('view.today') ? [['today', 'Today', 'today'], ['ahead', 'Future', 'cal']] : A.myStaff() ? [['staffday/' + A.myStaff(), 'My day', 'today']] : []), ...(A.can('view.calendar') ? [['calendar', 'Calendar', 'cal']] : []), ...(A.can('view.bookings') ? [['bookings', 'Bookings', 'list']] : [])].slice(0, 4).map(([r, t, ic]) => `<a href="#/${r}" data-r="${r.split('/')[0]}">${A.ic[ic]}<span>${t}</span>${r === 'todo' ? '<i class="tb-cnt" data-cnt="todo2" hidden></i>' : ''}</a>`).join('')}</nav></div>`;
+      <nav class="tabbar" aria-label="Main"><button id="tbMenu" type="button">${A.ic.menu}<span>Menu</span></button>${[...(A.can('view.today') ? [['today', 'Today', 'today'], ['todo', 'To do', 'list']] : A.myStaff() ? [['staffday/' + A.myStaff(), 'My day', 'today']] : []), ...(A.can('view.calendar') ? [['calendar', 'Calendar', 'cal']] : []), ...(A.can('view.bookings') ? [['bookings', 'Bookings', 'list']] : [])].slice(0, 4).map(([r, t, ic]) => `<a href="#/${r}" data-r="${r.split('/')[0]}">${A.ic[ic]}<span>${t}</span>${r === 'todo' ? '<i class="tb-cnt" data-cnt="todo2" hidden></i>' : ''}</a>`).join('')}</nav></div>`;
     $('#burger').onclick = () => document.body.classList.toggle('nav-open');
     $('#tbMenu').onclick = e => { e.stopPropagation(); document.body.classList.toggle('nav-open'); };
     $('#side').addEventListener('click', e => { if (e.target.closest('a')) document.body.classList.remove('nav-open'); });
@@ -287,8 +287,9 @@
     // colours for booking types added later: the next validated palette slot
     const SLOTS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'];
     Object.keys(A.cfg().products).forEach((k, i) => { if (!PCOL[k]) PCOL[k] = SLOTS[i % SLOTS.length]; });
-    $$('.tabbar a').forEach(a => a.classList.toggle('on', a.dataset.r === name || (name === 'booking' && a.dataset.r === 'bookings') || (name === 'day' && a.dataset.r === 'calendar')));
-    $$('.nav a').forEach(a => a.classList.toggle('on', a.dataset.r === name || (name === 'booking' && a.dataset.r === 'bookings') || (name === 'day' && a.dataset.r === 'calendar') || (name === 'customer' && a.dataset.r === 'customers') || (name === 'edit' && a.dataset.r === 'bookings')));
+    const alias = { ahead: 'today', roomcal: 'calendar', day: 'calendar', booking: 'bookings', edit: 'bookings', customer: 'customers' }, nm = alias[name] || name;
+    $$('.tabbar a').forEach(a => a.classList.toggle('on', a.dataset.r === name || a.dataset.r === nm));
+    $$('.nav a').forEach(a => a.classList.toggle('on', a.dataset.r === name || a.dataset.r === nm || (name === 'customer' && a.dataset.r === 'customers') || (name === 'edit' && a.dataset.r === 'bookings')));
     const el = $('#view');
     const same = current === h; current = h;
     try {
@@ -309,7 +310,7 @@
   // Back goes to the previous page, not the previous day (user 2026-11-27): moving between days, weeks or months of the same
   // view replaces the history entry instead of adding one. A.goDay(hash) does the same for date pickers and dropdowns.
   const BROWSE = new Set(['today', 'ahead', 'day', 'staffday', 'rota', 'calendar', 'roomcal', 'timeline', 'reports']);
-  const routeName = h => (String(h || '').replace(/^#\/?/, '').split(/[/?]/)[0]) || 'today';
+  const routeName = h => { const n = (String(h || '').replace(/^#\/?/, '').split(/[/?]/)[0]) || 'today'; return n === 'ahead' ? 'today' : n; };
   A.goDay = h => { if (BROWSE.has(routeName(h)) && routeName(h) === routeName(location.hash)) location.replace(h); else location.hash = h; };
   document.addEventListener('click', e => {
     if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
