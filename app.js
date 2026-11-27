@@ -133,7 +133,7 @@
   // ---------- shell ----------
   const NAV = [
     ['Run the day', [['today', 'Today', 'today'], ['ahead', 'Future days', 'cal'], ['calendar', 'Calendar', 'cal'], ['roomcal', 'Room calendar', 'bed'], ['bookings', 'Bookings', 'list'], ['waitlist', 'Waitlist', 'wait']]],
-    ['Team', [['staff', 'Staff', 'staff'], ['rota', 'Rota', 'rota'], ['requests', 'Time off & swaps', 'rota']]],
+    ['Team', [['staff', 'Staff', 'staff'], ['rota', 'Rota', 'rota'], ['requests', 'Time off & sickness', 'rota']]],
     ['Guests & sales', [['support', 'Support', 'mail'], ['customers', 'Customers', 'cust'], ['vouchers', 'Gift vouchers', 'gift'], ['promos', 'Discount codes', 'tag'], ['reports', 'Reports', 'chart']]],
     ['Set-up', [['spa', 'Spa & sessions', 'spa'], ['treatments', 'Treatments', 'treat'], ['rooms', 'Rooms', 'bed'], ['products', 'Booking types', 'box'], ['rates', 'Date prices', 'price'], ['emails', 'Emails', 'mail'], ['rules', 'Rules', 'log'], ['settings', 'Settings', 'cog']]]
   ];

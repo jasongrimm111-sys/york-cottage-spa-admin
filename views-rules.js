@@ -81,6 +81,17 @@
     ], '#/settings/rules'));
 
     // ---- breaks ----
+    // ---- staff cover (user 2026-11-27) ----
+    const covers = cfg.staff.filter(s => s.active !== false && s.cover), sug = A.staffingSuggestions ? A.staffingSuggestions() : [], need = sug.filter(x => x.level >= 2);
+    out.push(card('cover', 'Staff cover for busy days', 'How the system spots days that need another therapist, and how to add one just for that day.', [
+      `<b>How treatments are shared:</b> ${(r.share || 'fill') === 'fill' ? 'each therapist’s day is filled before the next is used, so a busy day shows clearly when one person is nearly full' : r.share === 'week' ? 'shared fairly across the week' : 'shared evenly between everyone on shift'}. <a href="#/settings/rules">Change</a>`,
+      `<b>Staffing suggestions</b> look six weeks ahead and flag a day when: therapist time is <b>85%+ booked</b>; a therapist is within <b>90% of their daily hands-on limit</b>; a session <b>still has places but no therapist time</b> is left for its included treatments (so it can’t be sold online); only the included treatments fit, so guests can’t add extras; or no therapist is rostered while the spa is open.`,
+      `Red means sales are being lost or someone is over their limit; amber means worth considering. They show on the <a href="#/rota">Rota</a>, in the <a href="#/todo">To do</a> list, and at the top of each day on <a href="#/ahead">Future days</a>${need.length ? `. <b>${need.length} day${need.length > 1 ? 's' : ''}</b> in the next six weeks ${need.length > 1 ? 'need' : 'needs'} cover now: ${need.slice(0, 5).map(x => `<a href="#/ahead/${x.date}">${A.fd(x.date)}</a>`).join(', ')}` : ''}.`,
+      `<b>To add cover:</b> press <b>Add cover</b> on a suggestion (or on the day). Pick a therapist who isn’t working that day, or add someone new, and set their hours. It’s a one-off shift for that day only; their usual week doesn’t change.`,
+      `When cover is added, the day’s <b>booked treatments are shared out</b> between everyone on shift where possible. Guests keep exactly the same times; only who treats them (and which room) can change, and you see the list before anything moves. Therapists whose treatments change are emailed their new list (if they have schedule alerts on).`,
+      `As soon as cover is on the rota, the website can <b>sell more that day</b>: more times for extras and longer treatments, and sessions that had no therapist time become bookable again.`,
+      `<b>Cover-only therapists</b> (Staff → Edit → “Cover only”) are only booked when the regular therapists are full, whichever sharing rule is chosen. ${covers.length ? 'Cover-only now: ' + covers.map(s => esc(s.name)).join(', ') + '.' : 'Nobody is marked cover-only yet; anyone new added through Add cover is.'} On days they aren’t rostered they add nothing to what the website offers.`
+    ], '#/rota'));
     out.push(card('breaks', 'Therapists’ lunch and breaks', 'The planner leaves room for these in everyone’s day.', [
       `No one works more than <b>${mins(br.maxWithoutBreak)}</b> without a break of <b>${br.breakMin}–${br.breakMax} minutes</b>.`,
       `On days over <b>${mins(br.lunchIfOver)}</b>, a lunch of <b>${br.lunchMin}–${br.lunchMax} minutes</b> between ${br.lunchFrom} and ${br.lunchTo}.`,
@@ -113,7 +124,7 @@
       'Staff booking in the admin follow the same rules, and can see times guests are paying for as taken.'
     ], '#/settings/rules'));
 
-    const toc = [['glance', 'The big rules'], ['hours', 'Hours'], ['types', 'Booking types'], ['treat', 'Treatments'], ['plan', 'Planning'], ['breaks', 'Breaks'], ['food', 'Food'], ['cap', 'Capacity'], ['staff', 'Staff'], ['online', 'Online']];
+    const toc = [['glance', 'The big rules'], ['hours', 'Hours'], ['types', 'Booking types'], ['treat', 'Treatments'], ['plan', 'Planning'], ['cover', 'Staff cover'], ['breaks', 'Breaks'], ['food', 'Food'], ['cap', 'Capacity'], ['staff', 'Staff'], ['online', 'Online']];
     return { html: `<div class="vh"><div><div class="eyebrow">Set-up</div><h1>Rules</h1><p>Everything the booking system follows, worked out from your current settings.</p></div></div>
       <nav class="rl-toc">${toc.map(([id, t]) => `<a href="#rl-${id}" data-rl="${id}">${t}</a>`).join('')}</nav>${out.join('')}`,
       wire: el => el.querySelectorAll('[data-rl]').forEach(a => a.onclick = e => { e.preventDefault(); const t = el.querySelector('#rl-' + a.dataset.rl); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); }) };

@@ -51,13 +51,20 @@
       body: `<div class="note warn">${esc(what)} clashes with treatments already booked. Choose what to do with each one. Guests whose times change can be emailed.</div>
         <div class="tbl-wrap"><table class="tbl"><thead><tr><th>When</th><th>Treatment</th><th>Guest</th><th>Problem</th><th>Do this</th></tr></thead><tbody>
         ${rows.map(x => `<tr><td><b>${fd(x.it.date || x.b.date)} ${x.it.start}</b></td><td>${esc(A.tname(x.it.tid))}<br><span class="small muted">${esc(A.sname(x.it.staff))}</span></td><td><a href="#/booking/${x.b.id}" target="_blank">${esc(A.cust(x.b))}</a><br><span class="small muted">${x.b.ref}</span></td><td class="small">${esc(x.why)}</td>
-          <td><select class="inp" data-fix="${x.i}">${x.opts.map((o, j) => `<option value="${j}">${esc(o.label)}</option>`).join('')}<option value="keep">Leave it and sort it out myself</option><option value="none">Remove the therapist (shows as “No therapist”)</option></select>${x.opts.length ? '' : '<small class="muted">No free therapist or time found</small>'}</td></tr>`).join('')}
+          <td><select class="inp" data-fix="${x.i}">${x.opts.map((o, j) => `<option value="${j}">${esc(o.label)}</option>`).join('')}${/-inc/.test(x.it.key) ? '' : '<option value="cancel">Cancel this extra treatment (refund it if paid)</option>'}<option value="keep">Leave it and sort it out myself</option><option value="none">Remove the therapist (shows as “No therapist”)</option></select>${x.opts.length ? '' : '<small class="muted">No free therapist or time found</small>'}</td></tr>`).join('')}
         </tbody></table></div>${A.f.chk('mail', 'Email guests whose treatment times change', true)}`,
       onOk: m => ({ choices: $$('[data-fix]', m).map(s => s.value), mail: $('[data-k=mail]', m).checked }) });
     if (!r) return false;
     const touched = new Set();
     rows.forEach((x, i) => {
       const c = r.choices[i]; if (c === 'keep') return;
+      if (c === 'cancel') {
+        const b = x.b, g = (b.guestList || [])[x.it.guest]; b.items = (b.items || []).filter(i => i !== x.it);
+        if (g && g.extras) { const k = g.extras.indexOf(x.it.tid); if (k >= 0) g.extras.splice(k, 1); }
+        const was = (b.quote || {}).total; b.quote = E.quote(A.cfg(), b); touched.add(b);
+        (b.history = b.history || []).push({ at: new Date().toISOString(), by: St.S.user.name, what: `Extra treatment ${A.tname(x.it.tid)} at ${x.it.start} cancelled (${what})${was != null && b.quote.total < was ? `: price down ${gbp(was - b.quote.total, 2)}, refund if already paid` : ''}` });
+        A.change('booking', b, `Cancelled a treatment on ${b.ref} after: ${what}`); return;
+      }
       if (c === 'none') { x.it.staff = null; }
       else { const o = x.opts[+c]; const moved = o.start !== x.it.start || o.date !== (x.it.date || x.b.date); Object.assign(x.it, { date: o.date, start: o.start, staff: o.staff, troom: o.troom }); if (moved) touched.add(x.b); }
       (x.b.history = x.b.history || []).push({ at: new Date().toISOString(), by: St.S.user.name, what: `Treatment ${A.tname(x.it.tid)} ${c === 'none' ? 'left without a therapist' : 'changed to ' + x.it.start + ' with ' + A.sname(x.it.staff)} (${what})` });
@@ -155,20 +162,25 @@
     const j = cfg.staff.findIndex(s => s.id === r.id); if (j >= 0) cfg.staff[j] = r; else cfg.staff.push(r);
     A.change('cfg', null, (st0 ? 'Staff updated: ' : 'Staff added: ') + r.name); A.toast('Saved'); A.refresh();
   }
-  async function timeOff(st) {
-    const cfg = A.cfg(), list = st.off || [];
+  async function timeOff(st, pre = {}) {
+    const cfg = A.cfg(), list = st.off || [], others = cfg.staff.filter(s => s.id !== st.id && s.active !== false && (s.treatments || []).length);
     const r = await A.modal({ title: 'Time off · ' + esc(st.name), size: 'wide', ok: 'Add time off', body: `
       ${list.length ? `<table class="tbl"><tbody>${list.slice().sort((a, b) => b.from.localeCompare(a.from)).map((o, i) => `<tr><td>${fd(o.from)}${o.to && o.to !== o.from ? ' – ' + fd(o.to) : ''}${o.start ? ` ${o.start}–${o.end}` : ''}</td><td><span class="badge">${esc(o.kind || 'other')}</span> ${esc(o.reason || '')}</td><td class="r"><button type="button" class="btn sm ghost" data-rmoff="${list.indexOf(o)}">Remove</button></td></tr>`).join('')}</tbody></table>` : '<p class="muted">No time off booked.</p>'}
-      <div class="hr"></div><div class="row r4">${A.f.date('from', 'From', today())}${A.f.date('to', 'To (inclusive)', today())}${A.f.sel('kind', 'Type', 'holiday', [['holiday', 'Holiday'], ['sick', 'Sickness'], ['training', 'Training'], ['other', 'Other']])}${A.f.text('reason', 'Note', '')}</div>
+      <div class="hr"></div><div class="row r4">${A.f.date('from', 'From', today())}${A.f.date('to', 'To (inclusive)', today())}${A.f.sel('kind', 'Type', pre.kind || 'holiday', [['holiday', 'Holiday'], ['sick', 'Sickness'], ['training', 'Training'], ['other', 'Other']])}${A.f.text('reason', 'Note', '')}</div>
       <div class="row r4">${A.f.time('start', 'Part of the day: from', '', { hint: 'Leave blank for whole days' })}${A.f.time('end', 'to', '')}</div>
+      <div class="row r2">${A.f.sel('coverId', 'A colleague covering (works the same hours on those days)', '', [['', 'Nobody: I’ll sort the treatments next']].concat(others.map(s => [s.id, s.name + (s.cover ? ' (cover)' : '')])))}</div>
       <p class="small muted">${holidayUsed(st, today().slice(0, 4))} of ${st.holidayDays || 28} holiday days booked this year.</p>`,
       onOpen: (m, close) => $$('[data-rmoff]', m).forEach(b => b.onclick = () => { st.off.splice(+b.dataset.rmoff, 1); A.change('cfg', null, 'Time off removed: ' + st.name); close(); timeOff(st); }),
       onOk: m => { const v = A.read(m); if (!v.from) throw new Error('Choose the dates'); if (v.to && v.to < v.from) throw new Error('The end is before the start'); return v; } });
     if (!r) return;
     const o = { from: r.from, to: r.to || r.from, kind: r.kind, reason: r.reason }; if (r.start && r.end) { o.start = r.start; o.end = r.end; }
     const cfg2 = clone(cfg); const s2 = cfg2.staff.find(s => s.id === st.id); (s2.off = s2.off || []).push(o);
-    if (!(await A.handleImpacts(cfg2, `${st.name}’s time off`, (b, it) => it.staff === st.id))) return;
-    (st.off = st.off || []).push(o); A.change('cfg', null, `Time off for ${st.name}: ${o.from} to ${o.to}`); A.toast('Time off added'); A.refresh();
+    // a colleague covering works the same hours on those days (if they aren't already working), so treatments can go straight to them
+    const cover = r.coverId && cfg.staff.find(s => s.id === r.coverId), shifts = {};
+    if (cover && !o.start) for (let d = o.from; d <= o.to; d = E.addD(d, 1)) { const mine = st.shifts && d in st.shifts ? st.shifts[d] : (st.pattern || {})[E.dow(d)], c2 = cfg2.staff.find(s => s.id === cover.id); if (E.shiftsOf(mine).length && !E.staffDay(cfg, cover, d)) { shifts[d] = clone(mine); (c2.shifts = c2.shifts || {})[d] = clone(mine); } }
+    if (!(await A.handleImpacts(cfg2, `${st.name}’s ${o.kind === 'sick' ? 'sick leave' : 'time off'}${cover ? ` (${cover.name} covering)` : ''}`, (b, it) => it.staff === st.id))) return;
+    (st.off = st.off || []).push(o); if (cover) Object.entries(shifts).forEach(([d, sh]) => { (cover.shifts = cover.shifts || {})[d] = sh; });
+    A.change('cfg', null, `${o.kind === 'sick' ? 'Sickness' : 'Time off'} for ${st.name}: ${o.from} to ${o.to}${cover ? `; ${cover.name} covering` : ''}`); A.toast(o.kind === 'sick' ? 'Sickness recorded' : 'Time off added'); A.refresh();
   }
   A.timeOff = timeOff;
 
