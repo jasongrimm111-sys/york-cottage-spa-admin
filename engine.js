@@ -696,7 +696,7 @@
   E.unitPrice = (cfg, product, date, nights) => {
     const p = cfg.products[product], r = E.rate(cfg, product, date);
     if (p.kind === 'house') return r && r.night != null ? r.night : p.night;
-    if (p.priceN) return r && r.priceN && r.priceN[nights] != null ? r.priceN[nights] : p.priceN[nights];
+    if (p.priceN) { const pn = r && r.priceN && r.priceN[nights] != null ? r.priceN[nights] : p.priceN[nights]; if (pn != null) return pn; const k = Object.keys(p.priceN).map(Number).sort((a, z) => a - z)[0]; return k ? Math.round(p.priceN[k] / k * (nights || k)) : 0; }   // nights it isn't sold for: per-night share, never 'undefined'
     return r && r.price != null ? r.price : p.price;
   };
   E.quote = (cfg, b, today) => {

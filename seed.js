@@ -49,7 +49,7 @@
         const product = k < must.length ? must[k] : prodPick(), p = cfg.products[product]; if (!p || p.active === false) continue;
         let guests = product === 'group' ? 7 + Math.floor(rnd() * 5) : product === 'house' ? 10 + Math.floor(rnd() * 6) : product === 'private' ? 4 + Math.floor(rnd() * 5) : product === 'treat' ? 1 + (rnd() < .3 ? 1 : 0) : rnd() < .7 ? 2 : (product === 'break' ? 4 : 1 + Math.floor(rnd() * 4));
         guests = Math.max(E.minGuests(cfg, product, date), Math.min(p.max, guests));
-        const nights = p.kind === 'house' ? 2 + (rnd() < .3 ? 1 : 0) : p.nights ? (rnd() < .3 && p.nights.includes(2) ? 2 : 1) : 0;
+        const nights = p.kind === 'house' ? 2 + (rnd() < .3 ? 1 : 0) : p.nights ? (p.nights.length > 1 && rnd() < .3 ? p.nights[1] : p.nights[0]) : 0;   // only nights the break is sold for
         const chk = E.dateCheck(cfg, ix, { product, date, nights, guests, admin: true, today: E.addD(date, -30) });
         if (!chk.ok) continue;
         const ses = chk.sessions ? chk.sessions.filter(s => s.ok) : [];

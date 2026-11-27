@@ -327,7 +327,7 @@
       return true;
     };
     const list = DB.bookings.filter(match).sort((a, b) => F.when === 'past' ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date) || arriveTime(a).localeCompare(arriveTime(b)));
-    const shown = list.slice(0, 300);
+    const shown = list.slice(0, 5000);   // pages of 25 (user 2026-11-27)
     const sum = list.filter(E.live).reduce((a, b) => a + (b.quote || {}).total, 0);
     const sel = (k, opts) => `<select class="inp" data-f="${k}" style="width:auto">${opts.map(([v, tx]) => `<option value="${v}" ${F[k] === v ? 'selected' : ''}>${tx}</option>`).join('')}</select>`;
     return { html: `<div class="vh"><div><div class="eyebrow">Bookings</div><h1>Bookings</h1><p>${list.length} booking${list.length === 1 ? '' : 's'} · ${gbp(sum)} booked</p></div>
@@ -610,7 +610,7 @@
       const html = `<div class="vh"><div><div class="eyebrow">${orig ? 'Edit ' + B.ref : 'New booking'}</div><h1>${orig ? esc(A.cust(B)) || 'Edit booking' : 'New booking'}</h1></div><div class="acts"><a class="btn" href="${orig ? '#/booking/' + orig.id : '#/bookings'}">Cancel</a></div></div>
       <div class="be">
         <div>
-          <div class="card"><div class="card-h"><h3>1 · What are they booking?</h3></div><div class="pick">${prods.map(([k, x]) => `<button type="button" data-prod="${k}" class="${B.product === k ? 'on' : ''}">${A.prodDot(k)} <b>${esc(x.name)}</b><small>${x.kind === 'house' ? '£' + x.night + '/night' : x.priceN ? '£' + x.priceN[1] + ' pp' : x.price ? '£' + x.price + ' pp' : 'priced by treatment'}</small></button>`).join('')}</div></div>
+          <div class="card"><div class="card-h"><h3>1 · What are they booking?</h3></div><div class="pick">${prods.map(([k, x]) => `<button type="button" data-prod="${k}" class="${B.product === k ? 'on' : ''}">${A.prodDot(k)} <b>${esc(x.name)}</b><small>${x.kind === 'house' ? '£' + x.night + '/night' : x.priceN ? '£' + Object.values(x.priceN)[0] + ' pp' : x.price ? '£' + x.price + ' pp' : 'priced by treatment'}</small></button>`).join('')}</div></div>
           <div class="card"><div class="card-h"><h3>2 · Guests${P.kind === 'stay' || P.kind === 'house' ? ' & nights' : ''}</h3></div>
             <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end">
               <div class="fld"><span>Guests</span><div style="display:flex;align-items:center;gap:8px"><button type="button" class="btn" data-g="-1">−</button><b style="font-size:22px;min-width:34px;text-align:center" class="tnum">${B.guests}</b><button type="button" class="btn" data-g="1">+</button></div><small>${B.date ? `Minimum ${E.minGuests(cfg, B.product, B.date)}` : `Minimum ${P.min}`}, maximum ${P.max}</small></div>

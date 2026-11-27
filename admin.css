@@ -1049,3 +1049,9 @@ html{touch-action:manipulation}
 .tg-tr{display:block}
 .tg-tr > *{display:inline}
 .with-names{display:block;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.35;margin:1px 0 2px}
+
+/* table pages (2026-11-27) */
+.pager{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 18px}
+.pager .grow{flex:1}.pager .inp{width:auto;height:34px;padding:0 8px}
+.pager .btn svg{width:15px;height:15px}
+@media print{.pager{display:none}}

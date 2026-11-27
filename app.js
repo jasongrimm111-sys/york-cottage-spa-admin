@@ -24,6 +24,28 @@
   A.scol = id => ((A.cfg().staff.find(s => s.id === id)) || {}).colour || '#8a9a85';
   // guests' names in a booking (user 2026-11-27): the lead guest first, unnamed ones as "Guest 2" etc.
   A.guestNames = (b, opt = {}) => Array.from({ length: (b && b.guests) || 0 }, (_, i) => ((b.guestList || [])[i] || {}).name || (i === 0 ? A.cust(b) : `Guest ${i + 1}`)).slice(opt.others ? 1 : 0);
+  // pages for long tables (user 2026-11-27): any table with more than 25 rows shows 25 at a time, with a page-size choice
+  const PAGES = {};
+  A.paginateTables = (root, key) => {
+    [...root.querySelectorAll('table.tbl')].forEach((tb, ti) => {
+      if (tb.closest('.modal, [data-nopage]') || tb.dataset.paged) return;
+      const rows = [...tb.querySelectorAll(':scope > tbody > tr')]; if (rows.length <= 25) return;
+      tb.dataset.paged = '1';
+      const id = (key || '') + '#' + ti, st = PAGES[id] = PAGES[id] || { p: 0, n: 25 };
+      const pager = document.createElement('div'); pager.className = 'pager';
+      const host = tb.closest('.tbl-wrap') || tb.closest('.card') || tb; host.after(pager);
+      const draw = () => {
+        const pages = Math.ceil(rows.length / st.n); st.p = Math.min(st.p, pages - 1);
+        rows.forEach((r, i) => { r.style.display = i >= st.p * st.n && i < (st.p + 1) * st.n ? '' : 'none'; });
+        pager.innerHTML = `<span class="small muted">Showing ${st.p * st.n + 1}–${Math.min(rows.length, (st.p + 1) * st.n)} of ${rows.length}</span><span class="grow"></span>
+          <select class="inp" aria-label="Rows per page">${[25, 50, 100].map(n => `<option value="${n}" ${n === st.n ? 'selected' : ''}>${n} a page</option>`).join('')}</select>
+          <button type="button" class="btn sm" data-pg="-1" ${st.p === 0 ? 'disabled' : ''}>${A.ic.left} Previous</button><span class="small">Page ${st.p + 1} of ${pages}</span><button type="button" class="btn sm" data-pg="1" ${st.p >= pages - 1 ? 'disabled' : ''}>Next ${A.ic.right}</button>`;
+        pager.querySelector('select').onchange = e => { st.n = +e.target.value; st.p = 0; draw(); };
+        pager.querySelectorAll('[data-pg]').forEach(b => b.onclick = () => { st.p += +b.dataset.pg; draw(); (host.getBoundingClientRect().top < 0) && host.scrollIntoView({ block: 'start' }); });
+      };
+      draw();
+    });
+  };
   A.initials = n => String(n || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
   // profile pictures (user 2026-11-27): 'staff:<id>' or 'user:<id>' → a small square JPEG (data URL) in cfg.photos
   A.photoOf = key => ((St.S.DB && St.S.DB.cfg && St.S.DB.cfg.photos) || {})[key] || '';
@@ -174,7 +196,7 @@
         <div class="me"><button class="me-btn" id="meBtn"><i${A.userPhoto(S.user) ? ` style="background-image:url(${A.userPhoto(S.user)});background-size:cover;color:transparent"` : ''}>${A.initials(S.user.name)}</i><b>${esc(S.user.name.split(' ')[0])}</b></button>
           <div class="me-menu" id="meMenu" hidden><a href="#/settings/users">Users & password</a><a href="#/settings/data">Backup & data</a>${S.mode === 'demo' ? '<button id="resetDemo">Reset the demo data</button>' : ''}<button id="signOut">Sign out</button></div></div>
       </header><main class="view" id="view"></main></div>
-      <nav class="tabbar" aria-label="Main"><button id="tbMenu" type="button">${A.ic.menu}<span>Menu</span></button>${[...(A.can('view.today') ? [['today', 'Day view', 'today'], ['todo', 'To do', 'list']] : A.myStaff() ? [['staffday/' + A.myStaff(), 'My day', 'me']] : []), ...(A.can('view.calendar') ? [['calendar', 'Calendar', 'cal']] : []), ...(A.can('view.bookings') ? [['bookings', 'Bookings', 'list']] : [])].slice(0, 4).map(([r, t, ic]) => `<a href="#/${r}" data-r="${r.split('/')[0]}">${A.ic[ic]}<span>${t}</span>${r === 'todo' ? '<i class="tb-cnt" data-cnt="todo2" hidden></i>' : ''}</a>`).join('')}</nav></div>`;
+      <nav class="tabbar" aria-label="Main"><button id="tbMenu" type="button">${A.ic.menu}<span>Menu</span></button>${[...(A.can('view.today') ? [['today', 'Day view', 'today'], ...(A.myStaff() ? [['staffday/' + A.myStaff(), 'My day', 'me']] : [['todo', 'To do', 'list']])] : A.myStaff() ? [['staffday/' + A.myStaff(), 'My day', 'me']] : []), ...(A.can('view.calendar') ? [['calendar', 'Calendar', 'cal']] : []), ...(A.can('view.bookings') ? [['bookings', 'Bookings', 'list']] : [])].slice(0, 4).map(([r, t, ic]) => `<a href="#/${r}" data-r="${r.split('/')[0]}">${A.ic[ic]}<span>${t}</span>${r === 'todo' ? '<i class="tb-cnt" data-cnt="todo2" hidden></i>' : ''}</a>`).join('')}</nav></div>`;
     // desktop: the menu button hides or shows the side menu (remembered); phones: it opens the menu as before (user 2026-11-27)
     try { if (localStorage.getItem('yc-side-off') === '1') document.body.classList.add('side-off'); } catch (e) {}
     $('#burger').onclick = e => { if (innerWidth > 980) { e.stopPropagation(); const off = document.body.classList.toggle('side-off'); try { localStorage.setItem('yc-side-off', off ? '1' : '0'); } catch (x) {} $('#burger').title = off ? 'Show the menu' : 'Hide the menu'; $('#burger').setAttribute('aria-label', $('#burger').title); } else document.body.classList.toggle('nav-open'); };
@@ -309,6 +331,7 @@
       const prev = isDetail && trail.length && pageKey(trail[trail.length - 1].h) !== pageKey(location.hash) ? trail[trail.length - 1] : null;
       const back = isDetail ? `<a class="backbar" href="${esc(prev ? prev.h : DETAIL[name][0])}">${A.ic.left}<span>Back to ${esc(prev ? prev.t : DETAIL[name][1])}</span></a>` : '';
       if (out && typeof out === 'object' && 'html' in out) { el.innerHTML = back + out.html; if (out.wire) await out.wire(el); }
+      if (A.paginateTables) A.paginateTables(el, h);
       else el.innerHTML = back + out;
       A.applyPerms(el);
     } catch (err) { console.error(err); el.innerHTML = `<div class="note bad">Something went wrong showing this page: ${esc(err.message)}</div>`; }
