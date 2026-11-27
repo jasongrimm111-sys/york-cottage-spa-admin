@@ -76,7 +76,7 @@
         ${C.formHTML(fqs, { name: ((b.guestList || [])[g] || {}).name || (g === 0 ? A.cust(b) : ''), consent: cc().consentText, prefill: g === 0 ? { email: (b.customer || {}).email || '', phone: (b.customer || {}).phone || '', optin: !!custRec((b.customer || {}).email).marketing } : {} })}
         <div class="k-foot"><p class="kiosk-lock">🔒 Your answers are encrypted on this tablet and only York Cottage can read them.</p><button class="btn pri k-send" id="kGo">Send my answers →</button></div></div>`;
       C.wireForm(ov, qs); if (prev) C.fillForm(ov, qs, prev); ov.scrollTop = 0;
-      $('[data-x]', ov).onclick = async () => { if (await A.modal({ title: 'Cancel this form?', body: '<p>Nothing has been saved. You can start it again from the list.</p>', ok: 'Yes, cancel the form', cancel: 'Keep going', danger: true })) close(); };
+      $('[data-x]', ov).onclick = async () => { if (await A.modal(prev ? { title: 'Cancel your changes?', body: '<p>The form stays as it was before.</p>', ok: 'Yes, cancel changes', cancel: 'Keep editing', danger: true } : { title: 'Cancel this form?', body: '<p>Nothing has been saved. You can start it again from the list.</p>', ok: 'Yes, cancel the form', cancel: 'Keep going', danger: true })) close(); };
       $('#kGo', ov).onclick = async e => { const v = C.readForm(ov, qs), msg = $('.cq-msg', ov);
         if (!v.ok) { msg.textContent = v.msg; return; }
         e.target.disabled = true; e.target.textContent = 'Saving…';
