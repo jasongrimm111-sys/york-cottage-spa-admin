@@ -75,7 +75,7 @@
     };
     const doneStep = (flags) => {
       ov.innerHTML = `<div class="kiosk-in kiosk-done"><div class="kiosk-tick">✓</div><div class="kiosk-hello">Thank you${first ? ', ' + esc(first) : ''}</div><p class="kiosk-sub">Please hand the tablet back to your therapist.</p>
-        <button class="btn kiosk-back" id="kBack">I’m the therapist: continue</button></div>`;
+        <button class="btn kiosk-back" id="kBack">Continue</button></div>`;
       $('#kBack', ov).onclick = () => {
         ov.innerHTML = `<div class="kiosk-in kiosk-done"><div class="kiosk-hello" style="font-size:34px">${esc(guestName(b, g))}’s form is saved</div>
           ${flags.length ? `<div class="note warn" style="text-align:left;margin:16px 0"><b>Check before the treatment:</b> ${flags.map(esc).join(' · ')}</div>` : '<div class="note ok" style="margin:16px 0">Nothing flagged</div>'}
