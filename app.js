@@ -49,6 +49,7 @@
     return '';   // removed; kept as a no-op so older calls stay harmless
   };
   A.ic = {
+    me: I('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/>'),   // My day: a person (user 2026-11-27)
     today: I('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
     cal: I('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
     list: I('<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>'),
@@ -156,7 +157,7 @@
   function shell() {
     const S = St.S, ther = !A.can('view.today');
     // the menu follows the user's role; anyone linked to a staff member gets "My day"
-    const nav = [...(A.myStaff() ? [['My work', [['staffday/' + A.myStaff(), 'My day', 'today']]]] : []), ...NAV.map(([h, items]) => [h, items.filter(([r]) => A.canRoute(r) && !(r === 'today' && false))])].filter(([, items]) => items.length);
+    const nav = [...(A.myStaff() ? [['My work', [['staffday/' + A.myStaff(), 'My day', 'me']]]] : []), ...NAV.map(([h, items]) => [h, items.filter(([r]) => A.canRoute(r) && !(r === 'today' && false))])].filter(([, items]) => items.length);
     document.body.innerHTML = `<div class="app">
       <aside class="side" id="side"><a class="brand" href="#/${A.homeRoute()}"><i class="brand-lotus">${A.lotus()}</i><span><b>York Cottage</b><small>Spa admin</small></span></a>
         <nav class="nav">${nav.map(([h, items]) => `<div class="nav-h">${h}</div>` + items.map(([r, t, ic]) => `<a href="#/${r}" data-r="${r.split('/')[0]}">${A.ic[ic]}<span>${t}</span>${r === 'bookings' || r === 'waitlist' || r === 'todo' || r === 'support' ? `<span class="cnt" data-cnt="${r}" hidden></span>` : ''}</a>`).join('')).join('')}</nav>
@@ -171,7 +172,7 @@
         <div class="me"><button class="me-btn" id="meBtn"><i${A.userPhoto(S.user) ? ` style="background-image:url(${A.userPhoto(S.user)});background-size:cover;color:transparent"` : ''}>${A.initials(S.user.name)}</i><b>${esc(S.user.name.split(' ')[0])}</b></button>
           <div class="me-menu" id="meMenu" hidden><a href="#/settings/users">Users & password</a><a href="#/settings/data">Backup & data</a>${S.mode === 'demo' ? '<button id="resetDemo">Reset the demo data</button>' : ''}<button id="signOut">Sign out</button></div></div>
       </header><main class="view" id="view"></main></div>
-      <nav class="tabbar" aria-label="Main"><button id="tbMenu" type="button">${A.ic.menu}<span>Menu</span></button>${[...(A.can('view.today') ? [['today', 'Day view', 'today'], ['todo', 'To do', 'list']] : A.myStaff() ? [['staffday/' + A.myStaff(), 'My day', 'today']] : []), ...(A.can('view.calendar') ? [['calendar', 'Calendar', 'cal']] : []), ...(A.can('view.bookings') ? [['bookings', 'Bookings', 'list']] : [])].slice(0, 4).map(([r, t, ic]) => `<a href="#/${r}" data-r="${r.split('/')[0]}">${A.ic[ic]}<span>${t}</span>${r === 'todo' ? '<i class="tb-cnt" data-cnt="todo2" hidden></i>' : ''}</a>`).join('')}</nav></div>`;
+      <nav class="tabbar" aria-label="Main"><button id="tbMenu" type="button">${A.ic.menu}<span>Menu</span></button>${[...(A.can('view.today') ? [['today', 'Day view', 'today'], ['todo', 'To do', 'list']] : A.myStaff() ? [['staffday/' + A.myStaff(), 'My day', 'me']] : []), ...(A.can('view.calendar') ? [['calendar', 'Calendar', 'cal']] : []), ...(A.can('view.bookings') ? [['bookings', 'Bookings', 'list']] : [])].slice(0, 4).map(([r, t, ic]) => `<a href="#/${r}" data-r="${r.split('/')[0]}">${A.ic[ic]}<span>${t}</span>${r === 'todo' ? '<i class="tb-cnt" data-cnt="todo2" hidden></i>' : ''}</a>`).join('')}</nav></div>`;
     // desktop: the menu button hides or shows the side menu (remembered); phones: it opens the menu as before (user 2026-11-27)
     try { if (localStorage.getItem('yc-side-off') === '1') document.body.classList.add('side-off'); } catch (e) {}
     $('#burger').onclick = e => { if (innerWidth > 980) { e.stopPropagation(); const off = document.body.classList.toggle('side-off'); try { localStorage.setItem('yc-side-off', off ? '1' : '0'); } catch (x) {} $('#burger').title = off ? 'Show the menu' : 'Hide the menu'; $('#burger').setAttribute('aria-label', $('#burger').title); } else document.body.classList.toggle('nav-open'); };
