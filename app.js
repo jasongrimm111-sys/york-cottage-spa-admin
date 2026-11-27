@@ -172,7 +172,10 @@
           <div class="me-menu" id="meMenu" hidden><a href="#/settings/users">Users & password</a><a href="#/settings/data">Backup & data</a>${S.mode === 'demo' ? '<button id="resetDemo">Reset the demo data</button>' : ''}<button id="signOut">Sign out</button></div></div>
       </header><main class="view" id="view"></main></div>
       <nav class="tabbar" aria-label="Main"><button id="tbMenu" type="button">${A.ic.menu}<span>Menu</span></button>${[...(A.can('view.today') ? [['today', 'Day view', 'today'], ['todo', 'To do', 'list']] : A.myStaff() ? [['staffday/' + A.myStaff(), 'My day', 'today']] : []), ...(A.can('view.calendar') ? [['calendar', 'Calendar', 'cal']] : []), ...(A.can('view.bookings') ? [['bookings', 'Bookings', 'list']] : [])].slice(0, 4).map(([r, t, ic]) => `<a href="#/${r}" data-r="${r.split('/')[0]}">${A.ic[ic]}<span>${t}</span>${r === 'todo' ? '<i class="tb-cnt" data-cnt="todo2" hidden></i>' : ''}</a>`).join('')}</nav></div>`;
-    $('#burger').onclick = () => document.body.classList.toggle('nav-open');
+    // desktop: the menu button hides or shows the side menu (remembered); phones: it opens the menu as before (user 2026-11-27)
+    try { if (localStorage.getItem('yc-side-off') === '1') document.body.classList.add('side-off'); } catch (e) {}
+    $('#burger').onclick = e => { if (innerWidth > 980) { e.stopPropagation(); const off = document.body.classList.toggle('side-off'); try { localStorage.setItem('yc-side-off', off ? '1' : '0'); } catch (x) {} $('#burger').title = off ? 'Show the menu' : 'Hide the menu'; } else document.body.classList.toggle('nav-open'); };
+    $('#burger').title = innerWidth > 980 ? (document.body.classList.contains('side-off') ? 'Show the menu' : 'Hide the menu') : 'Menu';
     $('#tbMenu').onclick = e => { e.stopPropagation(); document.body.classList.toggle('nav-open'); };
     $('#side').addEventListener('click', e => { if (e.target.closest('a')) document.body.classList.remove('nav-open'); });
     document.addEventListener('click', e => { if (document.body.classList.contains('nav-open') && !e.target.closest('#side') && !e.target.closest('#burger') && !e.target.closest('#tbMenu')) document.body.classList.remove('nav-open'); });

@@ -350,6 +350,7 @@
   };
 
   // ============ ONE BOOKING ============
+  document.addEventListener('click', e => { const c = e.target.closest('[data-copyref]'); if (!c) return; try { navigator.clipboard.writeText(c.dataset.copyref); A.toast('Reference copied'); } catch (x) {} });
   V.booking = id => {
     const b = findB(id); if (!b) return '<div class="empty"><b>Booking not found</b><a href="#/bookings">Back to bookings</a></div>';
     const cfg = A.cfg(), p = cfg.products[b.product], q = b.quote || E.quote(cfg, b), paid = E.paid(b), owe = Math.round((q.total - paid) * 100) / 100;
@@ -358,7 +359,7 @@
     const emails = A.DB().outbox.filter(o => o.bookingId === b.id);
     const other = A.DB().bookings.filter(x => x.id !== b.id && x.customer && b.customer && x.customer.email && x.customer.email.toLowerCase() === (b.customer.email || '').toLowerCase());
     const isPast = E.addD(b.date, b.nights || 0) < today(), custLink = b.customer && b.customer.email ? '#/customer/' + encodeURIComponent(b.customer.email.toLowerCase()) : '';
-    const html = `<div class="vh"><div><div class="eyebrow">${b.ref} · ${esc(p.name)}${isPast ? ' · past visit' : ''}</div><h1>${custLink ? `<a href="${custLink}" class="h1-link" title="See all their bookings">${esc(A.cust(b)) || 'Booking'}</a>` : esc(A.cust(b)) || 'Booking'}</h1><p>${A.whenText(b)} · ${b.guests} guest${b.guests === 1 ? '' : 's'} &nbsp;${A.statusBadge(b)}${b.arrived ? ' <span class="badge ok">Arrived</span>' : ''}</p></div>
+    const html = `<div class="vh"><div><div class="ref-line"><button type="button" class="ref-chip" data-copyref="${b.ref}" title="Copy the reference">${b.ref}</button><span class="eyebrow" style="margin:0">${esc(p.name)}${isPast ? ' · past visit' : ''}</span></div><h1>${custLink ? `<a href="${custLink}" class="h1-link" title="See all their bookings">${esc(A.cust(b)) || 'Booking'}</a>` : esc(A.cust(b)) || 'Booking'}</h1><p>${A.whenText(b)} · ${b.guests} guest${b.guests === 1 ? '' : 's'} &nbsp;${A.statusBadge(b)}${b.arrived ? ' <span class="badge ok">Arrived</span>' : ''}</p></div>
       <div class="acts">${b.status !== 'cancelled' ? `<a class="btn" href="#/edit/${b.id}">${A.ic.edit} Edit or move</a>${owe > 0.009 ? `<button class="btn pri" id="takePay">Take payment</button><button class="btn" id="payLink">${A.ic.mail} Send payment link</button>` : ''}${paid > 0 ? '<button class="btn" id="refund">Refund</button>' : ''}${isPast ? '' : '<button class="btn danger" id="cancelB">Cancel booking</button>'}` : `${isPast ? '' : '<button class="btn" id="reinstate">Reinstate</button>'}${paid > 0 ? '<button class="btn" id="refund">Refund</button>' : ''}`}
         <button class="btn" id="dupB">${A.ic.copy} Book again</button><button class="btn" onclick="print()">${A.ic.print}</button></div></div>
       ${b.sample ? '<div class="note" style="margin-bottom:14px">Sample booking for the demo. Remove all sample data in Settings → Backup & data.</div>' : ''}
