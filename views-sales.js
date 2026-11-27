@@ -77,7 +77,7 @@
         $$('[data-v]', el).forEach(b => b.onclick = async () => {
           const v = DB.vouchers.find(x => x.id === b.dataset.v);
           const r = await A.modal({ title: 'Voucher ' + v.code, size: 'wide', ok: 'Save', body: `<p>${esc(v.name)} · bought by ${esc(v.buyer || '')} for ${esc(v.recipient || '')} on ${fdy(v.sold)}</p>
-            ${(v.uses || []).length ? `<table class="tbl"><tbody>${v.uses.map(u => `<tr><td>${ft(u.at)}</td><td>${esc(u.ref || '')}</td><td class="r">${gbp(u.amount, 2)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted">Not used yet.</p>'}
+            ${(v.uses || []).length ? `<table class="tbl"><tbody>${v.uses.map(u => `<tr><td>${ft(u.at)}</td><td>${esc(u.ref || '')}${u.via === 'online' ? ' <span class="badge">online booking</span>' : ''}</td><td class="r">${gbp(u.amount, 2)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted">Not used yet.</p>'}
             <div class="row r3">${A.f.money('balance', 'Left', v.balance)}${A.f.date('expires', 'Expires', v.expires)}${A.f.sel('status', 'Status', v.status, ['active', 'used', 'expired', 'void'])}</div>${A.f.text('note', 'Reason for any change', '')}`, onOk: m => A.read(m) });
           if (!r) return; const what = []; if (r.balance !== v.balance) what.push(`balance ${gbp(v.balance)} → ${gbp(r.balance)}`); if (r.expires !== v.expires) what.push(`expiry → ${r.expires}`); if (r.status !== v.status) what.push(`status → ${r.status}`);
           Object.assign(v, { balance: r.balance, expires: r.expires, status: r.status }); A.change('vouchers', null, `Voucher ${v.code}: ${what.join(', ')}${r.note ? ' · ' + r.note : ''}`); A.refresh();

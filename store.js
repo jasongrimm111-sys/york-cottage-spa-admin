@@ -167,6 +167,12 @@
             const have = new Set(mine.messages.map(sig)); const extra = t.messages.filter(m => !have.has(sig(m)));
             if (extra.length) { mine.messages.push(...extra); mine.messages.sort((a, b) => a.at.localeCompare(b.at)); if (extra.some(m => m.from === 'guest')) { mine.needsReply = true; mine.status = 'open'; } } }
         }
+        // gift vouchers: amounts used online meanwhile are kept and taken off our copy too (user 2026-11-27)
+        if (cur && f === 'vouchers.json') {
+          for (const sv of cur.data || []) { const mine = S.DB.vouchers.find(v => v.id === sv.id || v.code === sv.code); if (!mine) { S.DB.vouchers.push(sv); continue; }
+            const have = new Set((mine.uses || []).map(u => u.at + '|' + u.amount));
+            for (const u of sv.uses || []) if (!have.has(u.at + '|' + u.amount)) { (mine.uses = mine.uses || []).push(u); mine.balance = Math.max(0, Math.round((mine.balance - u.amount) * 100) / 100); if (!mine.balance) mine.status = 'used'; } }
+        }
         if (cur && f.startsWith('bookings/')) {
           const mine = new Map(data.map(b => [b.id, b]));
           for (const b of cur.data) if (!mine.has(b.id) && !S.DB.bookings.some(x => x.id === b.id)) S.DB.bookings.push(b);
