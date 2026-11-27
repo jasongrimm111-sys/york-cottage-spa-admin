@@ -1328,3 +1328,11 @@ body:has(.kiosk) .toast{z-index:6100}
 /* sign-in loading screen: fully covers the page on iPhone too (behind the address bar area) */
 .yc-load.over{inset:auto;left:0;right:0;top:-160px;bottom:-160px;padding:160px 0;background:#f6f1e9;min-height:calc(100% + 320px)}
 .yc-load{min-height:100vh;min-height:100dvh}
+
+/* Day view: treatments list in the side column */
+.tr-list .tr-li{align-items:center;gap:10px}.tr-list .row-acts{min-width:0;width:auto}.tr-list .row-acts .btn{white-space:nowrap}
+.tr-list .row-acts:empty{display:none}
+
+.tr-list .tr-li{display:grid;grid-template-columns:52px minmax(0,1fr);align-items:start;row-gap:6px}.tr-list .tr-li .when{padding-top:2px}.tr-list .row-acts{grid-column:2;flex-direction:row;justify-content:flex-start;margin:0}.tr-list .row-acts .btn{width:auto}
+
+.tr-list .tr-li b,.tr-list .tr-li .small{white-space:normal!important;overflow:visible!important;text-overflow:clip!important}
