@@ -66,6 +66,8 @@
   // matches their treatments, as one combined form. Older set-ups had one list of questions: that becomes the first form.
   C.forms = c => { c = c || {}; if (!Array.isArray(c.forms) || !c.forms.length) { const old = c.questions && c.questions.length && c.questions.map(q => q.id).join(',') !== OLD_DEFAULT_IDS; c.forms = [{ id: 'general', name: 'Treatment consultation', all: true, treatments: [], questions: old ? c.questions : C.defaults() }]; }
     // a form saved before the York Cottage questions arrived, still with only the first starting questions, gets them
+    // the main form (id 'general') is always first and used for every treatment (user 2026-11-27)
+    const mi = c.forms.findIndex(f => f.id === 'general'); if (mi > 0) c.forms.unshift(c.forms.splice(mi, 1)[0]); if (c.forms[0] && c.forms[0].id === 'general') { c.forms[0].all = true; c.forms[0].treatments = []; }
     c.forms.forEach(f => { if (f.id === 'general' && (f.questions || []).map(q => q.id).join(',') === OLD_DEFAULT_IDS) { f.questions = C.defaults(); c.questions = f.questions; } });
     return c.forms; };
   C.formsFor = (c, tids) => C.forms(c).filter(f => f.all || (f.treatments || []).some(t => (tids || []).includes(t)));

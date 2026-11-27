@@ -134,9 +134,9 @@
         <li>Answers are encrypted on the device. Only this portal can read them, and anything to check is flagged for the therapist.</li></ol></div>
       <div class="card" style="max-width:980px"><div class="card-h"><h3>Forms</h3><button class="btn sm" id="fAdd">${A.ic.plus} New form</button></div>
         <table class="tbl"><thead><tr><th>Form</th><th>Used for</th><th class="r">Questions</th><th></th></tr></thead><tbody>
-        ${c.forms.map((f, i) => `<tr class="click" data-fe="${f.id}"><td><b>${esc(f.name)}</b></td><td class="small">${f.all ? 'Every treatment' : (f.treatments || []).map(t => esc((TR.find(x => x.id === t) || {}).name || t)).join(', ') || '<span class="muted">No treatments yet</span>'}</td><td class="r">${f.questions.filter(q => !['heading', 'info'].includes(q.type)).length}</td>
-          <td style="white-space:nowrap;text-align:right"><button class="icon-btn" data-fm="${i}" data-d="-1" aria-label="Earlier">↑</button><button class="icon-btn" data-fm="${i}" data-d="1" aria-label="Later">↓</button></td></tr>`).join('')}
-        </tbody></table><p class="small muted" style="margin-top:8px">Name, date of birth, a confirmation tick and a typed signature are always included. When a guest needs more than one form, they’re shown in this order.</p></div>
+        ${c.forms.map((f, i) => `<tr class="click" data-fe="${f.id}"><td><b>${esc(f.name)}</b>${f.id === 'general' ? ' <span class="badge ok">Main form</span>' : ''}</td><td class="small">${f.id === 'general' ? 'Every guest, every treatment' : f.all ? 'Every treatment' : (f.treatments || []).map(t => esc((TR.find(x => x.id === t) || {}).name || t)).join(', ') || '<span class="muted">No treatments yet</span>'}</td><td class="r">${f.questions.filter(q => !['heading', 'info'].includes(q.type)).length}</td>
+          <td style="white-space:nowrap;text-align:right">${f.id === 'general' ? '' : `<button class="icon-btn" data-fm="${i}" data-d="-1" aria-label="Earlier" ${i > 1 ? '' : 'disabled'}>↑</button><button class="icon-btn" data-fm="${i}" data-d="1" aria-label="Later" ${i < c.forms.length - 1 ? '' : 'disabled'}>↓</button>`}</td></tr>`).join('')}
+        </tbody></table><p class="small muted" style="margin-top:8px">Name, date of birth, the agreement tick and a signature are always included. The main form is filled in by every guest. Other forms are added after it for the treatments they’re for, in this order.</p></div>
       <div class="card" style="max-width:980px"><div class="card-h"><h3>Encryption key</h3>${c.publicKey ? '<span class="badge ok">Set up</span>' : '<span class="badge warn">Not set up</span>'}</div>
         ${c.publicKey ? `<p>Forms are encrypted with York Cottage’s key. The private half is kept inside the sign-in vault, so any signed-in user (including therapists) can read forms, and nobody else can.</p>` : `<p>Create the key once. ${S.user.role === 'owner' ? '' : 'Only the owner can do this.'}</p>${S.user.role === 'owner' ? '<button class="btn pri" id="mkKey" style="margin-top:10px">Create the encryption key</button>' : ''}`}</div>
       <div class="card" style="max-width:980px"><div class="card-h"><h3>Online form (before the visit)</h3>${c.endpoint ? '<span class="badge ok">On</span>' : '<span class="badge">Off: guests fill it in on arrival</span>'}</div>
@@ -148,7 +148,7 @@
       $('#saveEnd', el).onclick = () => { const v = A.read(el); c.endpoint = (v.endpoint || '').replace(/\/$/, ''); c.retentionMonths = v.retentionMonths || 24; A.change('cfg', null, 'Online consultation form settings saved'); A.toast('Saved'); A.refresh(); };
       $('#fAdd', el).onclick = () => { const f = { id: uid('f'), name: '', all: false, treatments: [], questions: [] }; c.forms.push(f); A.openFormBuilder(f, true); };
       $$('[data-fe]', el).forEach(r => r.onclick = e => { if (e.target.closest('[data-fm]')) return; A.openFormBuilder(c.forms.find(f => f.id === r.dataset.fe)); });
-      $$('[data-fm]', el).forEach(x => x.onclick = () => { const i = +x.dataset.fm, j = i + +x.dataset.d; if (j < 0 || j >= c.forms.length) return; [c.forms[i], c.forms[j]] = [c.forms[j], c.forms[i]]; A.change('cfg', null, 'Consultation forms reordered'); A.refresh(); });
+      $$('[data-fm]', el).forEach(x => x.onclick = () => { const i = +x.dataset.fm, j = i + +x.dataset.d; if (j < 1 || j >= c.forms.length || i < 1) return; [c.forms[i], c.forms[j]] = [c.forms[j], c.forms[i]]; A.change('cfg', null, 'Consultation forms reordered'); A.refresh(); });
     };
     return { html, wire };
   };
@@ -194,12 +194,12 @@
         <div class="fq-eda"><button type="button" class="btn sm ghost" data-dup>Duplicate</button><button type="button" class="btn sm ghost danger" data-del>Delete question</button><button type="button" class="btn sm pri" data-done>Done</button></div></div>`;
     };
     return { html: `<div class="vh"><div><div class="eyebrow"><a href="#/settings/consult">Consultation forms</a></div><h1>${esc(d.name || 'New form')}</h1><p>${qs.filter(q => !['heading', 'info'].includes(q.type)).length} question${qs.length === 1 ? '' : 's'} · used for ${esc(usedFor)}</p></div>
-        <div class="acts">${FB.isNew ? '' : '<button class="btn ghost danger" id="fbDel">Delete form</button>'}<button class="btn" id="fbCancel">${FB.dirty ? 'Cancel' : 'Back'}</button><button class="btn pri" id="fbSave">Save the form</button></div></div>
+        <div class="acts">${FB.isNew || d.id === 'general' ? '' : '<button class="btn ghost danger" id="fbDel">Delete form</button>'}<button class="btn" id="fbCancel">${FB.dirty ? 'Cancel' : 'Back'}</button><button class="btn pri" id="fbSave">Save the form</button></div></div>
       <div class="fb2">
         <div class="fb2-l">
           <div class="card"><div class="card-h"><h3>About this form</h3></div>
             <label class="fld"><span>Form name (guests see it as a heading)</span><input class="inp" id="fbName" value="${esc(d.name)}" placeholder="e.g. Massage, Facials, Head spa"></label>
-            <div class="fld" style="margin-top:12px"><span>Which treatments use it</span>
+            ${d.id === 'general' ? '<div class="note ok" style="margin-top:12px"><b>Main form:</b> every guest fills this in, whatever their treatment.</div>' : ''}<div class="fld" style="margin-top:12px" ${d.id === 'general' ? 'hidden' : ''}><span>Which treatments use it</span>
               <div class="seg fb-all"><button type="button" class="${d.all ? 'on' : ''}" data-all="1">Every treatment</button><button type="button" class="${d.all ? '' : 'on'}" data-all="0">Only some treatments</button></div>
               ${d.all ? '' : `<div class="fb-tr2">${TR.map(t => `<label class="chk"><input type="checkbox" value="${t.id}" ${(d.treatments || []).includes(t.id) ? 'checked' : ''}> ${esc(t.name)}</label>`).join('')}</div>`}</div></div>
           <div class="card"><div class="card-h"><h3>Questions</h3>${d.id === 'general' ? '<button type="button" class="btn sm ghost" id="fbStd">Add the standard health questions</button>' : ''}</div>
