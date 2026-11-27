@@ -26,7 +26,7 @@
       if (b.date !== d) continue;
       let s, e;
       if (p.kind === 'treat') { const its = (b.items || []).filter(i => (i.date || b.date) === d); if (!its.length) continue; s = Math.min(...its.map(i => E.T(i.start))); if (d === b.date && E.arriveAt) { const ar = E.arriveAt(cfg, b); if (ar) s = Math.min(s, E.T(ar)); } e = Math.max(...its.map(i => E.T(i.start) + i.min)); }   // from their arrival time (user 2026-11-27)
-      else { const ses = E.session(cfg, b.sessionId); if (!ses) continue; s = E.T(ses.start); e = E.T(ses.end); }
+      else { const ses = E.session(cfg, b.sessionId); if (!ses) continue; s = E.T(E.arriveAt ? E.arriveAt(cfg, b) || ses.start : ses.arrive || ses.start); e = E.T(ses.end); }   // from check-in (arrival), not the session start (user 2026-11-27)
       out.push({ b, s, e });
     }
     return out;

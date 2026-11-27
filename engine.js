@@ -51,7 +51,7 @@
   E.arriveBefore = cfg => { const v = +((cfg.rules || {}).treatArriveMins); return Number.isFinite(v) && v >= 0 ? v : 15; };
   E.arriveAt = (cfg, b) => {
     const p = cfg.products[b.product] || {};
-    if (p.kind === 'session' || p.kind === 'private') { const s = E.session(cfg, b.sessionId); return s ? (s.arrive || s.start) : ''; }
+    if (p.kind === 'session' || p.kind === 'private') { const s = E.session(cfg, b.sessionId); return s ? (s.arrive || HM(Math.max(0, T(s.start) - E.arriveBefore(cfg)))) : ''; }
     if (p.kind === 'treat') { const first = (b.items || []).filter(i => i.start && (i.date || b.date) === b.date).map(i => i.start).sort()[0]; return first ? HM(Math.max(0, T(first) - E.arriveBefore(cfg))) : ''; }
     const t = E.stayTimes(cfg, b.product, b.date, b.nights); return t ? t.checkIn : '';
   };
