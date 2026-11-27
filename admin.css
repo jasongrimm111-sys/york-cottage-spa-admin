@@ -1220,3 +1220,16 @@ html{touch-action:manipulation}
 @media (max-width:1180px){.fb2{grid-template-columns:1fr}.fb2-r{position:static}.pv-dev{height:640px}}
 /* My day: hand the form to the guest */
 .sd-hand{margin-top:6px}
+
+/* consultation form: the progress bar sits under the hand-over top bar; preview text always wraps */
+.kiosk .cq-prog{top:41px}.kiosk-look .cq-prog{top:37px;background:#fbf8f3}
+.pv-scr{overflow-x:hidden}.pv-scr .kiosk-in{max-width:100%;box-sizing:border-box}
+
+.fb-all{align-self:flex-start;display:inline-flex;width:auto;max-width:100%}.fb-all button{white-space:nowrap}
+/* reading a consultation form */
+.ca{display:flex;flex-direction:column}
+.ca-h{font:500 20px/1.2 'Cormorant Garamond',Georgia,serif;color:var(--forest);margin:16px 0 4px;padding-bottom:4px;border-bottom:1px solid var(--line)}
+.ca-r{display:flex;justify-content:space-between;gap:16px;padding:7px 8px;border-bottom:1px solid var(--line);font-size:14px}
+.ca-r span{color:var(--muted)}.ca-r b{text-align:right;flex:none;max-width:55%;font-weight:600}
+.ca-r.flag{background:#fbf1ea;border-radius:8px;border-bottom-color:transparent}.ca-r.flag span{color:#7a4e0c}.ca-r.flag b{color:#8a4f2e}
+.ca-sig{max-width:320px;margin-top:10px;border:1px solid var(--line);border-radius:10px;background:#fff}

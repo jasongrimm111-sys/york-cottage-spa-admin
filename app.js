@@ -287,7 +287,9 @@
       c.bookings.push(b);
       if (E.live(b)) { c.visits++; c.spend += E.paid(b); if (b.date > (c.lastVisit || '')) c.lastVisit = b.date; if (!c.firstVisit || b.date < c.firstVisit) c.firstVisit = b.date; }
     }
-    for (const [k, v] of Object.entries(DB.customers || {})) { if (out[k]) Object.assign(out[k], { marketing: v.marketing, notes: v.notes, tags: v.tags || [] }); }
+    for (const [k0, v] of Object.entries(DB.customers || {})) { const k = k0.toLowerCase();
+      if (!out[k] && v.name && /^\S+@\S+\.\S+$/.test(k)) out[k] = { email: k, name: v.name, first: v.first || v.name.split(' ')[0], last: v.last || v.name.split(' ').slice(1).join(' '), phone: v.phone || '', visits: 0, spend: 0, lastVisit: '', firstVisit: '', bookings: [], source: v.source || '' };
+      if (out[k]) Object.assign(out[k], { marketing: v.marketing, notes: v.notes, tags: v.tags || [] }); }
     return out;
   };
 

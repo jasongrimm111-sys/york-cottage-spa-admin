@@ -18,7 +18,16 @@
   A.consultFormsFor = guestForms;
   if (!document.getElementById('consult-css')) { const st = document.createElement('style'); st.id = 'consult-css'; st.textContent = C.css; document.head.appendChild(st); }
   const needKey = async () => { if (cc().publicKey) return false; if (await A.confirm('Set up the form first', 'The consultation form needs its encryption key. Create it now in Settings → Consultation forms?', 'Go to Settings', false)) location.hash = '#/settings/consult'; return true; };
+  const custRec = email => { const DB = A.DB(), e = String(email || '').toLowerCase(); const k = Object.keys(DB.customers || {}).find(x => x.toLowerCase() === e); return (k && DB.customers[k]) || {}; };
+  // the form's marketing tick (user 2026-11-27): ticked adds the guest as a customer who gets news and offers; unticked takes them off
+  A.consultOptin = (o, by) => { if (!o || !o.email || !/^\S+@\S+\.\S+$/.test(o.email)) return;
+    const DB = A.DB(); DB.customers = DB.customers || {}; const k = Object.keys(DB.customers).find(x => x.toLowerCase() === o.email) || o.email;
+    const c = DB.customers[k] = DB.customers[k] || { marketing: false, notes: '', tags: [] }, was = !!c.marketing;
+    if (!c.name && o.name) { c.name = o.name; c.first = o.name.split(' ')[0]; c.last = o.name.split(' ').slice(1).join(' '); c.source = 'Consultation form'; }
+    if (o.yes) { c.marketing = true; delete c.unsubscribedAt; c.optedInAt = c.optedInAt || new Date().toISOString(); } else if (was) { c.marketing = false; }
+    if (was !== !!c.marketing || !was && o.yes) A.change('customers', null, `${o.yes ? 'Opted in to' : 'Opted out of'} news and offers on the consultation form (${by || 'tablet'})`); };
   const save = async (b, g, v, via) => {
+    A.consultOptin(v.optin, via);
     const sealed = await C.seal(cc().publicKey, v.answers); await St.saveConsult(b, g, sealed, via);
     b.guestList[g] = b.guestList[g] || {}; b.guestList[g].consult = 'done'; if (v.answers.name && !b.guestList[g].name && g > 0) b.guestList[g].name = v.answers.name;
     (b.history = b.history || []).push({ at: new Date().toISOString(), by: St.S.user.name, what: `Consultation form completed ${via === 'tablet' ? 'on the tablet' : ''} for ${guestName(b, g)}` });
@@ -36,8 +45,8 @@
     const close = () => { ov.remove(); document.body.style.overflow = ''; if (after) after(); else A.refresh(); };
     const formStep = () => {
       ov.innerHTML = `<div class="kiosk-top"><span>York Cottage Spa · consultation form</span><button type="button" class="kiosk-x" data-x>Therapist: cancel</button></div>
-        <div class="kiosk-in"><div class="kiosk-hello">Hello${first ? ' ' + esc(first) : ''}</div><p class="kiosk-sub">Before your ${esc(forms.map(f => f.name.toLowerCase()).join(' and ') || 'treatment')}${forms.length ? '' : ''}, please answer a few questions so your therapist can make it safe and just right for you. It takes a couple of minutes.</p>
-        ${C.formHTML(qs, { name: ((b.guestList || [])[g] || {}).name || (g === 0 ? A.cust(b) : '') })}
+        <div class="kiosk-in"><div class="kiosk-hello">Hello${first ? ' ' + esc(first) : ''}</div><p class="kiosk-sub">A few quick questions so your therapist can make your treatment safe and just right for you. It takes about three minutes${g === 0 && (b.customer || {}).email ? ', and we’ve filled in what we already know' : ''}.</p>
+        ${C.formHTML(qs, { name: ((b.guestList || [])[g] || {}).name || (g === 0 ? A.cust(b) : ''), consent: cc().consentText, prefill: g === 0 ? { email: (b.customer || {}).email || '', phone: (b.customer || {}).phone || '', optin: !!custRec((b.customer || {}).email).marketing } : {} })}
         <button class="btn pri kiosk-go" id="kGo">Send my answers</button><p class="kiosk-lock">🔒 Your answers are encrypted on this tablet and only York Cottage can read them.</p></div>`;
       C.wireForm(ov); ov.scrollTop = 0;
       $('[data-x]', ov).onclick = async () => { if (await A.confirm('Stop this form?', 'Nothing has been saved yet.', 'Stop', false)) close(); };
@@ -71,8 +80,11 @@
     const show = ({ x, f, err }) => err ? `<div class="note bad">A form from ${ft(x.at)} couldn’t be opened (it was made with an older key).</div>` : `<div class="card" style="margin-bottom:12px">
       <div class="card-h"><h3>${esc(f.name)}</h3><span class="small muted">${x.via === 'online' ? 'Online, before the visit' : 'On the tablet'} · ${ft(f.signedAt || x.at)}</span></div>
       ${C.flags(f.questions, f.a).length ? `<div class="note warn" style="margin-bottom:10px"><b>Check before the treatment:</b> ${C.flags(f.questions, f.a).map(esc).join(' · ')}</div>` : '<div class="note ok" style="margin-bottom:10px">Nothing flagged</div>'}
-      <dl class="kv"><dt>Date of birth</dt><dd>${esc(f.dob)}</dd>${(f.questions || []).map(q => q.type === 'heading' ? `<dt class="kv-h">${esc(q.label)}</dt><dd></dd>` : q.type === 'info' ? '' : `<dt>${esc(q.label)}</dt><dd>${q.type === 'yesno' && (f.a || {})[q.id] && f.a[q.id].yes ? '<b style="color:var(--warn)">' + esc(C.answerText(q, f.a[q.id])) + '</b>' : esc(C.answerText(q, (f.a || {})[q.id]))}</dd>`).join('')}
-      <dt>Signed</dt><dd>${esc(f.sign)} · ${f.consent ? 'confirmed the information is correct' : ''}</dd></dl></div>`;
+      <div class="ca">${[['Date of birth', f.dob ? fd(f.dob) : '—']].map(([q, a]) => `<div class="ca-r"><span>${q}</span><b>${esc(a)}</b></div>`).join('')}
+        ${(f.questions || []).map(q => { if (q.type === 'heading') return `<div class="ca-h">${esc(q.label)}</div>`; if (q.type === 'info') return '';
+          const a = (f.a || {})[q.id], flag = C.flags([q], f.a || {}).length; return `<div class="ca-r ${flag ? 'flag' : ''}"><span>${esc(q.label)}</span><b>${flag ? '⚑ ' : ''}${esc(C.answerText(q, a))}</b></div>`; }).join('')}
+        <div class="ca-h">Signed</div><div class="ca-r"><span>${esc(f.sign)} · ${f.consent ? 'agreed to the terms and confirmed the information is correct' : ''}</span><b>${ft(f.signedAt || x.at)}</b></div>
+        ${f.sigImg ? `<img class="ca-sig" src="${f.sigImg}" alt="Signature of ${esc(f.sign)}">` : ''}</div></div>`;
     St.audit(`Consultation form viewed: ${b.ref}`, b.ref); St.touch('audit');
     await A.modal({ title: 'Consultation form' + (opened.length > 1 ? 's' : ''), size: 'wide', ok: 'Close', cancel: '', foot: '<button class="btn" onclick="print()" style="margin-right:auto">Print</button>', body: `<p class="small muted">${esc(A.cust(b))} · ${b.ref} · ${fdy(b.date)}. Health information: keep it private, and don’t copy it into notes.</p>${opened.map(show).join('')}` });
   };
@@ -150,7 +162,8 @@
     text: { name: 'Longer answer', icon: '☰', eg: 'Anything else your therapist should know?' },
     date: { name: 'Date', icon: '📅', eg: 'Date of your last facial' },
     heading: { name: 'Section heading', icon: 'H', eg: 'Splits a long form into parts' },
-    info: { name: 'Information', icon: 'ℹ', eg: 'A note for the guest, with no answer' }
+    info: { name: 'Information', icon: 'ℹ', eg: 'A note for the guest, with no answer' },
+    optin: { name: 'Marketing opt-in', icon: '✉', eg: 'Yes, send me special offers and news' }
   };
   const blank = type => ({ id: uid('q'), type, label: '', ...(type === 'yesno' ? { detail: 'Please tell us more' } : {}), ...(['choice', 'multi'].includes(type) ? { options: ['', ''], flagOn: [] } : {}) });
   let FB = null;   // { id, draft, open, isNew, dirty }
@@ -177,7 +190,7 @@
         ${['choice', 'multi'].includes(q.type) ? `<div class="fld"><span>Choices</span><div class="fq-opts">${(q.options || []).map((o, j) => `<div class="fq-opt"><input class="inp" data-opt="${j}" value="${esc(o)}" placeholder="Choice ${j + 1}"><label class="fq-flag" title="Flag this answer for the therapist"><input type="checkbox" data-flag="${j}" ${(q.flagOn || []).includes(o) && o ? 'checked' : ''}> ⚑ Flag</label><button type="button" class="icon-btn" data-optrm="${j}" aria-label="Remove choice">${A.ic.x}</button></div>`).join('')}</div>
           <button type="button" class="btn sm ghost" data-optadd style="align-self:flex-start;margin-top:4px">${A.ic.plus} Add a choice</button><small>Tick ⚑ Flag on any answer the therapist should check before the treatment.</small></div>` : ''}
         ${q.type !== 'heading' ? L('help', q.type === 'info' ? 'The information' : 'Help text under it (optional)', q.help, q.type === 'info' ? 'e.g. Please arrive 15 minutes early and bring swimwear.' : 'e.g. This helps us choose the right oils') : ''}
-        ${['choice', 'multi', 'short', 'text', 'date'].includes(q.type) ? `<label class="sw"><input type="checkbox" data-f="required" ${q.required ? 'checked' : ''}> Must be answered</label>` : ''}
+        ${q.type === 'optin' ? '<small class="muted">Ticking it adds the guest to Customers with news and offers switched on. It starts ticked for a booker who has already agreed.</small>' : ''}${['choice', 'multi', 'short', 'text', 'date'].includes(q.type) ? `<label class="sw"><input type="checkbox" data-f="required" ${q.required ? 'checked' : ''}> Must be answered</label>` : ''}
         <div class="fq-eda"><button type="button" class="btn sm ghost" data-dup>Duplicate</button><button type="button" class="btn sm ghost danger" data-del>Delete question</button><button type="button" class="btn sm pri" data-done>Done</button></div></div>`;
     };
     return { html: `<div class="vh"><div><div class="eyebrow"><a href="#/settings/consult">Consultation forms</a></div><h1>${esc(d.name || 'New form')}</h1><p>${qs.filter(q => !['heading', 'info'].includes(q.type)).length} question${qs.length === 1 ? '' : 's'} · used for ${esc(usedFor)}</p></div>
