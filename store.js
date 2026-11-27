@@ -92,6 +92,7 @@
     E.migrate(db.cfg); db.tasks = db.tasks || { items: [], hidden: {} };
     // the demo's therapists have real-sounding names (user 2026-11-27)
     const DEMO_NAMES = { s1: 'Gemma Burke', s2: 'Georgie Parker' }; (db.cfg.staff || []).forEach(st => { if (DEMO_NAMES[st.id] && /^Therapist \d$/.test(st.name)) st.name = DEMO_NAMES[st.id]; });
+    db.cfg.photos = db.cfg.photos || {}; if (!db.cfg.photos['staff:s1']) db.cfg.photos['staff:s1'] = 'img/demo-gemma.jpg';   // Gemma's profile picture (demo only)
     if (!db.tickets) db.tickets = (root.YCSeed.make().tickets || []);   // demos saved before Support existed
     return db;
   }
