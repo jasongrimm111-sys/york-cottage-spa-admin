@@ -90,6 +90,8 @@
     // settings added after a demo was saved
     db.cfg = deepFill(db.cfg, root.YC_DEFAULTS);
     E.migrate(db.cfg); db.tasks = db.tasks || { items: [], hidden: {} };
+    // the demo's therapists have real-sounding names (user 2026-11-27)
+    const DEMO_NAMES = { s1: 'Gemma Burke', s2: 'Georgie Parker' }; (db.cfg.staff || []).forEach(st => { if (DEMO_NAMES[st.id] && /^Therapist \d$/.test(st.name)) st.name = DEMO_NAMES[st.id]; });
     if (!db.tickets) db.tickets = (root.YCSeed.make().tickets || []);   // demos saved before Support existed
     return db;
   }
