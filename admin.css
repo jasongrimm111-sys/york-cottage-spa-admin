@@ -1055,3 +1055,12 @@ html{touch-action:manipulation}
 .pager .grow{flex:1}.pager .inp{width:auto;height:34px;padding:0 8px}
 .pager .btn svg{width:15px;height:15px}
 @media print{.pager{display:none}}
+/* phones: Room bookings header like the work calendar; view buttons always equal widths (user 2026-11-27) */
+@media (max-width:700px){
+  .cal-bar-l a.icon-btn[aria-label="Earlier"]{grid-column:1;grid-row:1;width:44px;height:44px;display:grid;place-items:center;border:1px solid var(--line);border-radius:12px;background:#fff}
+  .cal-bar-l a.icon-btn[aria-label="Later"]{grid-column:3;grid-row:1;width:44px;height:44px;display:grid;place-items:center;border:1px solid var(--line);border-radius:12px;background:#fff}
+  .cal-bar-l > span.muted{grid-column:1 / -1;grid-row:2;text-align:center}
+  .cal-bar-l > span.muted ~ a.btn,.cal-bar-l > a.btn:first-child{grid-row:3}
+  .cal-modes{display:flex!important;width:100%}
+  .cal-modes a{flex:1 1 0;text-align:center;padding:7px 4px}
+}
