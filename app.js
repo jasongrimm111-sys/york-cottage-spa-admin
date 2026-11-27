@@ -267,7 +267,9 @@
   const TRAIL = 'yc-admin-trail';
   let trail = (() => { try { return JSON.parse(sessionStorage.getItem(TRAIL) || '[]'); } catch (e) { return []; } })(), lastHash = null, lastTitle = '', fromMenu = false;
   document.addEventListener('click', e => { if (e.target.closest('.nav a, .tabbar a')) fromMenu = true; }, true);
-  const pageKey = x => (x || '').split('?')[0];
+  // one "page" for the Back bar: moving between dates, or the Calendars tabs, isn't a new page (user 2026-11-27)
+  const SAMEPAGE = { today: 'today', ahead: 'today', calendar: 'calendars', roomcal: 'calendars', day: 'calendars', rota: 'rota', timeline: 'timeline', reports: 'reports' };
+  const pageKey = x => { const path = (x || '').split('?')[0], n = path.replace(/^#\/?/, '').split('/')[0] || 'today'; return SAMEPAGE[n] ? 'g:' + SAMEPAGE[n] : n === 'staffday' ? path.split('/').slice(0, 3).join('/') : path; };
   function step(cur){
     if (fromMenu) { trail = []; fromMenu = false; }
     else if (lastHash && pageKey(lastHash) !== pageKey(cur)) {
@@ -294,7 +296,12 @@
     const same = current === h; current = h;
     try {
       const out = v(...rest.map(decodeURIComponent));
-      const back = trail.length ? `<a class="backbar" href="${esc(trail[trail.length - 1].h)}">${A.ic.left}<span>Back to ${esc(trail[trail.length - 1].t)}</span></a>` : '';
+      // Back bar (user 2026-11-27): only on detail pages, always there on them, never on the main menu pages.
+      // It goes to the page you came from, or to the matching list if you came straight in.
+      const DETAIL = { booking: ['#/bookings', 'Bookings'], edit: ['#/bookings', 'Bookings'], new: ['#/bookings', 'Bookings'], customer: ['#/customers', 'Customers'], ticket: ['#/support', 'Support'], staffday: ['#/rota', 'Rota'] };
+      const isDetail = DETAIL[name] && !(name === 'staffday' && A.isTher());
+      const prev = isDetail && trail.length && pageKey(trail[trail.length - 1].h) !== pageKey(location.hash) ? trail[trail.length - 1] : null;
+      const back = isDetail ? `<a class="backbar" href="${esc(prev ? prev.h : DETAIL[name][0])}">${A.ic.left}<span>Back to ${esc(prev ? prev.t : DETAIL[name][1])}</span></a>` : '';
       if (out && typeof out === 'object' && 'html' in out) { el.innerHTML = back + out.html; if (out.wire) await out.wire(el); }
       else el.innerHTML = back + out;
       A.applyPerms(el);
@@ -309,8 +316,8 @@
   addEventListener('hashchange', route);
   // Back goes to the previous page, not the previous day (user 2026-11-27): moving between days, weeks or months of the same
   // view replaces the history entry instead of adding one. A.goDay(hash) does the same for date pickers and dropdowns.
-  const BROWSE = new Set(['today', 'ahead', 'day', 'staffday', 'rota', 'calendar', 'roomcal', 'timeline', 'reports']);
-  const routeName = h => { const n = (String(h || '').replace(/^#\/?/, '').split(/[/?]/)[0]) || 'today'; return n === 'ahead' ? 'today' : n; };
+  const BROWSE = new Set(['today', 'calendars', 'staffday', 'rota', 'timeline', 'reports']);
+  const routeName = h => { const n = (String(h || '').replace(/^#\/?/, '').split(/[/?]/)[0]) || 'today'; return SAMEPAGE[n] || n; };
   A.goDay = h => { if (BROWSE.has(routeName(h)) && routeName(h) === routeName(location.hash)) location.replace(h); else location.hash = h; };
   document.addEventListener('click', e => {
     if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
