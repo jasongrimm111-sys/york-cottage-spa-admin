@@ -18,6 +18,9 @@
       .forEach(b => add({ key: 'form:' + b.id, group: 'Consultation forms', level: 'info', title: `${cd(b)} form${cd(b) > 1 ? 's' : ''} still to come · ${A.cust(b)}`, sub: `${A.pname(b.product)} ${fd(b.date)}`, href: '#/booking/' + b.id, booking: b, act: 'forms' }));
     live.filter(b => (b.items || []).some(i => !i.staff && (i.date || b.date) >= t))
       .forEach(b => add({ key: 'nostaff:' + b.id, group: 'Treatments', level: 'bad', title: `Treatment with no therapist · ${A.cust(b)}`, sub: `${fd(b.date)} · choose a therapist or move it`, href: '#/edit/' + b.id, booking: b }));
+    // staffing suggestions: the most pressing days in the next three weeks (user 2026-11-27)
+    if (A.staffingSuggestions && A.can('staff.edit')) A.staffingSuggestions().filter(s => s.date <= E.addD(t, 21) && (s.level >= 2 || s.date <= E.addD(t, 10))).slice(0, 6)
+      .forEach(s => add({ key: 'staffing:' + s.date + ':' + s.level, group: 'Staffing suggestions', level: s.level >= 2 ? 'bad' : 'warn', title: `${fdy(s.date)}: worth adding a therapist`, sub: s.reasons[0].replace(/<[^>]+>/g, ''), href: '#/rota/' + s.date }));
     // time off and shift swaps waiting for a manager (user 2026-11-27)
     if (A.pendingRequests && A.can('staff.edit')) A.pendingRequests().forEach(r => out.push({ key: 'rq:' + r.id, group: 'Team requests', level: 'warn', title: `${(cfg.staff.find(s => s.id === r.staffId) || {}).name || 'Someone'} asked for ${r.kind === 'swap' ? 'a shift swap' : 'time off'}`, sub: r.kind === 'swap' ? fd(r.date) : `${fd(r.from)}${r.to && r.to !== r.from ? ' – ' + fd(r.to) : ''}`, href: '#/requests' }));
     const ix = E.index(cfg, DB.bookings);

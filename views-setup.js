@@ -190,6 +190,7 @@
     };
     return { html: `<div class="vh"><div><div class="eyebrow">Team</div><h1>Rota</h1><p>Week of ${fdy(mon)}. ${me ? '' : 'Click a day to change someone’s hours just for that day.'}</p></div>
       <div class="acts"><a class="btn" href="#/rota/${E.addD(mon, -7)}">${A.ic.left}</a><a class="btn" href="#/rota">This week</a><a class="btn" href="#/rota/${E.addD(mon, 7)}">${A.ic.right}</a><button class="btn" onclick="print()">${A.ic.print}</button></div></div>
+      ${!me && A.staffingCard && A.can('staff.edit') ? A.staffingCard() : ''}
       <div class="rota card flush"><table><thead><tr><th>Who</th>${days.map(d => `<th${d === t ? ' style="color:var(--clay)"' : ''}>${fd(d)}</th>`).join('')}<th>Week</th></tr></thead><tbody>
       ${!me ? `<tr class="need-row"><td><b>Therapists needed</b><br><span class="small muted">with treatments or food cover</span></td>${days.map(d => { const working = staff.filter(st => E.staffDay(cfg, st, d)).length, needed = staff.filter(st => ((ixAll.staff[d] || {})[st.id] || []).length).length; return `<td><b>${needed}</b> <span class="small muted">of ${working} working</span></td>`; }).join('')}<td></td></tr>` : ''}
       ${staff.slice().sort(E.byPriority).map(st => { const tot = days.reduce((a, d) => { const x = E.staffDay(cfg, st, d); return a + (x ? x.spans.reduce((y, s) => y + s[1] - s[0], 0) : 0); }, 0);
