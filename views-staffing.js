@@ -37,11 +37,18 @@
         for (const s of E.sessions(cfg, ix, k, d, 2).filter(x => x.ok)) {
           const room = E.treatRoom(cfg, ix, { product: k, date: d, sessionId: s.id, guests: 2 });
           if (room <= 0) wins.push([E.T(s.start || h.start), E.T(s.end || h.end)]);
-          if (room < 0) stuck.push(`${p.name} ${s.name || ''}`.trim()); else if (room === 0) tight.push(`${p.name} ${s.name || ''}`.trim());
+          if (room <= 0) {
+            const tt0 = E.treatTimes ? E.T(E.treatTimes(cfg, d).first) : 0, a0 = Math.max(E.T(s.start || h.start), tt0), a1 = E.T(s.end || h.end), label = `${p.name} ${s.name || ''}`.trim() + ` (${E.HM(a0)}–${E.HM(a1)})`;
+            const ovl = st => E.staffDay(cfg, st, d).spans.reduce((m, x) => m + Math.max(0, Math.min(x[1], a1) - Math.max(x[0], a0)), 0), on = therapists.filter(st => ovl(st) >= 60);
+            const near = therapists.filter(st => !on.includes(st)).map(st => { const day = E.staffDay(cfg, st, d); return day.start > a0 ? `${esc(st.name)} starts at ${E.HM(day.start)}, so starting earlier would help` : day.end < a1 ? `${esc(st.name)} finishes at ${E.HM(day.end)}, so finishing later would help` : ''; }).filter(Boolean);
+            const free = st => { const busy = ((ix.staff[d] || {})[st.id] || []).reduce((m, x) => m + Math.max(0, Math.min(x[1], a1) - Math.max(x[0], a0)), 0); return Math.max(0, ovl(st) - busy); };
+            const who = on.length ? `${on.length === 1 ? 'only ' : ''}${on.map(st => `${esc(st.name)} (${HM(free(st))} free)`).join(' and ')} ${on.length > 1 ? 'are' : 'is'} working then` : 'no therapist is working then';
+            (room < 0 ? stuck : tight).push(`${label}: ${who}${near.length ? '; ' + near.join('; ') : ''}`);
+          }
         }
       }
-      if (stuck.length) bump(2, `${esc(stuck.join(', '))} still ${stuck.length > 1 ? 'have' : 'has'} places, but no therapist time is left for the included treatments, so ${stuck.length > 1 ? 'they' : 'it'} can’t be sold online`);
-      if (tight.length) bump(1, `${esc(tight.join(', '))}: only the included treatments fit, so guests can’t add extras`);
+      if (stuck.length) bump(2, `${stuck.join(' · ')}. Places are left, but no therapist time for the included treatments, so it can’t be sold online`);
+      if (tight.length) bump(1, `${tight.join(' · ')}. Only the included treatments fit, so guests can’t add extras`);
       if (!therapists.length && Object.values(cfg.products).some(p => p.active !== false && (p.kind === 'session' || p.kind === 'private'))) bump(1, 'No therapists rostered while the spa is open');
       if (!reasons.length) continue;
       const win = wins.length ? [Math.min(...wins.map(w => w[0])), Math.max(...wins.map(w => w[1]))] : [E.T(h.start), E.T(h.end)];
