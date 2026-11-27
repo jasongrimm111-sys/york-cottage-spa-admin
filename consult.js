@@ -118,6 +118,7 @@
       <p class="cq-msg" role="alert"></p>
     </form>`;
   };
+  C.splitIntro = qs => { const q0 = (qs || []).find(q => !['heading'].includes(q.type)); return q0 && q0.type === 'info' && !q0.terms && q0.id !== 'consent_text' && (qs || []).indexOf(q0) === 0 ? { intro: q0, rest: qs.slice(1) } : { intro: null, rest: qs || [] }; };
   C.answerText = (q, a) => { if (a == null || a === '' || (Array.isArray(a) && !a.length)) return '—'; if (q.type === 'optin') return a ? 'Yes, opted in' : 'No'; if (q.type === 'yesno') return a.yes ? 'Yes' + (a.detail ? ' · ' + a.detail : '') : 'No'; return Array.isArray(a) ? a.join(', ') : String(a); };
   C.wireSig = root => root.querySelectorAll('.cq-sig').forEach(box => {
     const cv = box.querySelector('canvas'), cx = cv.getContext('2d'); let down = false, last = null; box._drawn = false;
@@ -128,14 +129,26 @@
     const up = () => { down = false; }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
     box.querySelector('.cq-sig-clear').onclick = () => { cx.clearRect(0, 0, cv.width, cv.height); box._drawn = false; box.classList.remove('drawn'); };
   });
-  C.wireProgress = root => { const f = root.querySelector('form.cform-q'), bar = f && f.querySelector('.cq-prog'); if (!bar) return;
+  C.wireProgress = root => { const f = root.querySelector('form.cform-q'), bars = [...root.querySelectorAll('.cq-prog')]; if (!f || !bars.length) return;
     const upd = () => { const need = [...f.querySelectorAll('.cq[data-q], .cq-r[data-q]')].filter(x => x.querySelector('input[type=radio]') || x.querySelector('.cq-req'));
       const done = need.filter(x => [...x.querySelectorAll('input,textarea')].some(i => (i.type === 'radio' || i.type === 'checkbox') ? i.checked : i.value.trim())).length;
       const extra = [f.elements.name && f.elements.name.value.trim(), f.elements.dob && f.elements.dob.value, f.elements.consent && f.elements.consent.checked, f.querySelector('.cq-sig') && f.querySelector('.cq-sig')._drawn];
       const all = need.length + extra.length, got = done + extra.filter(Boolean).length, pc = all ? Math.round(got / all * 100) : 0;
-      bar.querySelector('i').style.width = pc + '%'; bar.querySelector('span').textContent = pc >= 100 ? 'All done: send your answers below' : pc ? `${pc}% done` : 'Let’s get started'; bar.classList.toggle('full', pc >= 100); };
+      bars.forEach(bar => { bar.querySelector('i').style.width = pc + '%'; const t = bar.querySelector('span'); if (t) t.textContent = pc >= 100 ? (bar.dataset.short ? 'All done' : 'All done: send your answers below') : pc ? (bar.dataset.short ? pc + '%' : `${pc}% done`) : (bar.dataset.short ? '0%' : 'Let’s get started'); bar.classList.toggle('full', pc >= 100); }); };
     f.addEventListener('input', upd); f.addEventListener('change', upd); f.addEventListener('pointerup', () => setTimeout(upd, 50)); upd(); };
-  C.wireForm = root => { C.wireSig(root);
+  C.wireKeys = root => { const f = root.querySelector('form.cform-q'); if (!f) return;
+    f.addEventListener('submit', e => e.preventDefault());
+    const stops = () => { const seen = new Set(); return [...f.querySelectorAll('input,textarea,select,button')].filter(el => { if (el.disabled || el.type === 'hidden' || el.closest('[hidden]')) return false;
+      if (el.type === 'radio') { if (seen.has(el.name)) return false; seen.add(el.name); } return true; }); };
+    f.querySelectorAll('input:not([type=radio]):not([type=checkbox]),textarea').forEach(el => el.setAttribute('enterkeyhint', 'next'));
+    const last = f.querySelector('[name=sign]'); if (last) last.setAttribute('enterkeyhint', 'done');
+    f.addEventListener('keydown', e => {
+      const el = e.target; if (e.key !== 'Enter' || e.shiftKey || el.tagName === 'TEXTAREA' || el.tagName === 'BUTTON') return;
+      e.preventDefault();
+      const list = stops(), cur = el.type === 'radio' ? list.find(x => x.name === el.name) : el, i = list.indexOf(cur), next = list[i + 1];
+      if (next) { next.focus(); next.scrollIntoView({ block: 'center', behavior: 'smooth' }); } else el.blur();
+    }); };
+  C.wireForm = root => { C.wireSig(root); C.wireKeys(root);
     root.querySelectorAll('.cq-tlink').forEach(a => a.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); const f = a.closest('form'), t = f && f.querySelector('.cq-terms'); if (!t) return; t.hidden = !t.hidden; if (!t.hidden) t.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }));
     root.querySelectorAll('.cq-terms-x').forEach(b => b.onclick = () => { b.closest('.cq-terms').hidden = true; });
     root.querySelectorAll('[data-grp]').forEach(g => { const b = g.querySelector('.cq-none'); b.onclick = () => { g.querySelectorAll('input[value=no]').forEach(i => { i.checked = true; }); g.dispatchEvent(new Event('change', { bubbles: true })); }; }); root.querySelectorAll('.cq[data-q]').forEach(fs => fs.querySelectorAll('input[type=radio]').forEach(r => r.addEventListener('change', () => { const d = fs.querySelector('.cq-detail'); if (d) d.hidden = !(fs.querySelector('input[value=yes]') || {}).checked; }))); C.wireProgress(root); };
@@ -166,7 +179,7 @@
     .cq-prog::before{content:'';position:absolute;left:0;right:0;top:10px;height:6px;border-radius:99px;background:rgba(35,40,35,.08);z-index:-1}.cq-prog span{display:block;font-size:12.5px;font-weight:600;color:#6b6f68;margin-top:6px}.cq-prog.full span{color:#2f6b3f}
     .cq{border:1px solid rgba(35,40,35,.1);border-radius:16px;padding:16px 18px;background:#fff;margin:0;box-shadow:0 1px 2px rgba(35,40,35,.04)}.cq legend{font-weight:600;padding:0;font-size:16px;line-height:1.35;float:left;width:100%;margin-bottom:2px}.cq legend+*{clear:both}
     .cq-yn{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;clear:both}.cq-yn label{display:flex;align-items:center;gap:8px;border:1.5px solid rgba(35,40,35,.16);border-radius:12px;padding:11px 16px;cursor:pointer;font-size:15.5px;background:#fff;transition:all .15s;min-height:46px}
-    .cq-yn label:hover{border-color:rgba(35,40,35,.35)}.cq-yn label:has(input:checked){background:#2f3b32;border-color:#2f3b32;color:#fff}.cq-yn input{position:absolute;opacity:0;pointer-events:none}
+    .cq-yn label:hover{border-color:rgba(35,40,35,.35)}.cq-yn label:has(input:checked){background:#2f3b32;border-color:#2f3b32;color:#fff}.cq-yn input{position:absolute;opacity:0;pointer-events:none}.cq-yn label:has(input:focus-visible),.cq-seg label:has(input:focus-visible) b,.cq-consent:has(input:focus-visible){outline:3px solid #b4785a;outline-offset:2px}.cq-none:focus-visible,.cq-sig-clear:focus-visible,.cq-tlink:focus-visible{outline:3px solid #b4785a;outline-offset:2px}
     .cq textarea,.cq-f input,.cq-in{width:100%;border:1.5px solid rgba(35,40,35,.16);border-radius:12px;padding:12px 14px;font:inherit;font-size:16px;margin-top:10px;background:#fff;transition:border-color .15s}.cq textarea:focus,.cq-f input:focus,.cq-in:focus{outline:none;border-color:#2f3b32;box-shadow:0 0 0 3px rgba(47,59,50,.1)}
     .cq-row{display:grid;grid-template-columns:2fr 1fr;gap:12px}.cq-f{display:block}.cq-f>span{font-size:14px;font-weight:600}.cq-f input{margin-top:6px}
     .cq-consent{display:flex;gap:12px;align-items:flex-start;font-size:15px;line-height:1.5;background:#fff;border:1.5px solid rgba(35,40,35,.16);border-radius:14px;padding:14px 16px;cursor:pointer}.cq-consent:has(input:checked){border-color:#2f3b32;background:#f3f5f1}.cq-terms{border:1px solid rgba(35,40,35,.14);border-radius:14px;background:#fff;overflow:hidden}.cq-terms-h{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#f4ede4}.cq-terms-x{border:1px solid rgba(35,40,35,.2);background:#fff;border-radius:99px;padding:5px 14px;font:inherit;font-size:13px;cursor:pointer}

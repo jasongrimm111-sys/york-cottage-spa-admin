@@ -55,12 +55,19 @@
     const ov = document.createElement('div'); ov.className = 'kiosk'; document.body.appendChild(ov); document.body.style.overflow = 'hidden';
     const close = () => { ov.remove(); document.body.style.overflow = ''; if (after) after(); else A.refresh(); };
     const formStep = () => {
-      ov.innerHTML = `<div class="kiosk-top"><span>York Cottage Spa · consultation form</span><button type="button" class="kiosk-x" data-x>Therapist: cancel</button></div>
-        <div class="kiosk-in"><div class="kiosk-hello">Hello${first ? ' ' + esc(first) : ''}</div><p class="kiosk-sub">A few quick questions so your therapist can make your treatment safe and just right for you. It takes about three minutes${g === 0 && (b.customer || {}).email ? ', and we’ve filled in what we already know' : ''}.</p>
-        ${C.formHTML(qs, { name: ((b.guestList || [])[g] || {}).name || (g === 0 ? A.cust(b) : ''), consent: cc().consentText, prefill: g === 0 ? { email: (b.customer || {}).email || '', phone: (b.customer || {}).phone || '', optin: !!custRec((b.customer || {}).email).marketing } : {} })}
-        <button class="btn pri kiosk-go" id="kGo">Send my answers</button><p class="kiosk-lock">🔒 Your answers are encrypted on this tablet and only York Cottage can read them.</p></div>`;
+      const { intro, rest: fqs } = C.splitIntro(qs);
+      const its = (b.items || []).filter(i => +i.guest === +g && i.start).sort((x, y) => ((x.date || b.date) + x.start).localeCompare((y.date || b.date) + y.start));
+      const tname = id => ((A.cfg().treatments || []).find(t => t.id === id) || {}).name || id;
+      ov.innerHTML = `<header class="kiosk-top"><span class="k-brand"><svg viewBox="0 0 760 500" width="34" fill="none" stroke="currentColor" stroke-width="30" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M160 190 L160 45 C215 62 268 92 305 132"/><path d="M600 190 L600 45 C545 62 492 92 455 132"/><path d="M380 25 C455 115 515 215 515 325 C515 415 455 470 380 485 C305 470 245 415 245 325 C245 215 305 115 380 25 Z" stroke="#d9a37f"/><path d="M10 180 C150 172 290 212 345 300 C368 337 380 360 380 385 L380 488 C235 488 125 455 82 382 C52 330 27 258 10 180 Z"/><path d="M750 180 C610 172 470 212 415 300 C392 337 380 360 380 385 L380 488 C525 488 635 455 678 382 C708 330 733 258 750 180 Z"/></svg><span><b>York Cottage</b><small>Consultation form</small></span></span>
+          <span class="k-prog cq-prog" data-short="1"><i></i><span>0%</span></span>
+          <button type="button" class="k-cancel" data-x>✕ Cancel</button></header>
+        <div class="kiosk-in"><section class="k-hero"><div class="kiosk-hello">Hello${first ? ' ' + esc(first) : ''}</div>
+          ${intro ? `<p class="kiosk-sub">${esc(intro.help || intro.label).split(String.fromCharCode(10)).join('<br>')}</p>` : `<p class="kiosk-sub">A few quick questions so your therapist can make your treatment safe and just right for you. It takes about three minutes${g === 0 && (b.customer || {}).email ? ', and we’ve filled in what we already know' : ''}.</p>`}
+          ${its.length ? `<div class="k-chips">${its.map(i => `<span>${esc(tname(i.tid))} · ${i.start}</span>`).join('')}</div>` : ''}</section>
+        ${C.formHTML(fqs, { name: ((b.guestList || [])[g] || {}).name || (g === 0 ? A.cust(b) : ''), consent: cc().consentText, prefill: g === 0 ? { email: (b.customer || {}).email || '', phone: (b.customer || {}).phone || '', optin: !!custRec((b.customer || {}).email).marketing } : {} })}
+        <div class="k-foot"><p class="kiosk-lock">🔒 Your answers are encrypted on this tablet and only York Cottage can read them.</p><button class="btn pri k-send" id="kGo">Send my answers →</button></div></div>`;
       C.wireForm(ov); ov.scrollTop = 0;
-      $('[data-x]', ov).onclick = async () => { if (await A.confirm('Stop this form?', 'Nothing has been saved yet.', 'Stop', false)) close(); };
+      $('[data-x]', ov).onclick = async () => { if (await A.confirm('Cancel this form?', 'Nothing has been saved. You can start it again from the list.', 'Cancel the form', true)) close(); };
       $('#kGo', ov).onclick = async e => { const v = C.readForm(ov, qs), msg = $('.cq-msg', ov);
         if (!v.ok) { msg.textContent = v.msg; msg.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
         e.target.disabled = true; e.target.textContent = 'Saving…';
