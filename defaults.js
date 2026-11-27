@@ -172,9 +172,14 @@
         balance: { on: true, subject: 'Your balance for {ref} is due soon', body: 'Hello {first},\n\nThe balance of {due} for your stay on {when} is due by {dueDate}.\nPay here: {payLink}\n\nYork Cottage Spa' },
         changed: { on: true, subject: 'Your York Cottage booking {ref} has changed', body: 'Hello {first},\n\nWe’ve updated your booking. Here are your new details:\n\n{details}\n\nIf anything doesn’t look right, just reply to this email or call 01933 580 100.\nYork Cottage Spa' },
         cancel: { on: true, subject: 'Your York Cottage booking {ref} is cancelled', body: 'Hello {first},\n\nYour booking {ref} for {when} has been cancelled.{reasonLine}{refundLine}\n\n{message}\n\nYork Cottage Spa · 01933 580 100' },
+        dayOf: { on: true, subject: 'Today at York Cottage', body: 'Hello {first},\n\nWe’re looking forward to seeing you today.\n\n{details}\n\nWhat to bring: swimwear and flip-flops. We provide robes and towels.\nFind us: Easton Lane, Bozeat NN29 7NN\n\nManage your booking: {manageLink}\n\nYork Cottage Spa · 01933 580 100' },
+        voucherExpiry: { on: true, subject: 'Your York Cottage gift voucher expires soon', body: 'Hello {name},\n\nA reminder that gift voucher {code} has {balance} left on it and expires on {expires}.\n\nBook online and enter the code when you pay: {site}book.html\n\nYork Cottage Spa · 01933 580 100' },
+        waitlist: { on: true, subject: 'A space has come up at York Cottage', body: 'Hello {first},\n\nGood news: a space has come up for {product} on {when} for {guests}.\n\nWe’re letting you know first. Book it here before someone else does: {bookLink}\n\nIf we don’t hear from you by {until}, we’ll offer it to the next person waiting.\n\nYork Cottage Spa · 01933 580 100' },
         voucher: { on: true, subject: 'Your York Cottage gift voucher', body: 'Hello {name},\n\nHere is your gift voucher: {code}\nValue: {value} · valid until {expires}\n\nYork Cottage Spa' }
       }
     },
+    // alerts to the team (user 2026-11-27): new bookings and booking requests to the manager, schedule changes to each therapist
+    alerts: { email: '', newBooking: true, requests: true, therapists: true },
     policies: {
       spa: 'Spa days are paid in full and are non-refundable. You can move your visit (subject to availability) by emailing us at least 30 days before.',
       stay: 'Spa breaks can be refunded if you cancel at least 30 days before arrival. With less notice the full cost is charged, and there are no refunds for leaving early.',

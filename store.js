@@ -173,6 +173,13 @@
             const have = new Set((mine.uses || []).map(u => u.at + '|' + u.amount));
             for (const u of sv.uses || []) if (!have.has(u.at + '|' + u.amount)) { (mine.uses = mine.uses || []).push(u); mine.balance = Math.max(0, Math.round((mine.balance - u.amount) * 100) / 100); if (!mine.balance) mine.status = 'used'; } }
         }
+        // emails: the job's record of what was sent (status, from, time) wins; emails we queued meanwhile are kept (user 2026-11-27)
+        if (cur && f === 'outbox.json') {
+          const theirs = new Map((cur.data || []).map(o => [o.id, o]));
+          S.DB.outbox = S.DB.outbox.map(o => { const t = theirs.get(o.id); if (!t) return o; theirs.delete(o.id); return t.status !== 'queued' || o.status === 'queued' ? { ...o, ...t, to: o.to === '' ? '' : t.to, body: o.body === '(erased on request)' ? o.body : t.body } : o; });
+          for (const t of theirs.values()) S.DB.outbox.push(t);
+          S.DB.outbox.sort((a, b) => (a.at || '').localeCompare(b.at || ''));
+        }
         if (cur && f.startsWith('bookings/')) {
           const mine = new Map(data.map(b => [b.id, b]));
           for (const b of cur.data) if (!mine.has(b.id) && !S.DB.bookings.some(x => x.id === b.id)) S.DB.bookings.push(b);

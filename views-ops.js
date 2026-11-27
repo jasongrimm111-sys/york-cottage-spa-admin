@@ -45,6 +45,7 @@
       due: gbp(extra.amount != null ? extra.amount : due(b), 2), balanceLine: q.balance && paid < q.total ? `\nBalance ${gbp(q.total - paid, 2)} due by ${fdy(q.balanceDue)}` : '', payLink: extra.link || A.payURL(b, extra.amount != null ? extra.amount : due(b)),
       dueDate: q.balanceDue ? fdy(q.balanceDue) : '', reviewLink: cfg.business.googleReviewUrl || cfg.business.website, consultLink: A.consultURL ? (A.consultURL(b) || cfg.business.consultUrl || '(please fill it in when you arrive)') : cfg.business.consultUrl || '', refundLine: extra.refund ? `\nWe’ve refunded ${gbp(extra.refund, 2)} to your original payment method.` : '', ...extra };
     vals.reasonLine = extra.reason ? `\nReason: ${extra.reason}.` : ''; vals.message = extra.message || '';
+    vals.manageLink = A.manageURL(b) || `(call us on ${cfg.business.phone || ''})`; vals.address = cfg.business.address || ''; vals.phone = cfg.business.phone || ''; vals.site = A.siteURL();
     const fill = s => s.replace(/\{(\w+)\}/g, (m, k) => vals[k] != null ? vals[k] : m);
     let body = fill(tp.body);
     // cancellations: templates saved before {reasonLine}/{message} existed still get them, above the sign-off
@@ -53,8 +54,24 @@
       if (add) { const k = body.lastIndexOf('\n\n'); body = k > 0 ? body.slice(0, k) + '\n\n' + add + body.slice(k) : body + '\n\n' + add; }
       body = body.replace(/\n{3,}/g, '\n\n');
     }
+    // booking emails always carry the "Manage my booking" link, even in templates saved before it existed
+    if (['confirm', 'preArrival', 'changed'].includes(key) && !/\{manageLink\}/.test(tp.body) && A.manageURL(b)) { const k = body.lastIndexOf('\n\n'); const line = `Manage your booking: ${A.manageURL(b)}`; body = k > 0 ? body.slice(0, k) + '\n\n' + line + body.slice(k) : body + '\n\n' + line; }
     return { to: (b.customer || {}).email, subject: fill(tp.subject), body };
   };
+  // exactly what an email said and who it went to (user 2026-11-27)
+  A.mailModal = o => {
+    const cfg = A.cfg(), st = { sent: 'Sent', done: 'Sent', queued: 'Waiting to send', waiting: 'Waiting for email set-up', failed: 'Failed', skipped: 'Not sent (sample guest)', demo: 'Demo (not sent)' }[o.status] || o.status;
+    const from = o.from || `${(cfg.emails || {}).fromName || cfg.business.name} <the sending address once email is set up>`, reply = o.replyTo || (cfg.emails || {}).replyTo || cfg.business.email;
+    const row = (k, v) => v ? `<dt>${k}</dt><dd>${v}</dd>` : '';
+    return A.modal({ title: esc(o.subject || o.type), size: 'wide', ok: 'Close', cancel: '', body: `<dl class="kv mail-h">${row('From', esc(from))}${row('To', esc(o.to || ''))}${row('Reply-to', esc(reply))}${row('Subject', `<b>${esc(o.subject || '')}</b>`)}${row('Created', `${ft(o.at)}${o.by ? ' · by ' + esc(o.by) : ''}`)}${row('Sent', o.done ? ft(o.done) : '')}${row('Status', `<span class="badge ${o.status === 'sent' || o.status === 'done' ? 'ok' : o.status === 'failed' ? 'bad' : 'info'}">${esc(st)}</span>${o.error ? ' <span class="small muted">' + esc(o.error) + '</span>' : ''}`)}${row('Booking', o.ref ? `<a href="#/booking/${o.bookingId || ''}">${esc(o.ref)}</a>` : '')}${row('Kind', o.type === 'paylink' ? 'Email with a payment link' : '')}</dl>
+      <pre class="mail-body">${esc(o.body || '')}</pre>` });
+  };
+  A.mailRows = list => list.length ? `<div class="list">${list.slice().reverse().map(o => `<div class="li click" data-mail="${o.id}"><span class="grow"><b>${esc(o.subject || o.template)}</b><span class="small muted">${ft(o.at)} · ${esc(o.to || '')}${o.by ? ' · ' + esc(o.by) : ''}</span></span><span class="badge ${o.status === 'sent' || o.status === 'done' ? 'ok' : o.status === 'failed' ? 'bad' : 'info'}">${o.status === 'demo' ? 'Demo' : o.status === 'skipped' ? 'not sent' : o.status}</span></div>`).join('')}</div>` : '<p class="muted">No emails yet.</p>';
+  A.wireMail = el => $$('[data-mail]', el).forEach(r => r.onclick = () => { const o = A.DB().outbox.find(x => x.id === r.dataset.mail); if (o) A.mailModal(o); });
+  // each booking's private "Manage my booking" link (needs the website's receiver switched on)
+  A.manageURL = b => { const c = A.cfg().consult || {}; if (!c.endpoint || !b || !b.ref) return '';
+    if (!b.manageToken) { b.manageToken = Array.from({ length: 24 }, () => 'abcdefghijkmnopqrstuvwxyz23456789'[Math.floor(Math.random() * 33)]).join(''); A.change('booking', b); }
+    return A.siteURL() + `manage.html?ref=${encodeURIComponent(b.ref)}&m=${b.date.slice(0, 7)}&k=${b.manageToken}`; };
   // queue an email (the data repo's GitHub Action sends it); in the demo it is shown instead
   A.sendEmail = async (key, b, extra = {}, show = true) => {
     const m = A.renderEmail(key, b, extra); if (!m || !m.to) { A.toast('No email address on this booking'); return null; }
@@ -349,7 +366,7 @@
           <div class="card"><div class="card-h"><h3>Payments</h3><span>${paid ? gbp(paid, 2) + ' paid' : 'Nothing paid yet'}</span></div>
             ${(b.payments || []).length ? `<table class="tbl"><tbody>${b.payments.map(x => `<tr><td>${ft(x.at)}</td><td>${x.amount < 0 ? 'Refund' : 'Payment'} · ${esc(x.method || '')}${x.note ? ' · ' + esc(x.note) : ''}${x.by ? `<br><span class="small muted">by ${esc(x.by)}</span>` : ''}</td><td class="r tnum"><b>${gbp(x.amount, 2)}</b></td></tr>`).join('')}</tbody></table>` : '<p class="muted">No payments recorded.</p>'}</div>
           <div class="card"><div class="card-h"><h3>Emails</h3>${b.customer && b.customer.email ? `<button class="btn sm" id="resend">Send confirmation</button>` : ''}</div>
-            ${emails.length ? `<div class="list">${emails.slice().reverse().map(o => `<div class="li"><span class="grow"><b>${esc(o.subject || o.template)}</b><span class="small muted">${ft(o.at)} · ${esc(o.by || '')}</span></span><span class="badge ${o.status === 'sent' ? 'ok' : o.status === 'failed' ? 'bad' : 'info'}">${o.status === 'demo' ? 'Demo' : o.status}</span></div>`).join('')}</div>` : '<p class="muted">No emails yet.</p>'}</div>
+            ${A.mailRows(emails)}${A.manageURL(b) ? `<p class="small muted" style="margin-top:8px">Guest’s private page: <a href="${esc(A.manageURL(b))}" target="_blank" rel="noopener">Manage my booking</a></p>` : ''}</div>
           <div class="card"><div class="card-h"><h3>History</h3></div><div class="list">${(b.history || []).slice().reverse().map(x => `<div class="li small"><span class="grow">${esc(x.what)}</span><span class="muted">${ft(x.at)} · ${esc(x.by || '')}</span></div>`).join('')}</div></div>
         </div>
         <div>
@@ -366,7 +383,7 @@
             ${q.damage ? `<div class="hr"></div><div class="fld"><span>£${q.damage} damage deposit</span><select class="inp" id="dmgS"><option value="">Not taken yet</option><option value="held" ${(b.damage || {}).status === 'held' ? 'selected' : ''}>Pre-authorised on their card</option><option value="released" ${(b.damage || {}).status === 'released' ? 'selected' : ''}>Released after check-out</option><option value="charged" ${(b.damage || {}).status === 'charged' ? 'selected' : ''}>Charged (damage)</option></select><small>Release within 48 hours of check-out.</small></div>` : ''}</div>` : ''}
         </div>
       </div>`;
-    return { html, wire: el => {
+    return { html, wire: el => { A.wireMail(el);
       const save = what => { b.updated = new Date().toISOString(); (b.history = b.history || []).push({ at: b.updated, by: St.S.user.name, what }); A.change('booking', b, what + ' · ' + b.ref); A.refresh(); };
       $$('[data-cfill]', el).forEach(x => x.onclick = () => A.fillConsult(b, +x.dataset.cfill));
       $$('[data-cview]', el).forEach(x => x.onclick = () => A.viewConsults(b, +x.dataset.cview));
@@ -775,7 +792,7 @@
     return { html: `<div class="vh"><div><div class="eyebrow">Waitlist</div><h1>Waitlist</h1><p>People waiting for a space. When one frees up, they’re marked “Space free”.</p></div><div class="acts"><button class="btn pri" id="wlAdd">${A.ic.plus} Add to waitlist</button></div></div>
       <div class="card flush"><table class="tbl"><thead><tr><th>Wanted</th><th>Who</th><th>Guests</th><th>Note</th><th>Now</th><th></th></tr></thead><tbody>
       ${list.map(w => { const c = w.date >= t ? E.dateCheck(cfg, ix, { product: w.product, date: w.date, guests: w.guests, nights: w.nights, admin: true }) : { ok: false, why: 'Date passed' };
-        return `<tr><td><b>${fd(w.date)}</b><br><span class="small muted">${A.prodDot(w.product)} ${esc(A.pname(w.product))}</span></td><td><b>${esc(w.name)}</b><br><span class="small muted">${esc(w.email || '')} ${esc(w.phone || '')}</span></td><td>${w.guests}</td><td class="small">${esc(w.note || '')}</td><td>${c.ok ? '<span class="badge ok bdot">Space free</span>' : `<span class="badge">${esc(c.why)}</span>`}</td>
+        return `<tr><td><b>${fd(w.date)}</b><br><span class="small muted">${A.prodDot(w.product)} ${esc(A.pname(w.product))}</span></td><td><b>${esc(w.name)}</b><br><span class="small muted">${esc(w.email || '')} ${esc(w.phone || '')}</span></td><td>${w.guests}</td><td class="small">${esc(w.note || '')}</td><td>${c.ok ? '<span class="badge ok bdot">Space free</span>' : `<span class="badge">${esc(c.why)}</span>`}${w.offered ? `<br><span class="small muted">Emailed ${ft(w.offered)}${w.offerUntil && new Date(w.offerUntil) > new Date() ? ', first refusal until ' + ft(w.offerUntil) : ''}</span>` : ''}</td>
           <td class="r" style="white-space:nowrap">${c.ok ? `<a class="btn sm pri" href="#/new?wl=${w.id}">Book</a> ${w.email ? `<button class="btn sm" data-wlmail="${w.id}">Email</button>` : ''}` : ''} <button class="btn sm ghost" data-wldone="${w.id}">Remove</button></td></tr>`; }).join('') || '<tr><td colspan="6"><div class="empty"><b>Nobody waiting</b>Add people when a day is full.</div></td></tr>'}
       </tbody></table></div>
       ${done.length ? `<h3 style="margin:22px 0 8px">Recently closed</h3><div class="card flush"><table class="tbl"><tbody>${done.map(w => `<tr><td>${fd(w.date)}</td><td>${esc(w.name)}</td><td>${esc(A.pname(w.product))}</td><td>${w.status === 'booked' ? `<span class="badge ok">Booked ${w.booking || ''}</span>` : '<span class="badge">Removed</span>'}</td></tr>`).join('')}</tbody></table></div>` : ''}`,
