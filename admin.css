@@ -950,3 +950,8 @@ html{touch-action:manipulation}
 .rota td[data-cell]{transition:background .12s, box-shadow .12s}
 .rota td[data-cell]:not(.past):hover{background:var(--cream);box-shadow:inset 0 0 0 2px var(--forest);cursor:pointer}
 .rota td[data-cell].past:hover{background:rgba(0,0,0,.02)}
+/* rota: today's column stands out (user 2026-11-27) */
+.rota th.is-today{background:var(--forest);color:#fff!important}
+.rota th.is-today .today-tag{display:block;font-size:10px;letter-spacing:.14em;text-transform:uppercase;opacity:.8;margin-bottom:1px}
+.rota td.is-today{background:#f3efe4;box-shadow:inset 2px 0 0 var(--forest),inset -2px 0 0 var(--forest)}
+.rota td.is-today[data-cell]:hover{box-shadow:inset 0 0 0 2px var(--forest)}
