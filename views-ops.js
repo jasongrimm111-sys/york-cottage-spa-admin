@@ -768,7 +768,7 @@
       if ((P.kind === 'session' || P.kind === 'private') && !B.sessionId) { msg.textContent = 'Choose a session'; return; }
       if (!B.customer.first && !B.customer.last) { msg.textContent = 'Add the guest’s name'; return; }
       if (B.quote && B.quote.total <= 0 || E.quote(cfg, B).total <= 0) { if (!orig) st.payMode = 'hold'; }
-      if (st.payMode === 'link' && !orig && !/^\S+@\S+\.\S+$/.test(B.customer.email || '')) { msg.textContent = 'A payment link needs an email address'; return; }
+      if (st.payMode === 'link' && !orig && !A.validEmail(B.customer.email)) { msg.textContent = 'A payment link needs an email address'; return; }
       if (lastProbs.length && !(await A.confirm('Book anyway?', `There ${lastProbs.length === 1 ? 'is a problem' : 'are problems'}:<br>${lastProbs.map(esc).join('<br>')}<br><br>Save it anyway?`, 'Save anyway'))) return;
       if (B.items.some(i => !i.staff)) B.items.forEach(i => { if (!i.staff) i.staff = null; });
       const now = new Date().toISOString(), by = St.S.user.name;

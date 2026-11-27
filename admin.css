@@ -1283,3 +1283,8 @@ html{touch-action:manipulation}
 .vh-title{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .req-btns{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
 @media (max-width:700px){.req-btns{margin-left:0;width:100%}.req-btns .btn{flex:1}}
+
+/* email boxes that aren't a valid address */
+.inp.inp-bad{border-color:#c8574a;box-shadow:0 0 0 3px rgba(200,87,74,.12)}
+.em-err{display:block;color:#b0413e;font-size:12.5px;font-weight:600;margin-top:5px}
+.k-intro p{margin:0 0 10px}.k-intro p:last-child{margin-bottom:0}

@@ -4,6 +4,11 @@
    Shared by the admin portal and the website. */
 (function (root) {
   const C = {};
+  // a properly formed email address: name@domain.tld, no spaces, no double dots, a real-looking ending
+  C.validEmail = v => { v = String(v || '').trim(); if (!v || v.length > 254) return false;
+    const m = /^([A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+)@((?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,})$/.exec(v);
+    return !!m && m[1].length <= 64 && m[1][0] !== '.' && m[1].slice(-1) !== '.' && !m[1].includes('..'); };
+  C.validPhone = v => { const d = String(v || '').replace(/[^\d]/g, ''); return d.length >= 10 && d.length <= 15 && /^[\d\s+()-]+$/.test(String(v).trim()); };
   const te = new TextEncoder(), td = new TextDecoder();
   const b64 = u8 => { let s = ''; new Uint8Array(u8).forEach(c => s += String.fromCharCode(c)); return btoa(s); };
   const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
@@ -148,13 +153,48 @@
       const list = stops(), cur = el.type === 'radio' ? list.find(x => x.name === el.name) : el, i = list.indexOf(cur), next = list[i + 1];
       if (next) { next.focus(); next.scrollIntoView({ block: 'center', behavior: 'smooth' }); } else el.blur();
     }); };
-  C.wireForm = root => { C.wireSig(root); C.wireKeys(root);
+  const units = (root, qs) => { const f = root.querySelector('form.cform-q'); if (!f) return []; const byId = {}; (qs || []).forEach(q => byId[q.id] = q); const out = [];
+    const nameL = f.elements.name && f.elements.name.closest('label'), dobL = f.elements.dob && f.elements.dob.closest('label');
+    if (nameL) out.push({ el: nameL, check: () => f.elements.name.value.trim() ? '' : 'Please add your full name' });
+    if (dobL) out.push({ el: dobL, check: () => { const v = f.elements.dob.value; if (!v) return 'Please add your date of birth'; const d = new Date(v + 'T12:00:00'); return isNaN(d) || d > new Date() || d.getFullYear() < 1900 ? 'Please check your date of birth' : ''; } });
+    f.querySelectorAll('[data-q]').forEach(el => { const q = byId[el.dataset.q]; if (!q || q.type === 'optin') return;
+      const val = () => { const i = el.querySelector('input:not([type=radio]):not([type=checkbox]),textarea'); return i ? i.value.trim() : ''; };
+      out.push({ el, q, check: () => {
+        if (q.type === 'yesno') { const r = el.querySelector('input[type=radio]:checked'); if (!r) return 'Please choose No or Yes'; const d = el.querySelector('.cq-detail'); return r.value === 'yes' && q.detail && d && !d.value.trim() ? 'Please add a little detail' : ''; }
+        if (q.type === 'choice') return q.required && !el.querySelector('input:checked') ? 'Please choose one' : '';
+        if (q.type === 'multi') return q.required && !el.querySelector('input:checked') ? 'Please choose at least one' : '';
+        const v = val();
+        if (q.required && !v) return q.fill === 'email' ? 'Please add your email address' : 'Please answer this question';
+        if (v && q.fill === 'email' && !C.validEmail(v)) return 'That doesn’t look like an email address, e.g. name@example.com';
+        if (v && q.fill === 'phone' && !C.validPhone(v)) return 'Please check the phone number';
+        return ''; } }); });
+    const cons = f.querySelector('.cq-consent:not(.cq-optin)'); if (cons) out.push({ el: cons, check: () => f.elements.consent.checked ? '' : 'Please tick to agree before you send' });
+    const sig = f.querySelector('.cq-sig'); if (sig) out.push({ el: sig, check: () => sig._drawn ? '' : 'Please sign in the box' });
+    const signL = f.elements.sign && f.elements.sign.closest('label'); if (signL) out.push({ el: signL, check: () => f.elements.sign.value.trim() ? '' : 'Please add your full name under your signature' });
+    return out; };
+  const mark = (u, msg) => { u.el.classList.toggle('cq-bad', !!msg); let e = u.el.querySelector(':scope > .cq-err') || (u.el.nextElementSibling && u.el.nextElementSibling.classList.contains('cq-err') ? u.el.nextElementSibling : null);
+    if (!msg) { if (e) e.remove(); return; }
+    if (!e) { e = document.createElement('p'); e.className = 'cq-err'; e.setAttribute('role', 'alert'); if (u.el.matches('.cq-r,.cq-sig,.cq-consent')) u.el.after(e); else u.el.appendChild(e); }
+    e.textContent = msg; };
+  C.wireValidate = (root, qs) => { const us = units(root, qs); if (!us.length) return; const f = root.querySelector('form.cform-q'), seen = new Set();
+    const idx = el => us.findIndex(u => u.el === el || u.el.contains(el));
+    const visit = i => { if (i < 0) return; seen.add(i); mark(us[i], us[i].check());
+      for (let j = 0; j < i; j++) if (!seen.has(j)) { seen.add(j); const m = us[j].check(); if (m) mark(us[j], m); } };   // questions they skipped
+    f.addEventListener('focusout', e => { const i = idx(e.target); if (i < 0) return; setTimeout(() => { if (us[i].el.contains(document.activeElement)) return; visit(i); }, 0); });
+    f.addEventListener('change', e => { const i = idx(e.target); if (i < 0) return; if (e.target.type === 'radio' || e.target.type === 'checkbox') visit(i); else if (us[i].el.classList.contains('cq-bad')) mark(us[i], us[i].check()); });
+    f.addEventListener('input', e => { const i = idx(e.target); if (i >= 0 && us[i].el.classList.contains('cq-bad')) mark(us[i], us[i].check()); });
+    f.addEventListener('pointerup', e => { const s = e.target.closest('.cq-sig'); if (s) setTimeout(() => { const i = idx(s); if (i >= 0) visit(i); }, 30); });
+    f._units = us; };
+  C.checkAll = (root, qs) => { const f = root.querySelector('form.cform-q'), us = (f && f._units) || units(root, qs); let first = null, n = 0;
+    us.forEach(u => { const m = u.check(); mark(u, m); if (m) { n++; if (!first) first = u.el; } }); return { n, first }; };
+  C.wireForm = (root, qs) => { C.wireSig(root); C.wireKeys(root); if (qs) C.wireValidate(root, qs);
     root.querySelectorAll('.cq-tlink').forEach(a => a.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); const f = a.closest('form'), t = f && f.querySelector('.cq-terms'); if (!t) return; t.hidden = !t.hidden; if (!t.hidden) t.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }));
     root.querySelectorAll('.cq-terms-x').forEach(b => b.onclick = () => { b.closest('.cq-terms').hidden = true; });
     root.querySelectorAll('[data-grp]').forEach(g => { const b = g.querySelector('.cq-none'); b.onclick = () => { g.querySelectorAll('input[value=no]').forEach(i => { i.checked = true; }); g.dispatchEvent(new Event('change', { bubbles: true })); }; }); root.querySelectorAll('.cq[data-q]').forEach(fs => fs.querySelectorAll('input[type=radio]').forEach(r => r.addEventListener('change', () => { const d = fs.querySelector('.cq-detail'); if (d) d.hidden = !(fs.querySelector('input[value=yes]') || {}).checked; }))); C.wireProgress(root); };
   // read + check; returns { ok, answers, msg }
   C.readForm = (root, qs) => {
     const f = root.querySelector('form'), v = n => (f.elements[n] || {}).value || '', ans = {};
+    const chk = C.checkAll(root, qs); if (chk.n) { if (chk.first) chk.first.scrollIntoView({ block: 'center', behavior: 'smooth' }); return { ok: false, first: chk.first, msg: chk.n === 1 ? 'One question still needs an answer: it’s highlighted above.' : `${chk.n} questions still need an answer: they’re highlighted above.` }; }
     if (!v('name').trim()) return { ok: false, msg: 'Please add your name' };
     if (!v('dob')) return { ok: false, msg: 'Please add your date of birth' };
     for (const q of qs || []) {
@@ -185,7 +225,7 @@
     .cq-consent{display:flex;gap:12px;align-items:flex-start;font-size:15px;line-height:1.5;background:#fff;border:1.5px solid rgba(35,40,35,.16);border-radius:14px;padding:14px 16px;cursor:pointer}.cq-consent:has(input:checked){border-color:#2f3b32;background:#f3f5f1}.cq-terms{border:1px solid rgba(35,40,35,.14);border-radius:14px;background:#fff;overflow:hidden}.cq-terms-h{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#f4ede4}.cq-terms-x{border:1px solid rgba(35,40,35,.2);background:#fff;border-radius:99px;padding:5px 14px;font:inherit;font-size:13px;cursor:pointer}
     .cq-terms-b{padding:14px 16px;font-size:14px;line-height:1.65;color:#3c4038;max-height:46vh;overflow:auto}.cq-terms-b p{margin:0 0 10px}.cq-tlink{color:#9a5d3f;font-weight:700;text-decoration:underline}
     .cq-optin span{display:flex;flex-direction:column;gap:2px}.cq-optin small{font-size:13px;color:#6b6f68;font-weight:400}.cq-consent input{width:22px;height:22px;margin-top:1px;accent-color:#2f3b32;flex:none}
-    .cq-msg{color:#b0413e;font-weight:600;min-height:20px}.cq-h{font-family:'Cormorant Garamond',Georgia,serif;font-weight:500;font-size:28px;margin:14px 0 -2px;line-height:1.15}.cq-help{font-size:14px;color:#6b6f68;margin:4px 0 0;white-space:pre-line;clear:both}.cq-req{color:#b0413e}
+    .cq-msg{color:#b0413e;font-weight:600;min-height:20px}.cq-bad{border-color:#d36b5e!important;box-shadow:0 0 0 3px rgba(211,107,94,.12)!important}.cq-r.cq-bad{background:#fdf0ee}label.cq-bad{box-shadow:none!important;border-color:transparent!important}.cq-bad .cq-in,.cq-bad textarea,.cq-bad input:not([type=radio]):not([type=checkbox]){border-color:#d36b5e}.cq-err{color:#b0413e;font-size:13.5px;font-weight:600;margin:8px 0 0;clear:both}.cq-r+.cq-err{padding:0 16px 10px;margin:0;background:#fdf0ee}.cq-sig+.cq-err,.cq-consent+.cq-err{margin-top:6px}.cq-h{font-family:'Cormorant Garamond',Georgia,serif;font-weight:500;font-size:28px;margin:14px 0 -2px;line-height:1.15}.cq-help{font-size:14px;color:#6b6f68;margin:4px 0 0;white-space:pre-line;clear:both}.cq-req{color:#b0413e}
     .cq-info{border-radius:16px;background:#f4ede4;padding:16px 18px;font-size:15px}.cq-info b{display:block;font-size:16px;margin-bottom:2px}.cq-info .cq-help{font-size:13.5px;line-height:1.6;color:#55594f}
     .cq-grp{background:#fff;border:1px solid rgba(35,40,35,.1);border-radius:16px;overflow:hidden}.cq-grp-h{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;background:#f4ede4;font-size:14px;font-weight:600}
     .cq-none{border:1.5px solid #2f3b32;background:#fff;color:#2f3b32;border-radius:99px;padding:8px 16px;font:inherit;font-size:14px;font-weight:700;cursor:pointer}.cq-none:hover{background:#2f3b32;color:#fff}

@@ -31,7 +31,7 @@
   const needKey = async () => { if (cc().publicKey) return false; if (await A.confirm('Set up the form first', 'The consultation form needs its encryption key. Create it now in Settings → Consultation forms?', 'Go to Settings', false)) location.hash = '#/settings/consult'; return true; };
   const custRec = email => { const DB = A.DB(), e = String(email || '').toLowerCase(); const k = Object.keys(DB.customers || {}).find(x => x.toLowerCase() === e); return (k && DB.customers[k]) || {}; };
   // the form's marketing tick (user 2026-11-27): ticked adds the guest as a customer who gets news and offers; unticked takes them off
-  A.consultOptin = (o, by) => { if (!o || !o.email || !/^\S+@\S+\.\S+$/.test(o.email)) return;
+  A.consultOptin = (o, by) => { if (!o || !o.email || !C.validEmail(o.email)) return;
     const DB = A.DB(); DB.customers = DB.customers || {}; const k = Object.keys(DB.customers).find(x => x.toLowerCase() === o.email) || o.email;
     const c = DB.customers[k] = DB.customers[k] || { marketing: false, notes: '', tags: [] }, was = !!c.marketing;
     if (!c.name && o.name) { c.name = o.name; c.first = o.name.split(' ')[0]; c.last = o.name.split(' ').slice(1).join(' '); c.source = 'Consultation form'; }
@@ -62,14 +62,14 @@
           <span class="k-prog cq-prog" data-short="1"><i></i><span>0%</span></span>
           <button type="button" class="k-cancel" data-x>✕ Cancel</button></header>
         <div class="kiosk-in"><section class="k-hero"><div class="kiosk-hello">Hello${first ? ' ' + esc(first) : ''}</div>
-          ${intro ? `<p class="kiosk-sub">${esc(intro.help || intro.label).split(String.fromCharCode(10)).join('<br>')}</p>` : `<p class="kiosk-sub">A few quick questions so your therapist can make your treatment safe and just right for you. It takes about three minutes${g === 0 && (b.customer || {}).email ? ', and we’ve filled in what we already know' : ''}.</p>`}
+          ${intro ? `<div class="kiosk-sub k-intro">${esc(intro.help || intro.label).split(String.fromCharCode(10)).filter(x => x.trim()).map(x => `<p>${x}</p>`).join('')}</div>` : `<p class="kiosk-sub">A few quick questions so your therapist can make your treatment safe and just right for you. It takes about three minutes${g === 0 && (b.customer || {}).email ? ', and we’ve filled in what we already know' : ''}.</p>`}
           ${its.length ? `<div class="k-chips">${its.map(i => `<span>${esc(tname(i.tid))} · ${i.start}</span>`).join('')}</div>` : ''}</section>
         ${C.formHTML(fqs, { name: ((b.guestList || [])[g] || {}).name || (g === 0 ? A.cust(b) : ''), consent: cc().consentText, prefill: g === 0 ? { email: (b.customer || {}).email || '', phone: (b.customer || {}).phone || '', optin: !!custRec((b.customer || {}).email).marketing } : {} })}
         <div class="k-foot"><p class="kiosk-lock">🔒 Your answers are encrypted on this tablet and only York Cottage can read them.</p><button class="btn pri k-send" id="kGo">Send my answers →</button></div></div>`;
-      C.wireForm(ov); ov.scrollTop = 0;
+      C.wireForm(ov, qs); ov.scrollTop = 0;
       $('[data-x]', ov).onclick = async () => { if (await A.confirm('Cancel this form?', 'Nothing has been saved. You can start it again from the list.', 'Cancel the form', true)) close(); };
       $('#kGo', ov).onclick = async e => { const v = C.readForm(ov, qs), msg = $('.cq-msg', ov);
-        if (!v.ok) { msg.textContent = v.msg; msg.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+        if (!v.ok) { msg.textContent = v.msg; return; }
         e.target.disabled = true; e.target.textContent = 'Saving…';
         try { await save(b, g, v, 'tablet'); doneStep(C.flags(qs, v.answers.a)); } catch (err) { e.target.disabled = false; e.target.textContent = 'Send my answers'; msg.textContent = 'That didn’t save: ' + err.message; } };
     };

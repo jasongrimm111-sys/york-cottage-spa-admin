@@ -9,7 +9,7 @@
   // who gets marketing: guests ticked "Happy to get news and offers" (and not unsubscribed), with an email
   A.marketingList = () => { const DB = A.DB(), all = A.customers();
     const rec = e => DB.customers[e] || DB.customers[Object.keys(DB.customers).find(k => k.toLowerCase() === e)] || {};
-    return Object.values(all).filter(c => c.email && /^\S+@\S+\.\S+$/.test(c.email) && rec(c.email).marketing && !rec(c.email).unsubscribedAt); };
+    return Object.values(all).filter(c => c.email && A.validEmail(c.email) && rec(c.email).marketing && !rec(c.email).unsubscribedAt); };
   const custKey = email => { const DB = A.DB(); return Object.keys(DB.customers).find(k => k.toLowerCase() === String(email).toLowerCase()) || email; };
   const unsubURL = (email) => { const DB = A.DB(), k = custKey(email), c = DB.customers[k] = DB.customers[k] || { marketing: true, notes: '', tags: [] }; if (!c.unsubKey) c.unsubKey = key();
     return A.siteURL() + `unsubscribe.html?e=${encodeURIComponent(email)}&k=${c.unsubKey}`; };
@@ -197,7 +197,7 @@
         const save = (what) => { read(); A.change('campaigns', null, what || 'Marketing email saved: ' + (cp.subject || 'untitled')); };
         $('#cpSave', el).onclick = () => { save(); A.toast('Saved'); };
         $('#cpDel', el).onclick = async () => { if (!(await A.confirm('Delete this draft?', 'It hasn’t been sent, so nobody will notice.', 'Delete'))) return; A.DB().campaigns = list().filter(x => x !== cp); A.change('campaigns', null, 'Marketing draft deleted'); location.hash = '#/marketing'; };
-        $('#cpTest', el).onclick = () => { read(); if (!cp.subject) { A.toast('Add a subject line first'); return; } const to = (cp.testTo || '').trim(); if (!/^\S+@\S+\.\S+$/.test(to)) { A.toast('Enter an email address for the test'); return; }
+        $('#cpTest', el).onclick = () => { read(); if (!cp.subject) { A.toast('Add a subject line first'); return; } const to = (cp.testTo || '').trim(); if (!A.validEmail(to)) { A.toast('Enter an email address for the test'); return; }
           const c = aud[0] || { first: 'Sophie', name: 'Sophie Turner' };
           St.queue({ type: 'email', template: 'campaign', campaign: cp.id, test: true, to, subject: '[Test] ' + fill(cp.subject, c), body: fill(cp.body, c), unsub: A.siteURL() + 'unsubscribe.html' });
           save('Marketing test queued to ' + to); A.toast('Test queued: it arrives when the email job next runs (within the hour)'); };

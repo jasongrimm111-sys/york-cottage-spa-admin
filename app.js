@@ -102,8 +102,19 @@
   // ---------- forms ----------
   // fields carry data-k="path.to.value" and data-t (num|bool|list|days|json); A.read() builds the object back
   const attr = o => Object.entries(o || {}).filter(([, v]) => v != null && v !== false).map(([k, v]) => v === true ? k : `${k}="${esc(v)}"`).join(' ');
+  A.validEmail = (v => { v = String(v || '').trim(); if (!v || v.length > 254) return false; const m = /^([A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+)@((?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,})$/.exec(v); return !!m && m[1].length <= 64 && m[1][0] !== '.' && m[1].slice(-1) !== '.' && !m[1].includes('..'); });
+  document.addEventListener('focusout', e => { const i = e.target; if (!i.matches || !i.matches('input[type=email]') || i.closest('.cform-q')) return; A.markEmail(i); });
+  document.addEventListener('input', e => { const i = e.target; if (i.matches && i.matches('input[type=email].inp-bad') && A.validEmail(i.value)) A.markEmail(i); });
+  A.markEmail = i => { const bad = !!i.value.trim() && !A.validEmail(i.value); i.classList.toggle('inp-bad', bad); i.setAttribute('aria-invalid', bad ? 'true' : 'false');
+    const host = i.closest('label, .fld') || i.parentElement; let m = host.querySelector('.em-err'); if (bad && !m) { m = document.createElement('small'); m.className = 'em-err'; host.appendChild(m); }
+    if (m) { if (bad) m.textContent = 'That doesn’t look like an email address, e.g. name@example.com'; else m.remove(); } return bad; };
+  // before anything is saved or sent: any email box nearby with a broken address stops it (capture, so it runs first)
+  document.addEventListener('click', e => { const b = e.target.closest('[data-ok], .btn.pri, button[id$="Save"], button[id^="save"], #cpTest, #cpSend'); if (!b) return;
+    const scope = b.closest('.modal') || b.closest('.card') || b.closest('form') || document.getElementById('view') || document.body;
+    const bad = [...scope.querySelectorAll('input[type=email]')].filter(i => !i.closest('[hidden]') && A.markEmail(i));
+    if (bad.length) { e.preventDefault(); e.stopImmediatePropagation(); bad[0].focus(); A.toast('Please check the email address'); } }, true);
   A.f = {
-    text: (k, label, v, o = {}) => `<label class="fld ${o.cls || ''}"><span>${label}</span>${o.pre ? `<span class="inp-pre"><b>${o.pre}</b>` : ''}<input class="inp" data-k="${k}" ${o.t ? `data-t="${o.t}"` : ''} ${attr({ type: o.type || 'text', value: v ?? '', placeholder: o.ph, min: o.min, max: o.max, step: o.step, required: o.req, inputmode: o.im, list: o.list, autocomplete: o.ac || 'off', maxlength: o.maxlength })}>${o.pre ? '</span>' : ''}${o.hint ? `<small>${o.hint}</small>` : ''}</label>`,
+    text: (k, label, v, o = {}) => (o = (!o.type && /email/i.test(k) && !/template|subject|body/i.test(k)) ? { ...o, type: 'email' } : o, `<label class="fld ${o.cls || ''}"><span>${label}</span>${o.pre ? `<span class="inp-pre"><b>${o.pre}</b>` : ''}<input class="inp" data-k="${k}" ${o.t ? `data-t="${o.t}"` : ''} ${attr({ type: o.type || 'text', value: v ?? '', placeholder: o.ph, min: o.min, max: o.max, step: o.step, required: o.req, inputmode: o.im, list: o.list, autocomplete: o.ac || 'off', maxlength: o.maxlength })}>${o.pre ? '</span>' : ''}${o.hint ? `<small>${o.hint}</small>` : ''}</label>`),
     num: (k, label, v, o = {}) => A.f.text(k, label, v, { ...o, type: 'number', t: 'num', im: 'decimal', step: o.step || 'any' }),
     money: (k, label, v, o = {}) => A.f.text(k, label, v, { ...o, type: 'number', t: 'num', pre: '£', step: '0.01', im: 'decimal' }),
     time: (k, label, v, o = {}) => A.f.text(k, label, v, { ...o, type: 'time', step: 300 }),
@@ -288,7 +299,7 @@
       if (E.live(b)) { c.visits++; c.spend += E.paid(b); if (b.date > (c.lastVisit || '')) c.lastVisit = b.date; if (!c.firstVisit || b.date < c.firstVisit) c.firstVisit = b.date; }
     }
     for (const [k0, v] of Object.entries(DB.customers || {})) { const k = k0.toLowerCase();
-      if (!out[k] && v.name && /^\S+@\S+\.\S+$/.test(k)) out[k] = { email: k, name: v.name, first: v.first || v.name.split(' ')[0], last: v.last || v.name.split(' ').slice(1).join(' '), phone: v.phone || '', visits: 0, spend: 0, lastVisit: '', firstVisit: '', bookings: [], source: v.source || '' };
+      if (!out[k] && v.name && A.validEmail(k)) out[k] = { email: k, name: v.name, first: v.first || v.name.split(' ')[0], last: v.last || v.name.split(' ').slice(1).join(' '), phone: v.phone || '', visits: 0, spend: 0, lastVisit: '', firstVisit: '', bookings: [], source: v.source || '' };
       if (out[k]) Object.assign(out[k], { marketing: v.marketing, notes: v.notes, tags: v.tags || [] }); }
     return out;
   };
@@ -390,7 +401,7 @@
     const sf = $('#setupF');
     if (sf) sf.onsubmit = async e => {
       e.preventDefault(); const v = A.read(sf), am = $('#am');
-      if (!v.name || !/^\S+@\S+\.\S+$/.test(v.email)) { am.textContent = 'Please enter your name and email'; return; }
+      if (!v.name || !A.validEmail(v.email)) { am.textContent = 'Please enter your name and email'; return; }
       if ((v.pass || '').length < 10) { am.textContent = 'Use a password of at least 10 characters'; return; }
       if (!v.token) { am.textContent = 'Paste the GitHub access key'; return; }
       am.textContent = 'Checking the key…';
