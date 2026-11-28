@@ -112,7 +112,7 @@
       const acc = pr.access || {}, day = pr.day || {}, brk = pr.break || {}, hs = pr.house || {}, n1 = (brk.priceN || {})[1], nx = (brk.priceN || {})[2] - n1;
       const exRow = (g) => { const e = (brk.exclusiveFrom || 6) - g; return [`${g} guest${g === 1 ? '' : 's'}`, `${e}`, gbp(e * X.half), gbp(e * X.full), gbp(e * X.night) + ' a night']; };
       out.push(`<section class="card rl-card" id="rl-prices"><div class="card-h"><h3>Prices</h3>${link('#/products')}</div>
-      <p class="muted rl-intro">What guests can book, what each costs, and the thinking behind every price (set 28 November 2026). Change prices in Booking types; change the “just for us” prices in Settings → Booking rules.</p>
+      <p class="muted rl-intro">What guests can book, what each costs, and the thinking behind every price. Change prices in Booking types; change the “just for us” prices in Settings → Booking rules.</p>
       <h4 class="rl-h">What’s on offer</h4>
       ${grid(['Booking', 'What’s included', 'Length', 'Guests', 'Price'], [
         [`<b>${esc(acc.name || 'Spa Access Only')}</b>`, 'Spa pool, sauna and lounge, hot &amp; cold drinks, towel and robe. No food or treatment.', `Half day (${times('access', 'half')}) or full day (${times('access', 'full')})`, `${acc.min || 1}–${acc.max || 6}`, `${gbp(sp('access', 'half'))} half day · ${gbp(sp('access', 'full'))} full day, per person`],
@@ -121,15 +121,15 @@
         [`<b>${esc(hs.name || 'Whole House & Spa')}</b>`, 'The whole house and spa: 8 bedrooms, kitchen, 2 living rooms, hot tub and sauna.', 'Must include Friday and Saturday night; extra nights either side (up to 30)', `up to ${hs.max || 16}`, `From ${gbp(hs.night || 0)} a night for the house`],
         [`<b>${esc((pr.treat || {}).name || 'Treatments only')}</b>`, 'Massages, facials and Japanese head spa, without a spa session.', 'Guests pick a start time', `${(pr.treat || {}).min || 1}–${(pr.treat || {}).max || 4}`, 'Each treatment’s own price'],
         ['<b>Breakfast</b> (spa breaks)', 'Continental breakfast', 'Each morning', '', `${gbp(cfg.breakfastPrice || 10)} per person per morning`]])}
-      <h4 class="rl-h">How the prices were worked out</h4>
+      <h4 class="rl-h">How the prices work</h4>
       <ul class="rl-list">
-        <li><b>Half days stay at the prices guests already know</b>: Spa Access ${gbp(sp('access', 'half'))} and the Day Spa (now Spa, Lunch &amp; Treatment) ${gbp(sp('day', 'half'))}, both 4 hours.</li>
+        <li><b>Half days are 4 hours</b>: Spa Access Only ${gbp(sp('access', 'half'))} and Spa, Lunch &amp; Treatment ${gbp(sp('day', 'half'))} per person.</li>
         <li><b>Full days (7½ hours) cost less per hour than two half days.</b> Spa Access Only full day ${gbp(sp('access', 'full'))} (half day + 50%). Spa, Lunch &amp; Treatment full day ${gbp(sp('day', 'full'))}: the same spa time, but lunch and the treatment are only had once, so it adds ${gbp(sp('day', 'full') - sp('day', 'half'))} to the half day rather than doubling it. Both fill the spa from 09:30 to 17:00, so a full-day guest takes the place of a morning and an afternoon guest; the premium covers most of the second half day, and a longer day is a reason to book.</li>
-        <li><b>The difference between the two spa days is lunch and a treatment</b>: ${gbp(sp('day', 'half') - sp('access', 'half'))} per person for a half day, which is the old Day Spa vs Spa Access gap.</li>
-        <li><b>Spa Break: ${gbp(n1)} for the first night, then ${gbp(nx)} for each extra night.</b> The old 1-night break was £145 and 2 nights £220; lunch is now included every day, so the first night rose by £5 and each extra night is £100 (more spa time and another lunch). Extra nights are cheaper than the first because check-in, changeover and the room clean happen once.</li>
+        <li><b>The difference between the two spa days is lunch and a treatment</b>: ${gbp(sp('day', 'half') - sp('access', 'half'))} per person for a half day.</li>
+        <li><b>Spa Break: ${gbp(n1)} for the first night, then ${gbp(nx)} for each extra night.</b> Each night includes the room, spa time and lunch. Extra nights cost less than the first because check-in, changeover and the room clean happen once per stay.</li>
         <li><b>Room to themselves +${gbp(brk.singleSupp || 0)} a night</b>: break prices are based on 2 sharing, so a guest alone in a room pays towards the empty half. Not charged when the break is “just for us” or 6+, as every room is theirs anyway.</li>
-        <li><b>Whole House</b>: unchanged at ${gbp(hs.night || 0)} a night. It’s the only booking that gives a group the whole house, and it must include Friday and Saturday, when hen parties and big groups want it.</li>
-        <li><b>Head spa</b> is ${r.headSpaOff || 10}% off with a spa day or stay, as before.</li>
+        <li><b>Whole House</b>: ${gbp(hs.night || 0)} a night. It’s the only booking that gives a group the whole house, and it must include Friday and Saturday, when hen parties and big groups want it.</li>
+        <li><b>Head spa</b> is ${r.headSpaOff || 10}% off with a spa day or stay.</li>
         <li>${E.groupRates(cfg).on ? `<b>Group discount: ${E.groupRates(cfg).pct}% off for ${E.groupRates(cfg).from} or more guests</b> on Spa Access Only, Spa, Lunch &amp; Treatment and Spa Breaks, to help more groups book. A group of ${E.groupRates(cfg).from} fills the spa in one sale (no empty places to sell and less admin), so a small discount is worth it, and they also get the spa to themselves. It’s off the booking price only: extra treatments, where most groups spend more, and breakfast stay full price. Not on the Whole House, which is already priced for the group. Only one discount per booking, so a code or the head spa offer is used instead if it saves more. Example: 6 on a half-day Spa, Lunch &amp; Treatment pay ${gbp(6 * (sp('day', 'half') || 0) * (100 - E.groupRates(cfg).pct) / 100)} instead of ${gbp(6 * (sp('day', 'half') || 0))}.` : 'The group discount is switched off.'}</li>
       </ul>
       <h4 class="rl-h">“Just for us” (exclusive use)</h4>
