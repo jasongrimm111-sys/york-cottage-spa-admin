@@ -263,14 +263,21 @@
     }
     return out;
   };
+  // every bedroom a stay's guests could choose from, suggested ones first
+  E.roomChoices = (cfg, ix, product, date, nights, guests, exclusive) => {
+    const p = cfg.products[product]; if (!p) return [];
+    const free = E.freeRooms(cfg, ix, date, nights, product);
+    if (p.kind === 'house' || (p.kind === 'stay' && E.isExclusive(cfg, { product, guests, exclusive }))) return cfg.rooms.filter(r => r.active !== false);
+    return free.slice().sort((a, b) => (b.forBreaks ? 1 : 0) - (a.forBreaks ? 1 : 0) || (a.building ? 1 : 0) - (b.building ? 1 : 0));
+  };
   // which rooms a stay needs; returns null when it can't fit
   E.pickRooms = (cfg, ix, product, date, nights, guests, keep, exclusive) => {
     const p = cfg.products[product], free = E.freeRooms(cfg, ix, date, nights, product);
     if (p.kind === 'house' || (p.kind === 'stay' && E.isExclusive(cfg, { product, guests, exclusive }))) return free.length === cfg.rooms.filter(r => r.active !== false).length ? free.map(r => r.id) : null;
-    let pool = p.kind === 'stay' && !p.allRooms ? free.filter(r => r.forBreaks) : free;   // allRooms: groups can use every bedroom
-    if (p.kind === 'stay' && p.anyRoom && pool.reduce((n, r) => n + r.people, 0) < guests) pool = free;
+    // any free bedroom can be chosen (user 2026-11-28); rooms set "suggest for spa breaks" come first, then the main house
+    let pool = free.slice().sort((a, b) => (b.forBreaks ? 1 : 0) - (a.forBreaks ? 1 : 0) || (a.building ? 1 : 0) - (b.building ? 1 : 0));
     if (keep && keep.length && keep.every(id => pool.some(r => r.id === id)) && keep.reduce((n, id) => n + pool.find(r => r.id === id).people, 0) >= guests) return keep.slice();
-    pool = pool.slice().sort((a, b) => b.people - a.people || (b.ensuite ? 1 : 0) - (a.ensuite ? 1 : 0));
+    pool = pool.slice().sort((a, b) => (b.forBreaks ? 1 : 0) - (a.forBreaks ? 1 : 0) || b.people - a.people || (b.ensuite ? 1 : 0) - (a.ensuite ? 1 : 0));
     const pick = []; let cap = 0;
     for (const r of pool) { if (cap >= guests) break; pick.push(r.id); cap += r.people; }
     return cap >= guests ? pick : null;
