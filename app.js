@@ -6,7 +6,7 @@
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const gbp = (n, dp) => (n < 0 ? '−' : '') + '£' + Math.abs(+n || 0).toLocaleString('en-GB', { minimumFractionDigits: dp != null ? dp : (Math.round(n * 100) % 100 ? 2 : 0), maximumFractionDigits: 2 });
   const dObj = iso => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d); };
-  const fd = (iso, o) => iso ? dObj(iso).toLocaleDateString('en-GB', o || { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+  const fd = (iso, o) => iso ? dObj(iso).toLocaleDateString('en-GB', o || { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '') : '';   // "Sun 30 Aug" (no comma)
   const fdy = iso => fd(iso, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
   const ft = isoT => isoT ? new Date(isoT).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
   const today = () => E.localISO();

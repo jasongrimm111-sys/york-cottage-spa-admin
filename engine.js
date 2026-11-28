@@ -270,6 +270,59 @@
     if (p.kind === 'house' || (p.kind === 'stay' && E.isExclusive(cfg, { product, guests, exclusive }))) return cfg.rooms.filter(r => r.active !== false);
     return free.slice().sort((a, b) => (b.forBreaks ? 1 : 0) - (a.forBreaks ? 1 : 0) || (a.building ? 1 : 0) - (b.building ? 1 : 0));
   };
+  /* A stay in words: [{ label, text }] (2026-11-28). Used by the emails, the confirmation page and the manage page.
+     names: guest names in order (optional), for "who's in which room". */
+  E.stayLines = (cfg, b, names) => {
+    const p = cfg.products[b.product]; if (!p || !p.times || !b.date) return [];
+    const t = E.stayTimes(cfg, b.product, b.date, b.nights), out = [];
+    out.push({ label: 'Check-in', text: 'From ' + t.checkIn }, { label: 'Check-out', text: 'By ' + t.checkOut });
+    if (p.lunchDaily) { const sun = dow(b.date) === 0, mid = (p.times.default || {}).spaMid;
+      out.push({ label: 'Spa on arrival', text: t.spa[0] + '–' + t.spa[1] });
+      if ((b.nights || 1) > 1 && mid) out.push({ label: 'Spa on other days', text: mid[0] + '–' + mid[1] });
+      out.push(sun && (b.nights || 1) === 1 ? { label: 'Grazing board', text: 'From ' + t.food } : { label: 'Lunch', text: sun ? 'Each day from Monday, 13:00' : 'Each day, 13:00' });
+      out.push({ label: 'Dinner', text: 'Use of the kitchen' }); }
+    else if (t.spa) out.push({ label: p.kind === 'house' ? 'Spa pool & hot tub' : 'Spa', text: t.spa[0] + '–' + t.spa[1] });
+    // rooms: who is in which, and which building (only when rooms were chosen)
+    const gl = b.guestList || [], nm = i => (names && names[i]) || (gl[i] || {}).name || ('Guest ' + (i + 1));
+    const byRoom = {}; gl.forEach((g, i) => { if (g && g.room) (byRoom[g.room] = byRoom[g.room] || []).push(nm(i)); });
+    for (const r of cfg.rooms || []) if (byRoom[r.id]) {
+      const bed = /single/i.test(r.bed || '') ? 'Single beds' : r.bed ? r.bed + ' bed' : '';
+      out.push({ label: r.name + (r.building ? ' · ' + r.building : ''), text: byRoom[r.id].join(', ').replace(/, ([^,]*)$/, ' & $1') + (bed || r.ensuite != null ? ' (' + [bed, r.ensuite ? 'Ensuite' : 'Shared bathroom'].filter(Boolean).join(', ') + ')' : '') });
+    }
+    if (Object.keys(byRoom).some(id => (cfg.rooms.find(r => r.id === id) || {}).building)) { const bl = [...new Set(cfg.rooms.filter(r => byRoom[r.id] && r.building).map(r => r.building))];
+      out.push({ label: '', text: bl.join(' and ') + (bl.length > 1 ? ' are separate buildings' : ' is a separate building') + ' on the grounds.' }); }
+    return out;
+  };
+  E.fdate = (iso, year = true) => pd(iso).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', ...(year ? { year: 'numeric' } : {}), timeZone: 'UTC' }).replace(',', '');
+  E.whenText = (cfg, b) => { const p = cfg.products[b.product] || {};
+    if (p.kind === 'session' || p.kind === 'private') { const s = E.session(cfg, b.sessionId); return E.fdate(b.date) + (s ? ` · ${s.name} ${s.start}–${s.end}` : ''); }
+    return b.nights ? `${E.fdate(b.date, false)} → ${E.fdate(addD(b.date, b.nights))} · ${b.nights} night${b.nights === 1 ? '' : 's'}` : E.fdate(b.date); };
+  // the booking summary every email uses, as plain text the email styling turns into panels
+  E.bookingDetails = (cfg, b, names) => {
+    const p = cfg.products[b.product] || {}, nm = i => (names && names[i]) || ((b.guestList || [])[i] || {}).name || ('Guest ' + (i + 1));
+    const L = ['Your booking:', `Booking: ${p.name}`, `${b.nights ? 'Dates' : 'Date'}: ${E.whenText(cfg, b)}`,
+      `Guests: ${b.guests}${b.guests > 1 ? ' (' + Array.from({ length: b.guests }, (_, i) => nm(i)).join(', ') + ')' : ''}`];
+    const s = E.session(cfg, b.sessionId);
+    if (s) L.push(`Please arrive: ${s.arrive || s.start}`);
+    else if (p.kind === 'treat' && E.arriveAt(cfg, b)) L.push(`Please arrive: By ${E.arriveAt(cfg, b)} (${E.arriveBefore(cfg)} minutes before your first treatment)`);
+    const sl = E.stayLines(cfg, b, names); if (sl.length) { L.push('', 'Your stay:'); sl.forEach(x => L.push(x.label ? `${x.label}: ${x.text}` : x.text)); }
+    const items = b.items || [], multi = items.some(i => i.date && i.date !== b.date);
+    if (items.length) { L.push('', 'Your treatment times:');
+      (b.guestList || []).forEach((g, gi) => { const its = items.filter(i => i.guest === gi).sort((a, c) => ((a.date || b.date) + a.start).localeCompare((c.date || b.date) + c.start)); if (!its.length) return;
+        if (b.guests > 1) L.push(nm(gi) + ':');
+        its.forEach(i => L.push(`  ${multi ? E.fdate(i.date || b.date, false) + ' ' : ''}${i.start} ${E.itemName(cfg, i)} (${i.min} min)`)); }); }
+    return L.join('\n');
+  };
+  // how to find us, from the business settings: the {findUs} part of booking emails
+  E.findUs = cfg => { const bz = cfg.business || {}, L = [];
+    if (bz.address) { L.push('How to find us:', `Address: ${bz.address}`);
+      if (bz.directions) L.push(`Finding us: ${bz.directions}`);
+      if (bz.what3words) L.push(`what3words: ///${String(bz.what3words).replace(/^\/+/, '')}`);
+      if (bz.parking) L.push(`Parking: ${bz.parking}`);
+      if (bz.phone) L.push(`Phone: ${bz.phone}`);
+      L.push(`Get directions: https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(bz.address)}`); }
+    return L.join('\n');
+  };
   // which rooms a stay needs; returns null when it can't fit
   E.pickRooms = (cfg, ix, product, date, nights, guests, keep, exclusive) => {
     const p = cfg.products[product], free = E.freeRooms(cfg, ix, date, nights, product);

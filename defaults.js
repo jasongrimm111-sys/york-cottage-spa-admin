@@ -7,7 +7,9 @@
     business: {
       name: 'York Cottage Spa', phone: '01933 580 100', email: 'info@yorkcottagespa.com', whatsapp: '',
       address: 'Easton Lane, Bozeat, Northamptonshire NN29 7NN', website: 'https://www.yorkcottagespa.com',
-      googleReviewUrl: '', vatNumber: '', currency: 'GBP'
+      googleReviewUrl: '', vatNumber: '', currency: 'GBP',
+      // "How to find us" in booking emails (2026-11-28)
+      directions: "On Easton Lane, just after the national speed limit signs as you leave Bozeat towards Easton Maudit.", what3words: "names.answers.fulfilled", parking: "Free parking on site, plus one electric car charger"
     },
     rules: {
       bookAheadDays: 365,        // how far ahead people can book online
@@ -137,12 +139,12 @@
       fromName: 'York Cottage Spa', replyTo: 'info@yorkcottagespa.com',
       preArrivalDays: 3, reviewDays: 2, balanceReminderDays: 7,
       templates: {
-        confirm: { on: true, subject: 'Your York Cottage booking {ref}', body: 'Hello {first},\n\nThank you for booking {product} on {when}.\n\n{details}\n\nTotal {total} · paid {paid}{balanceLine}\n\nWe look forward to seeing you.\nYork Cottage Spa · 01933 580 100' },
+        confirm: { on: true, subject: 'Your York Cottage booking {ref}', body: 'Hello {first},\n\nThank you for booking {product} on {when}.\n\n{details}\n\nPayment:\nTotal: {total}\nPaid: {paid}{balanceLine}\n\nManage your booking: {manageLink}\n\n{findUs}\n\nWe look forward to seeing you.\nYork Cottage Spa · 01933 580 100' },
         pay: { on: true, subject: 'Please pay for your York Cottage booking {ref}', body: 'Hello {first},\n\nWe’ve put together your booking for {product} on {when}.\n\n{details}\n\nTo confirm it, please pay {due} here:\n{payLink}\n\nThe link works for 7 days.\nYork Cottage Spa · 01933 580 100' },
-        preArrival: { on: true, subject: 'See you soon at York Cottage', body: 'Hello {first},\n\nWe’re looking forward to welcoming you on {when}.\n\n{details}\n\nPlease complete your consultation form before you arrive: {consultLink}\nBring swimwear; towels, robes and slippers are waiting for you. Parking is free.\nDirections: just after the national speed limit signs leaving Bozeat towards Easton Maudit.\n\nYork Cottage Spa · 01933 580 100' },
+        preArrival: { on: true, subject: 'See you soon at York Cottage', body: 'Hello {first},\n\nWe’re looking forward to welcoming you on {when}.\n\n{details}\n\nPlease complete your consultation form before you arrive: {consultLink}\nBring swimwear; towels, robes and slippers are waiting for you. Parking is free.\nDirections: just after the national speed limit signs leaving Bozeat towards Easton Maudit.\n\nManage your booking: {manageLink}\n\n{findUs}\n\nYork Cottage Spa · 01933 580 100' },
         review: { on: true, subject: 'Thank you for visiting York Cottage', body: 'Hello {first},\n\nThank you for visiting us. We’d love to hear how it went: {reviewLink}\n\nYork Cottage Spa' },
         balance: { on: true, subject: 'Your balance for {ref} is due soon', body: 'Hello {first},\n\nThe balance of {due} for your stay on {when} is due by {dueDate}.\nPay here: {payLink}\n\nYork Cottage Spa' },
-        changed: { on: true, subject: 'Your York Cottage booking {ref} has changed', body: 'Hello {first},\n\nWe’ve updated your booking. Here are your new details:\n\n{details}\n\nIf anything doesn’t look right, just reply to this email or call 01933 580 100.\nYork Cottage Spa' },
+        changed: { on: true, subject: 'Your York Cottage booking {ref} has changed', body: 'Hello {first},\n\nWe’ve updated your booking. Here are your new details:\n\n{details}\n\nManage your booking: {manageLink}\n\nIf anything doesn’t look right, just reply to this email or call 01933 580 100.\nYork Cottage Spa' },
         cancel: { on: true, subject: 'Your York Cottage booking {ref} is cancelled', body: 'Hello {first},\n\nYour booking {ref} for {when} has been cancelled.{reasonLine}{refundLine}\n\n{message}\n\nYork Cottage Spa · 01933 580 100' },
         dayOf: { on: true, subject: 'Today at York Cottage', body: 'Hello {first},\n\nWe’re looking forward to seeing you today.\n\n{details}\n\nWhat to bring: swimwear and flip-flops. We provide robes and towels.\nFind us: Easton Lane, Bozeat NN29 7NN\n\nManage your booking: {manageLink}\n\nYork Cottage Spa · 01933 580 100' },
         voucherExpiry: { on: true, subject: 'Your York Cottage gift voucher expires soon', body: 'Hello {name},\n\nA reminder that gift voucher {code} has {balance} left on it and expires on {expires}.\n\nBook online and enter the code when you pay: {site}book.html\n\nYork Cottage Spa · 01933 580 100' },

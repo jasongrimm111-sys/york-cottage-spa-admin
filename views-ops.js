@@ -21,32 +21,16 @@
   // ---------- emails ----------
   A.siteURL = () => (A.cfg().business.siteUrl || 'https://yorkcottages.grimmittgames.com/').replace(/\/?$/, '/');
   A.payURL = (b, amount) => A.siteURL() + `pay.html?ref=${encodeURIComponent(b.ref)}&amt=${(+amount).toFixed(2)}`;
-  A.details = b => {
-    const cfg = A.cfg(), p = cfg.products[b.product], lines = [`${p.name} · ${A.whenText(b)}`, `${b.guests} guest${b.guests === 1 ? '' : 's'}${b.guests > 1 && (b.guestList || []).some(g => g.name) ? ': ' + A.guestNames(b).join(', ') : ''}`];
-    const t = p.times ? E.stayTimes(cfg, b.product, b.date, b.nights) : null;
-    if (t) lines.push(`Check-in from ${t.checkIn}${t.spa ? ` · spa ${t.spa[0]}–${t.spa[1]}` : ''} · check-out ${t.checkOut}`);
-    const s = E.session(cfg, b.sessionId); if (s) lines.push(`Please arrive at ${s.arrive || s.start}`);
-    else if ((cfg.products[b.product] || {}).kind === 'treat' && E.arriveAt(cfg, b)) lines.push(`Please arrive by ${E.arriveAt(cfg, b)}, ${E.arriveBefore(cfg)} minutes before your first treatment`);
-    const multiDay = (b.items || []).some(i => i.date && i.date !== b.date);
-    if ((b.items || []).length) {
-      lines.push('', 'Your treatment times:');
-      (b.guestList || []).forEach((g, gi) => {
-        const its = (b.items || []).filter(i => i.guest === gi).sort((a, c) => (a.date + a.start).localeCompare(c.date + c.start));
-        if (!its.length) return;
-        if (b.guests > 1) lines.push(`${g.name || (gi === 0 ? (b.customer || {}).first || 'Guest 1' : 'Guest ' + (gi + 1))}:`);
-        its.forEach(i => lines.push(`  ${multiDay ? fd(i.date) + ' ' : ''}${i.start} ${A.iname(i)} (${i.min} min)`));
-      });
-    }
-    return lines.join('\n');
-  };
+  // the booking summary in emails: one shared version (engine.js), the same as the background job sends
+  A.details = b => E.bookingDetails(A.cfg(), b, A.guestNames(b));
   A.renderEmail = (key, b, extra = {}) => {
     const cfg = A.cfg(), tp = cfg.emails.templates[key]; if (!tp) return null;
     const q = b.quote || E.quote(cfg, b), paid = E.paid(b);
-    const vals = { first: (b.customer || {}).first || '', name: A.cust(b), ref: b.ref, product: A.pname(b.product), when: A.whenText(b), details: A.details(b), total: gbp(q.total, 2), paid: gbp(paid, 2),
-      due: gbp(extra.amount != null ? extra.amount : due(b), 2), balanceLine: q.balance && paid < q.total ? `\nBalance ${gbp(q.total - paid, 2)} due by ${fdy(q.balanceDue)}` : '', payLink: extra.link || A.payURL(b, extra.amount != null ? extra.amount : due(b)),
+    const vals = { first: (b.customer || {}).first || '', name: A.cust(b), ref: b.ref, product: A.pname(b.product), when: A.whenText(b), details: A.details(b), total: gbp(q.total), paid: gbp(paid),
+      due: gbp(extra.amount != null ? extra.amount : due(b), 2), balanceLine: q.balance && paid < q.total ? `\nStill to pay: ${gbp(q.total - paid)} by ${fdy(q.balanceDue)}` : '', payLink: extra.link || A.payURL(b, extra.amount != null ? extra.amount : due(b)),
       dueDate: q.balanceDue ? fdy(q.balanceDue) : '', reviewLink: cfg.business.googleReviewUrl || cfg.business.website, consultLink: A.consultURL ? (A.consultURL(b) || cfg.business.consultUrl || '(please fill it in when you arrive)') : cfg.business.consultUrl || '', refundLine: extra.refund ? `\nWe’ve refunded ${gbp(extra.refund, 2)} to your original payment method.` : '', ...extra };
     vals.reasonLine = extra.reason ? `\nReason: ${extra.reason}.` : ''; vals.message = extra.message || '';
-    vals.manageLink = A.manageURL(b) || `(call us on ${cfg.business.phone || ''})`; vals.address = cfg.business.address || ''; vals.phone = cfg.business.phone || ''; vals.site = A.siteURL();
+    vals.manageLink = A.manageURL(b) || `(call us on ${cfg.business.phone || ''})`; vals.findUs = E.findUs(cfg); vals.address = cfg.business.address || ''; vals.phone = cfg.business.phone || ''; vals.site = A.siteURL();
     const fill = s => s.replace(/\{(\w+)\}/g, (m, k) => vals[k] != null ? vals[k] : m);
     let body = fill(tp.body);
     // cancellations: templates saved before {reasonLine}/{message} existed still get them, above the sign-off
@@ -81,11 +65,11 @@
   // text messages: on for the platform, and the guest chose text or both (user 2026-11-27)
   A.smsOn = () => !!(A.cfg().sms || {}).on;
   A.ukPhone = p => { let x = String(p || '').replace(/[^\d+]/g, ''); if (x.startsWith('00')) x = '+' + x.slice(2); if (x.startsWith('07')) x = '+44' + x.slice(1); return /^\+\d{10,15}$/.test(x) ? x : ''; };
-  A.wants = (b, ch) => { const n = (b && b.notify) || 'email', ph = A.ukPhone((b.customer || {}).phone); return ch === 'email' ? n !== 'sms' || !A.smsOn() || !ph : A.smsOn() && n !== 'email' && !!ph; };
+  A.wants = (b, ch) => { const n = (b && b.notify) || 'email', ph = A.ukPhone((b.customer || {}).phone); return ch === 'email' ? true : A.smsOn() && n !== 'email' && !!ph; };   // email always; text as well when asked (user 2026-11-28)
   A.sendSms = (key, b, extra = {}) => {
     const cfg = A.cfg(), sm = cfg.sms || {}, t = (sm.templates || {})[key]; if (!t || (sm.off || {})[key] || !A.wants(b, 'sms')) return null;
     const q = b.quote || E.quote(cfg, b), ses = E.session(cfg, b.sessionId), cu = A.consultURL ? A.consultURL(b) : '';
-    const v = { first: (b.customer || {}).first || '', ref: b.ref, product: A.pname(b.product), when: A.whenText(b), manageLink: A.manageURL(b) || A.siteURL(), consultLink: cu, consultLine: cu ? `Please fill in your consultation form: ${cu} ` : '', phone: cfg.business.phone || '',
+    const v = { first: (b.customer || {}).first || '', ref: b.ref, product: A.pname(b.product), when: A.whenText(b), manageLink: A.manageURL(b) || A.siteURL(), findUs: E.findUs(cfg), consultLink: cu, consultLine: cu ? `Please fill in your consultation form: ${cu} ` : '', phone: cfg.business.phone || '',
       arrive: ses ? `Please arrive at ${ses.arrive || ses.start}. ` : E.arriveAt(cfg, b) && (cfg.products[b.product] || {}).kind === 'treat' ? `Please arrive by ${E.arriveAt(cfg, b)}. ` : '', due: gbp(extra.amount != null ? extra.amount : due(b), 2), dueDate: q.balanceDue ? fdy(q.balanceDue) : '', payLink: extra.link || A.payURL(b, extra.amount != null ? extra.amount : due(b)), reviewLink: cfg.business.googleReviewUrl || A.siteURL() };
     const body = t.replace(/\{(\w+)\}/g, (m0, k) => v[k] != null ? v[k] : m0);
     return St.queue({ type: 'sms', template: key, bookingId: b.id, ref: b.ref, to: A.ukPhone(b.customer.phone), subject: 'Text message', body });
@@ -400,7 +384,7 @@
                 ${gone.length ? `<div class="small muted g-released">Released because they didn’t come: ${gone.map(x => `${x.start} ${esc(A.iname(x))}`).join(', ')}</div>` : ''}
                 ${live && !g.noShow && A.addTreatmentNow ? `<button type="button" class="btn sm g-add" data-addt="${i}">${A.ic.plus} Add a treatment</button>` : ''}</div>`; }).join('')}
           </div>
-          <div class="card"><div class="card-h"><h3>Payments</h3><span>${paid ? gbp(paid, 2) + ' paid' : 'Nothing paid yet'}</span></div>
+          <div class="card"><div class="card-h"><h3>Payments</h3><span>${paid ? gbp(paid) + ' paid' : 'Nothing paid yet'}</span></div>
             ${(b.payments || []).length ? `<table class="tbl"><tbody>${b.payments.map(x => `<tr><td>${ft(x.at)}</td><td>${x.amount < 0 ? 'Refund' : 'Payment'} · ${esc(x.method || '')}${x.note ? ' · ' + esc(x.note) : ''}${x.by ? `<br><span class="small muted">by ${esc(x.by)}</span>` : ''}</td><td class="r tnum"><b>${gbp(x.amount, 2)}</b></td></tr>`).join('')}</tbody></table>` : '<p class="muted">No payments recorded.</p>'}</div>
           <div class="card"><div class="card-h"><h3>Emails</h3>${b.customer && b.customer.email ? `<button class="btn sm" id="resend">Send confirmation</button>` : ''}</div>
             ${A.mailRows(emails)}${A.manageURL(b) ? `<p class="small muted" style="margin-top:8px">Guest’s private page: <a href="${esc(A.manageURL(b))}" target="_blank" rel="noopener">Manage my booking</a></p>` : ''}</div>
@@ -408,8 +392,8 @@
         </div>
         <div>
           <div class="card be-sum static"><div class="card-h"><h3>Price</h3></div><div class="lines">${q.lines.map(l => `<div><span>${esc(l.label)}</span><span class="tnum">${gbp(l.amount, 2)}</span></div>`).join('')}</div>
-            <div class="tot"><span>Total</span><b>${gbp(q.total, 2)}</b></div>
-            <div class="lines" style="margin-top:6px"><div><span>Paid</span><span class="tnum">${gbp(paid, 2)}</span></div>${b.status !== 'cancelled' ? `<div><b>${owe < 0 ? 'Refund due' : 'Still to pay'}</b><b class="tnum">${gbp(Math.abs(owe), 2)}</b></div>` : ''}
+            <div class="tot"><span>Total</span><b>${gbp(q.total)}</b></div>
+            <div class="lines" style="margin-top:6px"><div><span>Paid</span><span class="tnum">${gbp(paid)}</span></div>${b.status !== 'cancelled' ? `<div><b>${owe < 0 ? 'Refund due' : 'Still to pay'}</b><b class="tnum">${gbp(Math.abs(owe), 2)}</b></div>` : ''}
               ${q.balance && q.balanceDue && owe > 0 ? `<div class="small muted"><span>${q.deposit < q.total ? `Deposit ${gbp(q.deposit)} · balance due ${fdy(q.balanceDue)}` : ''}</span></div>` : ''}${q.damage ? `<div class="small muted"><span>£${q.damage} damage deposit to pre-authorise before arrival</span></div>` : ''}</div>
             ${b.status !== 'cancelled' && b.date >= today() ? `<p class="small muted" style="margin-top:10px">If cancelled now: ${esc(E.cancelTerms(cfg, b).text.replace(/^Cancelling /, '').replace(/^on the day/i, 'on the day'))}</p>` : ''}</div>
           <div class="card"><div class="card-h"><h3>Guest</h3>${b.customer && b.customer.email ? `<a class="btn sm ghost" href="#/customer/${encodeURIComponent(b.customer.email.toLowerCase())}">Profile</a>` : ''}</div>
@@ -496,8 +480,8 @@
   };
   A.refundDialog = async b => {
     const paid = E.paid(b), stripe = (b.payments || []).some(p => p.method === 'card' || p.method === 'klarna');
-    const r = await A.modal({ title: 'Refund', body: `<p class="muted">${gbp(paid, 2)} paid on ${b.ref}.</p><div class="row r2">${A.f.money('amount', 'Refund amount', Math.max(0, -due(b)) || paid)}${A.f.sel('method', 'Refund to', stripe ? 'card' : 'card terminal', [['card', 'Original card / Klarna (Stripe)'], ['card terminal', 'Card machine'], ['cash', 'Cash'], ['bank transfer', 'Bank transfer'], ['voucher', 'Gift voucher credit']])}</div>${A.f.text('note', 'Reason', '')}`,
-      ok: 'Refund', danger: true, onOk: m => { const v = A.read(m); if (!(v.amount > 0)) throw new Error('Enter an amount'); if (v.amount > paid + 0.001) throw new Error(`You can refund up to ${gbp(paid, 2)}`); return v; } });
+    const r = await A.modal({ title: 'Refund', body: `<p class="muted">${gbp(paid)} paid on ${b.ref}.</p><div class="row r2">${A.f.money('amount', 'Refund amount', Math.max(0, -due(b)) || paid)}${A.f.sel('method', 'Refund to', stripe ? 'card' : 'card terminal', [['card', 'Original card / Klarna (Stripe)'], ['card terminal', 'Card machine'], ['cash', 'Cash'], ['bank transfer', 'Bank transfer'], ['voucher', 'Gift voucher credit']])}</div>${A.f.text('note', 'Reason', '')}`,
+      ok: 'Refund', danger: true, onOk: m => { const v = A.read(m); if (!(v.amount > 0)) throw new Error('Enter an amount'); if (v.amount > paid + 0.001) throw new Error(`You can refund up to ${gbp(paid)}`); return v; } });
     if (!r) return; A.doRefund(b, r.amount, r.method, r.note); A.toast('Refund recorded'); A.refresh();
   };
   A.doRefund = (b, amount, method, note) => {
@@ -679,7 +663,7 @@
           </div>
           <div class="card"><div class="card-h"><h3>5 · Contact</h3></div>
             <div class="row r2">${A.f.text('customer.first', 'First name', B.customer.first, { ac: 'off' })}${A.f.text('customer.last', 'Last name', B.customer.last)}${A.f.text('customer.email', 'Email', B.customer.email, { type: 'email', list: 'custList' })}${A.f.text('customer.phone', 'Phone', B.customer.phone, { type: 'tel' })}</div>
-            ${A.smsOn() ? `<div class="row r2" style="margin-top:12px">${A.f.sel('notify', 'Send them updates by', B.notify || 'email', [['email', 'Email'], ['sms', 'Text message'], ['both', 'Email and text']])}</div>` : ''}
+            ${A.smsOn() ? `<div class="row r2" style="margin-top:12px">${A.f.sel('notify', 'Updates', B.notify === 'sms' || B.notify === 'both' ? 'both' : 'email', [['email', 'Email'], ['both', 'Email and text message']])}</div>` : ''}
             <datalist id="custList">${Object.values(A.customers()).slice(0, 400).map(c => `<option value="${esc(c.email)}">${esc(c.name)}</option>`).join('')}</datalist>
             <div class="row r2" style="margin-top:12px">${A.f.sel('source', 'How they booked', B.source, [['phone', 'Phone'], ['email', 'Email'], ['walk-in', 'In person'], ['web', 'Website'], ['admin', 'Other']])}${A.f.chips('tags', 'Tags', B.tags, ['VIP', 'Birthday', 'Anniversary', 'Hen party', 'Corporate', 'Pregnant guest', 'Access needs', 'Returning'], { sm: true })}</div>
             <div class="row r2" style="margin-top:12px">${A.f.area('notes', 'Notes the guest gave (dietary, celebrations)', B.notes, { rows: 2 })}${A.f.area('internal', 'Staff notes (never shown to the guest)', B.internal, { rows: 2 })}</div></div>
@@ -697,12 +681,12 @@
           <div class="card"><div class="card-h"><h3>Summary</h3></div>
             <p><b>${A.prodDot(B.product)} ${esc(P.name)}</b><br><span class="small muted">${B.date ? A.whenText(B) : 'No date yet'} · ${B.guests} guest${B.guests > 1 ? 's' : ''}</span></p>
             <div class="lines" style="margin-top:10px">${q.lines.map(l => `<div><span>${esc(l.label)}</span><span class="tnum">${gbp(l.amount, 2)}</span></div>`).join('')}</div>
-            <div class="tot"><span>Total</span><b>${gbp(q.total, 2)}</b></div>
+            <div class="tot"><span>Total</span><b>${gbp(q.total)}</b></div>
             ${q.deposit < q.total ? `<p class="small muted">Deposit ${gbp(q.deposit, 2)} now · balance by ${fdy(q.balanceDue)}</p>` : ''}
             ${orig && B.customer.email && cfg.emails.templates.changed && cfg.emails.templates.changed.on ? `<label class="chk" style="margin-top:12px"><input type="checkbox" id="mailChg" ${st.mailChg !== false ? 'checked' : ''}> <span>Email the guest the updated booking</span></label>` : ''}
-            ${orig ? `<div class="lines" style="margin-top:8px"><div><span>Paid so far</span><span>${gbp(paid, 2)}</span></div><div><b>${q.total - paid < 0 ? 'Refund due' : 'Still to pay'}</b><b>${gbp(Math.abs(q.total - paid), 2)}</b></div></div>` : ''}
+            ${orig ? `<div class="lines" style="margin-top:8px"><div><span>Paid so far</span><span>${gbp(paid)}</span></div><div><b>${q.total - paid < 0 ? 'Refund due' : 'Still to pay'}</b><b>${gbp(Math.abs(q.total - paid), 2)}</b></div></div>` : ''}
             ${probs.length ? `<div class="note bad" style="margin-top:12px">${probs.map(esc).join('<br>')}</div>` : B.date ? '<div class="note ok" style="margin-top:12px">Everything fits.</div>' : ''}
-            ${q.total <= 0 ? `<div class="note ok" style="margin-top:12px">Nothing to pay: the total is £0.${orig && paid > 0 ? ` ${gbp(paid, 2)} has been paid, so you can refund it after saving.` : ''}</div>` : ''}
+            ${q.total <= 0 ? `<div class="note ok" style="margin-top:12px">Nothing to pay: the total is £0.${orig && paid > 0 ? ` ${gbp(paid)} has been paid, so you can refund it after saving.` : ''}</div>` : ''}
             ${!orig && q.total > 0 ? `<div class="hr"></div><div class="fld"><span>Then</span>
               <label class="chk"><input type="radio" name="pm" value="link" ${st.payMode === 'link' ? 'checked' : ''}> <span>Email a payment link (${gbp(q.deposit, 2)})</span></label>
               <label class="chk"><input type="radio" name="pm" value="paid" ${st.payMode === 'paid' ? 'checked' : ''}> <span>They’ve paid now</span></label>
