@@ -111,11 +111,11 @@
       { id: 'r1', name: 'Room 1', bed: 'King', people: 2, ensuite: true, forBreaks: true, active: true },
       { id: 'r2', name: 'Room 2', bed: 'King', people: 2, ensuite: true, forBreaks: true, active: true },
       { id: 'r3', name: 'Room 3', bed: 'King', people: 2, ensuite: true, forBreaks: true, active: true },
-      { id: 'r4', name: 'Room 4', bed: 'King', people: 2, ensuite: true, forBreaks: true, building: 'The Annex', active: true },
-      { id: 'r5', name: 'Room 5', bed: 'King', people: 2, ensuite: true, forBreaks: true, building: 'The Annex', active: true },
-      { id: 'r6', name: 'Room 6', bed: 'Double', people: 2, ensuite: false, forBreaks: false, active: true },
-      { id: 'r7', name: 'Room 7', bed: 'Double', people: 2, ensuite: false, forBreaks: false, active: true },
-      { id: 'r8', name: 'Room 8', bed: '2 singles', people: 2, ensuite: false, forBreaks: false, active: true }
+      { id: 'r4', name: 'Room 4', bed: 'King', people: 2, ensuite: true, forBreaks: true, active: true },
+      { id: 'r5', name: 'Room 5', bed: 'King', people: 2, ensuite: true, forBreaks: true, active: true },
+      { id: 'r6', name: 'Room 6', bed: 'Double', people: 2, ensuite: false, forBreaks: false, building: 'The Annex', active: true },
+      { id: 'r7', name: 'Room 7', bed: 'Double', people: 2, ensuite: false, forBreaks: false, building: 'The Annex', active: true },
+      { id: 'r8', name: 'Room 8', bed: '2 singles', people: 2, ensuite: false, forBreaks: false, building: 'The Annex', active: true }
     ],
     // Date prices: special rates or stop-sell for a product over dates (e.g. peak weekends).
     rates: [],
