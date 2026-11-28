@@ -28,8 +28,8 @@
     const q = b.quote || E.quote(cfg, b), paid = E.paid(b);
     const vals = { first: (b.customer || {}).first || '', name: A.cust(b), ref: b.ref, product: A.pname(b.product), when: A.whenText(b), details: A.details(b), total: gbp(q.total), paid: gbp(paid),
       due: gbp(extra.amount != null ? extra.amount : due(b), 2), balanceLine: q.balance && paid < q.total ? `\nStill to pay: ${gbp(q.total - paid)} by ${fdy(q.balanceDue)}` : '', payLink: extra.link || A.payURL(b, extra.amount != null ? extra.amount : due(b)),
-      dueDate: q.balanceDue ? fdy(q.balanceDue) : '', reviewLink: cfg.business.googleReviewUrl || cfg.business.website, consultLink: A.consultURL ? (A.consultURL(b) || cfg.business.consultUrl || '(please fill it in when you arrive)') : cfg.business.consultUrl || '', refundLine: extra.refund ? `\nWe’ve refunded ${gbp(extra.refund, 2)} to your original payment method.` : '', ...extra };
-    vals.reasonLine = extra.reason ? `\nReason: ${extra.reason}.` : ''; vals.message = extra.message || '';
+      dueDate: q.balanceDue ? fdy(q.balanceDue) : '', reviewLink: cfg.business.googleReviewUrl || cfg.business.website, consultLink: A.consultURL ? (A.consultURL(b) || cfg.business.consultUrl || '(please fill it in when you arrive)') : cfg.business.consultUrl || '', refundLine: extra.refund ? `\nRefunded: ${gbp(extra.refund)} to your original payment method`: '', ...extra };
+    vals.reasonLine = extra.reason ? `\nReason: ${extra.reason}` : ''; vals.message = extra.message || '';
     vals.manageLink = A.manageURL(b) || `(call us on ${cfg.business.phone || ''})`; vals.findUs = E.findUs(cfg); vals.address = cfg.business.address || ''; vals.phone = cfg.business.phone || ''; vals.site = A.siteURL();
     const fill = s => s.replace(/\{(\w+)\}/g, (m, k) => vals[k] != null ? vals[k] : m);
     let body = fill(tp.body);

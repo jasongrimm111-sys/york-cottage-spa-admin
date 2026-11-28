@@ -4,7 +4,7 @@
 // email log to preview exactly what the guest sees.
 (function (root) {
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const BTN = /^(Manage your booking|Pay here|Pay now|Book it here(?: before someone else does)?|Fill in your consultation form|Please complete your consultation form before you arrive|Book online and enter the code when you pay|Reply in the admin|Open it|See your day in the admin|See the conversation|Open the booking|Approve it and sort out their treatments in the admin|Get directions)\s*:?\s*(https?:\/\/\S+)\s*$/i;
+  const BTN = /^(Manage your booking|Pay here|Pay now|Book it here(?: before someone else does)?|Fill in your consultation form|Please complete your consultation form before you arrive|Book online and enter the code when you pay|Reply in the admin|Open it|See your day in the admin|See the conversation|Open the booking|Approve it and sort out their treatments in the admin|Get directions|Leave a review|Book now)\s*:?\s*(https?:\/\/\S+)\s*$/i;
   const link = s => esc(s).replace(/(https?:\/\/[^\s<]+[^\s<.,)])/g, '<a href="$1" style="color:#9a5d3f;text-decoration:underline">$1</a>');
   const button = (label, url) => `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 10px"><tr><td style="border-radius:999px;background:#b4785a"><a href="${esc(url)}" style="display:inline-block;padding:12px 24px;font:600 15px/1.2 Arial,Helvetica,sans-serif;color:#ffffff;text-decoration:none;border-radius:999px">${esc(label)}</a></td></tr></table>`;
   // a section like "Your stay:" or "Your treatment times:" followed by details becomes a soft panel, like the website:
@@ -21,7 +21,7 @@
       let m;
       if (/^\s{2,}/.test(l) && (m = l.match(TIME))) rows.push(`<tr><td style="${td('width:1%;color:#2a302a;font-weight:700;white-space:nowrap;padding:9px 18px 9px 14px')}">${esc(m[1])}</td><td style="${td('color:#2a302a')}">${link(m[2])}</td></tr>`);
       else if (/:\s*$/.test(l) && l.length < 60) rows.push(`<tr><td colspan="2" style="${td('padding-top:12px;font-weight:700;color:#2a302a')}">${esc(l.replace(/:\s*$/, '').trim())}</td></tr>`);
-      else if (!/https?:/.test(l) && (m = l.match(ROW))) { const big = pay && /^total$/i.test(m[1].trim());
+      else if (!/https?:/.test(l) && (m = l.match(ROW))) { const big = pay && (!rows.length || /^total$/i.test(m[1].trim()));   // the first amount stands out
         rows.push(`<tr><td style="${td('width:40%;color:#2a302a;font-weight:700;padding-right:12px' + (big ? ';font-size:17px' : ''))}">${esc(m[1])}</td><td style="${td('color:#2a302a;text-align:right' + (big ? ';font-size:22px;font-weight:700' : ''))}">${link(m[2])}</td></tr>`); }
       else if ((m = l.match(BTN))) rows.push(`<tr><td colspan="2" style="${td('padding-top:12px')}">${button(m[1], m[2])}</td></tr>`);
       else rows.push(`<tr><td colspan="2" style="${td('color:#6b6f68;font-size:14px')}">${link(l.trim())}</td></tr>`);
