@@ -56,6 +56,46 @@
     const t = E.stayTimes(cfg, b.product, b.date, b.nights); return t ? t.checkIn : '';
   };
   E.session = (cfg, id) => (cfg.sessions || []).find(s => s.id === id);
+  /* exclusive use (user 2026-11-28): Private Spa, groups and the whole house always; spa days and spa breaks of
+     exclusiveFrom (6) guests or more automatically; smaller ones when the guest ticks "just for us" (b.exclusive),
+     charged as exclusiveCharge (6) guests. Guests booked only for treatments can still come in (not on whole-house days). */
+  E.isExclusive = (cfg, b) => { const p = cfg.products[b.product] || {};
+    return p.kind === 'private' || p.kind === 'house' || !!p.exclusive || !!(p.exclusiveFrom && (b.guests || 0) >= p.exclusiveFrom) || !!(b.exclusive && p.exclusiveOption); };
+  // how many guests a booking is charged for (exclusive use is now a separate charge for the empty places)
+  E.chargedGuests = (cfg, b) => b.guests || 1;
+  /* "Just for us" prices (Settings → Booking rules): each empty place up to exclusiveFrom (6) costs a share of the spa
+     place it stops being sold. Half day £25 and full day £40 (half the Spa Access Only price), spa breaks £75 a night
+     (half the first-night price, as the spare bedrooms close too). Optional last-minute discount: within exclLastDays
+     of the visit, exclLastPct off, because empty places that late rarely sell. */
+  E.exclusiveRates = cfg => { const r = cfg.rules || {}, n = (v, d) => v === 0 || v ? +v : d;
+    return { half: n(r.exclHalf, 25), full: n(r.exclFull, 40), night: n(r.exclNight, 75), lastOn: !!r.exclLast, lastDays: n(r.exclLastDays, 7), lastPct: n(r.exclLastPct, 50) }; };
+  // group discount: groupPct % off the booking's own price (not extras, breakfast or "just for us") for groupFrom+ guests
+  E.groupRates = cfg => { const r = cfg.rules || {}; return { on: r.groupOn !== false, from: +r.groupFrom || 6, pct: r.groupPct === 0 || r.groupPct ? +r.groupPct : 10 }; };
+  E.groupOff = (cfg, b) => { const p = cfg.products[b.product] || {}, G = E.groupRates(cfg);
+    if (!G.on || !p.groupDiscount || (b.guests || 0) < G.from || !G.pct) return null;
+    const base = E.baseLines(cfg, b).filter(l => l.k === 'base').reduce((a, l) => a + l.amount, 0);
+    return base ? { pct: G.pct, from: G.from, amount: Math.round(base * G.pct) / 100 } : null; };
+  E.exclusiveExtra = (cfg, b, today) => {
+    const p = cfg.products[b.product] || {}, g = b.guests || 1, from = p.exclusiveFrom || 6;
+    if (!b.exclusive || !p.exclusiveOption || g >= from) return null;
+    const R = E.exclusiveRates(cfg), empty = from - g, stay = p.kind === 'stay', nights = stay ? (b.nights || 1) : 1;
+    const ses = !stay && E.session(cfg, b.sessionId), len = ses && ses.length === 'full' ? 'full' : 'half';
+    const rate = stay ? R.night : R[len];
+    let amount = empty * rate * nights, last = false;
+    if (R.lastOn && b.date && between(today || localISO(), b.date) <= R.lastDays) { amount = Math.round(amount * (100 - R.lastPct)) / 100; last = true; }
+    return { amount, empty, rate, nights, stay, len, last, pct: R.lastPct };
+  };
+  // a guest with a room to themselves on a spa break (based on 2 sharing): rooms with one guest, from "who's sleeping
+  // where" once chosen, otherwise one for an odd number of guests. Not charged when the booking is charged as 6.
+  E.singles = (cfg, b) => { const p = cfg.products[b.product] || {}; if (!p.singleSupp || p.kind !== 'stay' || E.isExclusive(cfg, b)) return 0;
+    const gl = (b.guestList || []).slice(0, b.guests || 1);
+    if (gl.length === (b.guests || 1) && gl.every(g => g && g.room)) { const n = {}; gl.forEach(g => n[g.room] = (n[g.room] || 0) + 1); return Object.values(n).filter(x => x === 1).length; }
+    return (b.guests || 1) % 2; };
+  // the spa time of each day of a stay: arrival day its own (Sunday 18:00), days in between spaMid, none on check-out day
+  E.staySpa = (cfg, b) => { const out = [];
+    for (let i = 0; i < (b.nights || 1); i++) { const d = addD(b.date, i), t = E.stayTimes(cfg, b.product, d, b.nights); if (!t) continue;
+      const w = i > 0 && t.spaMid ? t.spaMid : t.spa; if (w) out.push([d, w[0], w[1]]); }
+    return out; };
 
   // spa use: [{date, s, e, n, x (exclusive), ses}]
   // guests on a booking who are actually coming (a guest marked as not coming frees their place)
@@ -64,15 +104,11 @@
     const p = cfg.products[b.product]; if (!p) return [];
     if (p.kind === 'session' || p.kind === 'private') {
       const s = E.session(cfg, b.sessionId); if (!s) return [];
-      return [{ date: b.date, s: T(s.start), e: T(s.end), n: E.comingGuests(b), x: p.kind === 'private', ses: s.id }];
+      return [{ date: b.date, s: T(s.start), e: T(s.end), n: E.comingGuests(b), x: E.isExclusive(cfg, b), ses: s.id }];
     }
     if (p.kind === 'stay') {
-      const out = [];
-      for (let i = 0; i < (b.nights || 1); i++) {
-        const d = addD(b.date, i), t = E.stayTimes(cfg, b.product, d, b.nights);
-        if (t && t.spa) out.push({ date: d, s: T(t.spa[0]), e: T(t.spa[1]), n: E.comingGuests(b), x: !!(p.exclusive || (p.exclusiveFrom && b.guests >= p.exclusiveFrom)) });
-      }
-      return out;
+      const x = E.isExclusive(cfg, b);
+      return E.staySpa(cfg, b).map(([d, s0, e0]) => ({ date: d, s: T(s0), e: T(e0), n: E.comingGuests(b), x }));
     }
     if (p.kind === 'house') {
       const t = E.stayTimes(cfg, 'house', b.date, b.nights), out = [];
@@ -102,7 +138,8 @@
       if (u.ses) { const k = ix.ses[u.date] = ix.ses[u.date] || {}; k[u.ses] = (k[u.ses] || 0) + u.n; }
       if (u.house) ix.house[u.date] = 1;
     }
-    const rooms = p && p.kind === 'house' ? cfg.rooms.map(r => r.id) : (b.rooms || []);
+    // exclusive stays close those nights to every other stay: they hold every bedroom (user 2026-11-28)
+    const rooms = p && (p.kind === 'house' || (p.kind === 'stay' && E.isExclusive(cfg, b))) ? cfg.rooms.map(r => r.id) : (b.rooms || []);
     for (const d of E.nightsOf(b)) { const r = ix.rooms[d] = ix.rooms[d] || []; for (const id of rooms) if (!r.includes(id)) r.push(id); }
     for (const it of b.items || []) {
       if (!it.staff || it.start == null) continue;
@@ -122,6 +159,14 @@
     const p = cfg.products[b.product], out = []; if (!p) return out;
     const eats = (p.food && (b.guestList || []).some(g => g.food)) || (p.foodsIncluded && p.foodsIncluded.length);
     if (!eats) return out;
+    // spa breaks: lunch every day in the house; a Sunday-night-only stay has the grazing board instead (user 2026-11-28)
+    if (p.kind === 'stay' && p.lunchDaily) {
+      const on = id => (cfg.services || []).some(x => x.id === id && x.active !== false);
+      for (let i = 0; i < (b.nights || 1); i++) { const d = addD(b.date, i);
+        if (i === 0 && dow(d) === 0) { if ((b.nights || 1) === 1 && on('grazing')) out.push({ id: 'grazing', date: d }); }
+        else if (on('lunch')) out.push({ id: 'lunch', date: d }); }
+      return out;
+    }
     for (const sv of cfg.services || []) if (sv.active !== false && (sv.products || []).includes(b.product)) out.push({ id: sv.id, date: b.date });
     return out;
   };
@@ -144,6 +189,11 @@
     for (const sid of staff) ((ix.staff[date] = ix.staff[date] || {})[sid] = ix.staff[date][sid] || []).push([s, e, 0, 'duty', id]);
     return staff;
   };
+  // is there enough staff for one food service on one date?
+  E.serviceOne = (cfg, ix, id, date) => { const sv = E.service(cfg, id, date); if (!sv) return '';
+    const need = Math.max(1, sv.staff || 1), have = ((ix.duty || {})[date] || {})[id];
+    if (have && have.length >= need) return '';
+    return E.dutyCandidates(cfg, ix, date, sv).length < need ? `No staff free for the ${sv.name.toLowerCase()}` : ''; };
   // is there enough staff for the food service on this date?
   E.serviceOK = (cfg, ix, product, date) => {
     for (const sv0 of cfg.services || []) {
@@ -175,7 +225,7 @@
   };
 
   // sessions for a product on a date, with places left
-  E.sessions = (cfg, ix, product, date, guests) => {
+  E.sessions = (cfg, ix, product, date, guests, opt = {}) => {
     const p = cfg.products[product]; if (!p) return [];
     const h = E.hours(cfg, date);
     return (cfg.sessions || []).filter(s => s.product === product && s.active !== false && (!s.days || s.days.includes(dow(date)))).map(s => {
@@ -186,14 +236,15 @@
       else if (E.stopSell(cfg, product, date)) why = 'Not available';
       const load = E.spaLoad(ix, date, st, en, cfg.spa.changeover || 0);
       let left;
-      if (p.kind === 'private') left = load.any ? 0 : s.cap;
+      const excl = E.isExclusive(cfg, { product, guests: guests || 0, exclusive: opt.exclusive });
+      if (excl) left = load.any ? 0 : s.cap;
       else left = load.exclusive ? 0 : Math.max(0, Math.min(s.cap - ((ix.ses[date] || {})[s.id] || 0), cfg.spa.capacity - load.people));
-      if (!why && left <= 0) why = p.kind === 'private' ? 'Spa already booked' : 'Full';
+      if (!why && left <= 0) why = excl ? (load.any ? 'Other guests are booked in then' : 'Spa already booked') : 'Full';
       else if (!why && guests && left < guests) why = `Only ${left} place${left === 1 ? '' : 's'} left`;
       const minG = E.minGuests(cfg, product, date);
       if (!why && guests && guests < minG) why = `Minimum ${minG} guests on this day`;
       if (!why && guests) why = E.includedFit(cfg, ix, { product, date, sessionId: s.id, guests });
-      return { id: s.id, name: s.name, start: s.start, end: s.end, arrive: s.arrive, left, ok: !why, why };
+      return { id: s.id, name: s.name, start: s.start, end: s.end, arrive: s.arrive, length: s.length || 'half', price: E.unitPrice(cfg, product, date, 0, s.id), left, ok: !why, why };
     });
   };
   E.minGuests = (cfg, product, date) => { const p = cfg.products[product]; return (p.minByDay && p.minByDay[dow(date)]) || p.min || 1; };
@@ -213,10 +264,11 @@
     return out;
   };
   // which rooms a stay needs; returns null when it can't fit
-  E.pickRooms = (cfg, ix, product, date, nights, guests, keep) => {
+  E.pickRooms = (cfg, ix, product, date, nights, guests, keep, exclusive) => {
     const p = cfg.products[product], free = E.freeRooms(cfg, ix, date, nights, product);
-    if (p.kind === 'house') return free.length === cfg.rooms.filter(r => r.active !== false).length ? free.map(r => r.id) : null;
+    if (p.kind === 'house' || (p.kind === 'stay' && E.isExclusive(cfg, { product, guests, exclusive }))) return free.length === cfg.rooms.filter(r => r.active !== false).length ? free.map(r => r.id) : null;
     let pool = p.kind === 'stay' && !p.allRooms ? free.filter(r => r.forBreaks) : free;   // allRooms: groups can use every bedroom
+    if (p.kind === 'stay' && p.anyRoom && pool.reduce((n, r) => n + r.people, 0) < guests) pool = free;
     if (keep && keep.length && keep.every(id => pool.some(r => r.id === id)) && keep.reduce((n, id) => n + pool.find(r => r.id === id).people, 0) >= guests) return keep.slice();
     pool = pool.slice().sort((a, b) => b.people - a.people || (b.ensuite ? 1 : 0) - (a.ensuite ? 1 : 0));
     const pick = []; let cap = 0;
@@ -232,12 +284,13 @@
     // treatments only: not on a day the spa is booked exclusively (private spa, group, or the whole house) (user 2026-11-27)
     if (p.kind === 'treat') { const ph = E.productHours(cfg, q.product, q.date); if (ph && ph.on === false) return { ok: false, why: `${p.name} isn’t available on ${['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays'][dow(q.date)]}` }; }
     // spa sessions, private spa and groups: never on any day of a whole-house stay, arrival to departure day (user 2026-11-27)
-    if (p.kind === 'stay' && ((p.exclusiveFrom != null && (q.guests || 0) >= p.exclusiveFrom) || q.product === 'group')) {
+    if (p.kind === 'stay' && E.isExclusive(cfg, q)) {
       const hs = ix.house || {}, span = Array.from({ length: (q.nights || 0) + 1 }, (_, i) => addD(q.date, i));
       if (span.some(d => hs[d])) return { ok: false, why: 'The whole house is booked then' };
     }
+    // treatments only (user 2026-11-28): fine while the spa is booked exclusively, but not on a whole-house day
     if (p.kind === 'treat') { const ex = ((ix.spa || {})[q.date] || []).filter(x => x[3]);
-      if ((ix.house || {})[q.date] ? ex.some(x => x[0] <= 0 && x[1] >= 1440) : ex.length) return { ok: false, why: (ix.house || {})[q.date] ? 'The whole house is booked that day' : 'The spa is booked exclusively that day' }; }
+      if ((ix.house || {})[q.date] && ex.some(x => x[0] <= 0 && x[1] >= 1440)) return { ok: false, why: 'The whole house is booked that day' }; }
     if (!q.admin) {
       if (between(today, q.date) > cfg.rules.bookAheadDays) return { ok: false, why: 'Too far ahead' };
       if (between(today, q.date) * 24 < cfg.rules.minNoticeHours) return { ok: false, why: 'Too soon to book online' };
@@ -247,7 +300,7 @@
     const g = q.guests || p.min;
     if (p.kind === 'session' || p.kind === 'private') {
       if (!E.hours(cfg, q.date) || E.closedAllDay(cfg, q.date, ['spa'])) return { ok: false, why: 'Spa closed' };
-      const ses = E.sessions(cfg, ix, q.product, q.date, g);
+      const ses = E.sessions(cfg, ix, q.product, q.date, g, { exclusive: q.exclusive });
       if (!ses.length) return { ok: false, why: 'No sessions' };
       if (p.food) { const sw = E.serviceOK(cfg, ix, q.product, q.date); if (sw) return { ok: false, why: sw, sessions: ses }; }
       return ses.some(s => s.ok) ? { ok: true, sessions: ses } : { ok: false, why: ses[0].why || 'Full', sessions: ses };
@@ -264,19 +317,21 @@
       const r = E.rate(cfg, q.product, q.date);
       if (r && r.minNights && n < r.minNights) return { ok: false, why: `${r.minNights}-night minimum` };
       for (let i = 0; i < n; i++) { const d = addD(q.date, i); if (E.stopSell(cfg, q.product, d) || E.closedAllDay(cfg, d, ['rooms', 'spa', 'product:' + q.product])) return { ok: false, why: 'Closed' }; }
-      for (const u of E.spaUse(cfg, { product: q.product, date: q.date, nights: n, guests: g })) {
+      for (const u of E.spaUse(cfg, { product: q.product, date: q.date, nights: n, guests: g, exclusive: q.exclusive })) {
         const load = E.spaLoad(ix, u.date, u.s, u.e, cfg.spa.changeover || 0);
         if (u.x ? load.any : (load.exclusive || load.people + g > cfg.spa.capacity)) return { ok: false, why: u.x ? 'Spa already booked for that time' : 'Spa fully booked' };
       }
-      const rooms = E.pickRooms(cfg, ix, q.product, q.date, n, g);
-      if (!rooms) return { ok: false, why: 'No rooms left' };
+      const rooms = E.pickRooms(cfg, ix, q.product, q.date, n, g, null, q.exclusive);
+      if (!rooms) return { ok: false, why: E.isExclusive(cfg, { ...q, guests: g }) ? 'Other guests are staying then' : 'No rooms left' };
       const fit = E.includedFit(cfg, ix, { product: q.product, date: q.date, nights: n, guests: g }); if (fit) return { ok: false, why: fit };
+      if (p.lunchDaily && !q.admin) for (const sv of E.servicesFor(cfg, { product: q.product, date: q.date, nights: n, guests: g })) { const sw = E.serviceOne(cfg, ix, sv.id, sv.date); if (sw) return { ok: false, why: sw }; }
       // the included food (e.g. the grazing board) needs someone on shift to serve it (user 2026-11-27)
-      if ((p.food || (p.foodsIncluded || []).length) && !q.admin) { const sw = E.serviceOK(cfg, ix, q.product, q.date); if (sw) return { ok: false, why: sw }; }
+      if ((p.food || (p.foodsIncluded || []).length) && !q.admin && !p.lunchDaily) { const sw = E.serviceOK(cfg, ix, q.product, q.date); if (sw) return { ok: false, why: sw }; }
       return { ok: true, rooms };
     }
     if (p.kind === 'house') {
       if (n < p.minN) return { ok: false, why: `${p.minN}-night minimum` };
+      if (!E.houseNightsOK(cfg, q.date, n)) return { ok: false, why: E.houseRule(cfg) };
       for (let i = 0; i < n; i++) { const d = addD(q.date, i), r = E.rate(cfg, 'house', d); if ((r && r.stopSell) || E.closedAllDay(cfg, d, ['rooms', 'product:house'])) return { ok: false, why: 'Not available' }; if (r && r.minNights && n < r.minNights) return { ok: false, why: `${r.minNights}-night minimum` }; }
       for (const u of E.spaUse(cfg, { product: 'house', date: q.date, nights: n, guests: g })) if (E.spaLoad(ix, u.date, u.s, u.e, cfg.spa.changeover || 0).any) return { ok: false, why: 'Already booked' };
       const rooms = E.pickRooms(cfg, ix, 'house', q.date, n, g);
@@ -285,7 +340,14 @@
     return { ok: true };
   };
   // can the whole house start on this day (for the check-in calendar)?
-  E.houseStartOK = (cfg, ix, date, q = {}) => E.dateCheck(cfg, ix, { ...q, product: 'house', date, nights: cfg.products.house.minN }).ok;
+  // the whole house must include certain nights (user 2026-11-28: Friday and Saturday), extra nights either side
+  const DAYN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  E.houseNightsOK = (cfg, date, n) => { const m = (cfg.products.house || {}).mustInclude || []; if (!m.length) return true;
+    const ds = Array.from({ length: n }, (_, i) => dow(addD(date, i))); return m.every(w => ds.includes(w)); };
+  E.houseRule = cfg => { const m = (cfg.products.house || {}).mustInclude || []; return m.length ? `Stays must include ${m.map(w => DAYN[w]).join(' and ')} night${m.length > 1 ? 's' : ''}` : ''; };
+  // the fewest nights a whole-house stay starting on this date can have
+  E.houseMinNights = (cfg, date) => { const p = cfg.products.house; for (let n = p.minN || 1; n <= (p.maxN || 30); n++) if (E.houseNightsOK(cfg, date, n)) return n; return 0; };
+  E.houseStartOK = (cfg, ix, date, q = {}) => { const n = E.houseMinNights(cfg, date); return !!n && E.dateCheck(cfg, ix, { ...q, product: 'house', date, nights: n }).ok; };
 
   // ---------- therapists ----------
   // a day's hours, saved as { shifts:[{start,end}, ...], breaks:[{start,min}] } (older { start, end } still read)
@@ -516,7 +578,7 @@
     const ix = { ...ix0, staff: { ...ix0.staff }, duty: { ...(ix0.duty || {}) } };
     for (const sv of E.servicesFor(cfg, b)) { ix.staff[sv.date] = JSON.parse(JSON.stringify(ix0.staff[sv.date] || {})); ix.duty[sv.date] = { ...((ix0.duty || {})[sv.date] || {}) }; E.ensureDuty(cfg, ix, sv.date, sv.id); }
     const first = needs.some(n => n.date && n.date !== wins[0][0]) ? { ok: false, items: [], fail: {} } : E.schedule(cfg, ix, wins[0][0], [wins[0][1], wins[0][2]], needs, { align });
-    if (first.ok && (cfg.products[b.product] || {}).kind === 'treat') { const hit = first.items.find(i => E.exclusiveAt(ix0, i.date || b.date, T(i.start), T(i.start) + i.min)); if (hit) return { ok: false, items: [], fail: { key: hit.key, why: 'The spa is booked exclusively then' } }; }
+    if (first.ok && (cfg.products[b.product] || {}).kind === 'treat') { const hit = first.items.find(i => (ix0.house || {})[i.date || b.date] && E.exclusiveAt(ix0, i.date || b.date, T(i.start), T(i.start) + i.min)); if (hit) return { ok: false, items: [], fail: { key: hit.key, why: 'The whole house is booked then' } }; }
     if (first.ok || wins.length === 1) return first;
     const out = []; let cur = ix;
     const groups = [], seen = {};
@@ -560,7 +622,7 @@
       for (let t = Math.ceil(lo / step) * step; t + min <= T(w[2]) && t <= T(tt.last); t += step) grid.push(t);
       for (const t of E.startsWith(grid, ix, w[0], lo, T(tt.last), min, T(w[2]))) {
         if (others.some(o => (o.date || b.date) === w[0] && o.guest === need.guest && overlap(t - 5, t + min + 5, T(o.start), T(o.start) + o.min))) continue;
-        if ((cfg.products[b.product] || {}).kind === 'treat' && E.exclusiveAt(ix0, w[0], t, t + min)) continue;
+        if ((cfg.products[b.product] || {}).kind === 'treat' && (ix0.house || {})[w[0]] && E.exclusiveAt(ix0, w[0], t, t + min)) continue;
         const st = cfg.staff.filter(x => E.canDoAll(x, need)).sort(E.byPriority).find(x => !E.staffFree(cfg, ix, x, w[0], t, min, buf));
         if (!st) continue;
         if (!E.roomFree(cfg, ix, w[0], tr, t, t + min + buf, 1)) continue;
@@ -698,11 +760,24 @@
   E.canDoAll = (st, it) => E.canDo(st, it.tid) && ((it && it.with) || []).every(t => E.canDo(st, t));
 
   // ---------- prices ----------
-  E.unitPrice = (cfg, product, date, nights) => {
-    const p = cfg.products[product], r = E.rate(cfg, product, date);
+  // a session can have its own price (the full day); a date rate's difference from the usual price still applies
+  E.unitPrice = (cfg, product, date, nights, sessionId) => {
+    const p = cfg.products[product], r = E.rate(cfg, product, date), ses = sessionId && E.session(cfg, sessionId);
+    if (ses && ses.price != null && p.kind !== 'house' && !p.priceN) return +ses.price + (r && r.price != null ? r.price - p.price : 0);
     if (p.kind === 'house') return r && r.night != null ? r.night : p.night;
     if (p.priceN) { const pn = r && r.priceN && r.priceN[nights] != null ? r.priceN[nights] : p.priceN[nights]; if (pn != null) return pn; const k = Object.keys(p.priceN).map(Number).sort((a, z) => a - z)[0]; return k ? Math.round(p.priceN[k] / k * (nights || k)) : 0; }   // nights it isn't sold for: per-night share, never 'undefined'
     return r && r.price != null ? r.price : p.price;
+  };
+  // the booking's own price lines (not the house, treatments or extras)
+  E.baseLines = (cfg, b) => {
+    const p = cfg.products[b.product], g = b.guests || 1, n = b.nights || 0, cg = E.chargedGuests(cfg, b), out = [];
+    const ex = '', xx = E.exclusiveExtra(cfg, b);
+    const exLine = () => xx && out.push({ k: 'excl', label: `Just for you · ${xx.empty} empty place${xx.empty === 1 ? '' : 's'} × £${xx.rate}${xx.stay ? ` × ${xx.nights} night${xx.nights === 1 ? '' : 's'}` : ''}${xx.last ? ` · ${xx.pct}% off, last minute` : ''}`, amount: xx.amount });
+    if (p.kind === 'stay') { const u = E.unitPrice(cfg, b.product, b.date, n); out.push({ k: 'base', label: `${p.name} · ${n} night${n === 1 ? '' : 's'} · ${cg} × £${u}${ex}`, amount: u * cg });
+      exLine(); const s1 = E.singles(cfg, b); if (s1) out.push({ k: 'single', label: `Room to themselves · ${s1} guest${s1 === 1 ? '' : 's'} × ${n} night${n === 1 ? '' : 's'} × £${p.singleSupp}`, amount: s1 * n * p.singleSupp }); }
+    else if (p.kind !== 'treat' && p.kind !== 'house') { const ses = E.session(cfg, b.sessionId), u = E.unitPrice(cfg, b.product, b.date, 0, b.sessionId);
+      out.push({ k: 'base', label: `${p.name}${ses && ses.length === 'full' ? ' · full day' : ses ? ' · half day' : ''} · ${cg} × £${u}${ex}`, amount: u * cg }); exLine(); }
+    return out;
   };
   E.quote = (cfg, b, today) => {
     const p = cfg.products[b.product]; if (!p) return null;
@@ -710,8 +785,7 @@
     if (p.kind === 'house') {
       let sum = 0; for (let i = 0; i < n; i++) sum += E.unitPrice(cfg, 'house', addD(b.date, i));
       lines.push({ k: 'base', label: `${p.name} · ${n} night${n === 1 ? '' : 's'}`, amount: sum });
-    } else if (p.kind === 'stay') { const u = E.unitPrice(cfg, b.product, b.date, n); lines.push({ k: 'base', label: `${p.name} · ${n} night${n === 1 ? '' : 's'} · ${g} × £${u}`, amount: u * g }); }
-    else if (p.kind !== 'treat') { const u = E.unitPrice(cfg, b.product, b.date); lines.push({ k: 'base', label: `${p.name} · ${g} × £${u}`, amount: u * g }); }
+    } else lines.push(...E.baseLines(cfg, b));
     if (b.breakfast && p.breakfast) lines.push({ k: 'bfast', label: `Breakfast · ${g} × ${n} morning${n === 1 ? '' : 's'}`, amount: cfg.breakfastPrice * g * n });
     let tsum = 0, off = 0;
     E.extraCharges(cfg, b).forEach(c => { const t = E.tr(cfg, c.tid); tsum += c.price; if (t.head && p.kind !== 'treat') off += c.price * cfg.rules.headSpaOff / 100; });
@@ -721,6 +795,7 @@
     let total = lines.reduce((a, l) => a + l.amount, 0);
     const offers = [];
     if (off) offers.push({ k: 'headoff', label: `Head spa ${cfg.rules.headSpaOff}% off`, d: Math.round(off * 100) / 100 });
+    const gd = E.groupOff(cfg, b); if (gd) offers.push({ k: 'group', label: `Group discount · ${gd.from}+ guests, ${gd.pct}% off`, d: gd.amount });
     if (b.promo && +b.promo.value) {
       const base = lines.filter(l => b.promo.on === 'all' || (b.promo.on === 'treat' ? l.k === 'treat' : l.k === 'base')).reduce((a, l) => a + l.amount, 0);
       const d = Math.min(base, b.promo.type === 'pct' ? Math.round(base * b.promo.value) / 100 : +b.promo.value);

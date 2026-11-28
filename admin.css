@@ -1360,3 +1360,5 @@ body:has(.kiosk) .toast{z-index:6100}
 button:has(> .cflag){position:relative;overflow:visible}
 .cflag{position:absolute;top:-8px;right:-8px;margin:0;min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:#c0623f;color:#fff;font-size:11px;font-weight:800;line-height:20px;display:inline-flex;align-items:center;justify-content:center;gap:1px;box-shadow:0 0 0 2px #fff;pointer-events:none}
 .row-acts{overflow:visible}
+.rl-h{font-size:14px;margin:18px 0 8px;letter-spacing:.02em}
+#rl-prices .rl-tbl td{vertical-align:top}

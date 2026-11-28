@@ -569,11 +569,11 @@
     const plan = () => {
       const P = p(), I = ix(), out = { problems: [] };
       if (!B.date) return out;
-      const chk = E.dateCheck(cfg, I, { product: B.product, date: B.date, nights: B.nights, guests: B.guests, admin: true });
+      const chk = E.dateCheck(cfg, I, { product: B.product, date: B.date, nights: B.nights, guests: B.guests, exclusive: B.exclusive, admin: true });
       out.chk = chk;
       if (!chk.ok && !st.override) out.problems.push(chk.why);
       if (P.kind === 'session' || P.kind === 'private') { const s = (chk.sessions || []).find(x => x.id === B.sessionId); if (!B.sessionId) out.problems.push('Choose a session'); else if (s && !s.ok && !st.override) out.problems.push(`${s.name}: ${s.why}`); }
-      if (P.kind === 'stay' || P.kind === 'house') { const r = E.pickRooms(cfg, I, B.product, B.date, B.nights, B.guests, B.rooms); if (r) B.rooms = r; else if (!st.override) out.problems.push('Not enough rooms free');
+      if (P.kind === 'stay' || P.kind === 'house') { const r = E.pickRooms(cfg, I, B.product, B.date, B.nights, B.guests, B.rooms, B.exclusive); if (r) B.rooms = r; else if (!st.override) out.problems.push('Not enough rooms free');
         // who sleeps where: one room = everyone in it; more = each guest needs a room
         if ((B.rooms || []).length === 1) B.guestList.forEach(g => g.room = B.rooms[0]); else if ((B.rooms || []).length > 1) { B.guestList.forEach(g => { if (g.room && !B.rooms.includes(g.room)) g.room = null; }); const miss = B.guestList.filter(g => !g.room).length; if (miss) out.problems.push(`Choose a room for ${miss === 1 ? 'one guest' : miss + ' guests'} (Guests section)`); } }
       B.treatStart = null;   // treatments-only: each treatment gets its own time, like the website
@@ -603,11 +603,11 @@
       const [yy, mm] = st.month.split('-').map(Number), f1 = new Date(yy, mm - 1, 1), sw = (f1.getDay() + 6) % 7, dim = new Date(yy, mm, 0).getDate();
       let cal = ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(x => `<span class="dw">${x}</span>`).join('') + '<span></span>'.repeat(sw);
       for (let i = 1; i <= dim; i++) {
-        const d = `${st.month}-${String(i).padStart(2, '0')}`, c = E.dateCheck(cfg, I, { product: B.product, date: d, nights: B.nights, guests: B.guests, admin: true });
+        const d = `${st.month}-${String(i).padStart(2, '0')}`, c = E.dateCheck(cfg, I, { product: B.product, date: d, nights: B.nights, guests: B.guests, exclusive: B.exclusive, admin: true });
         const end = B.date && B.nights ? E.addD(B.date, B.nights) : null;
         cal += `<button type="button" data-day="${d}" class="${d === B.date ? 'on' : ''} ${B.date && end && d > B.date && d < end ? 'in' : ''} ${d === t ? 'today' : ''}" ${c.ok || st.override || d === (orig && orig.date) ? '' : 'disabled'} title="${esc(c.ok ? 'Available' : c.why)}">${i}</button>`;
       }
-      const sessions = pl.chk && pl.chk.sessions || (B.date && (P.kind === 'session' || P.kind === 'private') ? E.sessions(cfg, I, B.product, B.date, B.guests) : []);
+      const sessions = pl.chk && pl.chk.sessions || (B.date && (P.kind === 'session' || P.kind === 'private') ? E.sessions(cfg, I, B.product, B.date, B.guests, { exclusive: B.exclusive }) : []);
       const foods = cfg.foods.filter(f => f.active !== false && f.products.includes(B.product));
       const extrasAll = cfg.treatments.filter(x => E.sellable(x)), incList = E.includedFor(cfg, B.product), incAll = E.includedPick(cfg, B.product) === 'all';
       const conflicts = pl.conflicts || [];
@@ -635,6 +635,7 @@
               ${P.kind === 'stay' ? `<div class="fld"><span>Nights</span><div class="seg">${(P.nights || [1]).map(n => `<button type="button" data-n="${n}" class="${B.nights === n ? 'on' : ''}">${n} night${n > 1 ? 's' : ''}</button>`).join('')}</div></div>` : ''}
               ${P.kind === 'house' ? `<div class="fld" style="max-width:140px"><span>Nights</span><input class="inp" type="number" id="hn" min="${P.minN}" max="${P.maxN}" value="${B.nights}"></div>` : ''}
               ${P.breakfast ? `<label class="sw"><input type="checkbox" id="bfast" ${B.breakfast ? 'checked' : ''}> Breakfast (£${cfg.breakfastPrice} pp per morning)</label>` : ''}
+              ${P.exclusiveOption && B.guests < (P.exclusiveFrom || 99) ? `<label class="sw"><input type="checkbox" id="excl" ${B.exclusive ? 'checked' : ''}> Just for this group (no other spa guests)${B.exclusive && E.exclusiveExtra(cfg, B) ? `: +£${E.exclusiveExtra(cfg, B).amount}` : `: £${P.kind === 'stay' ? E.exclusiveRates(cfg).night + ' a night' : E.exclusiveRates(cfg).half + ' (half day) or £' + E.exclusiveRates(cfg).full + ' (full day)'} per empty place`}</label>` : P.exclusiveFrom && B.guests >= P.exclusiveFrom ? `<p class="small muted" style="margin:4px 0">${P.exclusiveFrom}+ guests: the spa is theirs${P.kind === 'stay' ? ' during their spa times, and no other guests stay those nights' : ''}.</p>` : ''}
               ${incList.length && cfg.rules.blueLight ? `<label class="sw"><input type="checkbox" id="blue" ${B.blueLight ? 'checked' : ''}> Blue Light Card (30-minute treatments)</label>` : ''}
             </div></div>
           <div class="card"><div class="card-h"><h3>3 · Date${P.kind === 'session' || P.kind === 'private' ? ' & session' : P.kind === 'treat' ? ' & time of day' : ''}</h3><label class="sw small"><input type="checkbox" id="ovr" ${st.override ? 'checked' : ''}> Ignore availability</label></div>
@@ -723,19 +724,20 @@
       $$('[data-prod]', el).forEach(b => b.onclick = () => {
         const k = b.dataset.prod; if (k === B.product) return;
         const P2 = cfg.products[k];
-        Object.assign(B, { times: {}, product: k, date: null, nights: 0, sessionId: null, rooms: [], treatStart: null, part: null, items: [], breakfast: false, blueLight: false, together: undefined, promo: null, discount: null, totalOverride: null, addOns: [],
+        Object.assign(B, { times: {}, product: k, date: null, nights: 0, sessionId: null, rooms: [], treatStart: null, part: null, items: [], breakfast: false, blueLight: false, exclusive: false, together: undefined, promo: null, discount: null, totalOverride: null, addOns: [],
           guests: Math.max(P2.min || 1, Math.min(P2.max || 16, k === 'group' ? 8 : k === 'house' ? 10 : k === 'private' ? Math.max(4, P2.min || 1) : 2)), guestList: [] });
         st.lock = false; st.override = false; st.g = 0; st.promoMsg = ''; re();
         A.toast('Started again for ' + P2.name + ' (contact details kept)');
       });
-      $$('[data-g]', el).forEach(b => b.onclick = () => { B.guests += +b.dataset.g; st.lock = false; re(); });
+      $$('[data-g]', el).forEach(b => b.onclick = () => { B.guests += +b.dataset.g; if (B.guests >= (p().exclusiveFrom || 99)) B.exclusive = false; st.lock = false; re(); });
       $$('[data-n]', el).forEach(b => b.onclick = () => { B.times = {}; B.nights = +b.dataset.n; B.rooms = []; re(); });
       const hn = $('#hn', el); if (hn) hn.onchange = () => { B.nights = Math.max(p().minN, Math.min(p().maxN, +hn.value || p().minN)); re(); };
       const bf = $('#bfast', el); if (bf) bf.onchange = () => { B.breakfast = bf.checked; re(); };
       const bl = $('#blue', el); if (bl) bl.onchange = () => { B.blueLight = bl.checked; st.lock = false; re(); };
+      const ex = $('#excl', el); if (ex) ex.onchange = () => { B.exclusive = ex.checked; B.rooms = []; st.lock = false; re(); };
       $('#ovr', el).onchange = e => { st.override = e.target.checked; re(); };
       $$('[data-mo]', el).forEach(b => b.onclick = () => { const [y, m] = st.month.split('-').map(Number), d = new Date(y, m - 1 + +b.dataset.mo, 1); st.month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; re(); });
-      $$('[data-day]', el).forEach(b => b.onclick = () => { if (B.date !== b.dataset.day) B.times = {}; B.date = b.dataset.day; B.rooms = []; st.lock = false; const s = E.sessions(cfg, ix(), B.product, B.date, B.guests).filter(x => x.ok); if (!s.some(x => x.id === B.sessionId)) B.sessionId = s.length === 1 ? s[0].id : null; re(); });
+      $$('[data-day]', el).forEach(b => b.onclick = () => { if (B.date !== b.dataset.day) B.times = {}; B.date = b.dataset.day; B.rooms = []; st.lock = false; const s = E.sessions(cfg, ix(), B.product, B.date, B.guests, { exclusive: B.exclusive }).filter(x => x.ok); if (!s.some(x => x.id === B.sessionId)) B.sessionId = s.length === 1 ? s[0].id : null; re(); });
       $$('[data-ses]', el).forEach(b => b.onclick = () => { if (B.sessionId !== b.dataset.ses) B.times = {}; B.sessionId = b.dataset.ses; st.lock = false; re(); });
       $$('[data-part]', el).forEach(b => b.onclick = () => { B.part = b.dataset.part; st.lock = false; re(); });
       $$('[data-tstart]', el).forEach(b => b.onclick = () => { B.treatStart = b.dataset.tstart; st.lock = false; re(); });

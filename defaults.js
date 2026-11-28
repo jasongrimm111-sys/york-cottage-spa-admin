@@ -29,7 +29,10 @@
       share: 'fill',             // 'fill' = use therapist 1 (by priority) where possible, then the next; 'even' = share evenly
       groupTogether: true,       // groups: try to give guests their treatments at the same time, with different therapists
       groupTogetherFrom: 2,      // ...for bookings of this many guests or more (each product can override with together: true/false)
-      holdMinutes: 30            // online checkout holds a slot this long (needs the live payment server)
+      holdMinutes: 30,           // online checkout holds a slot this long (needs the live payment server)
+      // "Just for us" (exclusive use for fewer than 6): a charge per empty place (user 2026-11-28), last-minute discount on
+      exclHalf: 25, exclFull: 40, exclNight: 75, exclLast: true, exclLastDays: 7, exclLastPct: 50,
+      groupOn: true, groupFrom: 6, groupPct: 10   // group discount: % off the booking price for this many guests or more (user 2026-11-28)
     },
     // Spa opening hours by weekday (0 = Sunday). null = closed.
     hours: { 0: wk('09:30', '22:30'), 1: wk('09:30', '22:00'), 2: wk('09:30', '22:00'), 3: wk('09:30', '22:00'), 4: wk('09:30', '22:00'), 5: wk('09:30', '22:00'), 6: wk('09:30', '22:00') },
@@ -46,74 +49,43 @@
     // nobody else is booked in the spa at that time, and nothing can be booked alongside them.
     spa: { capacity: 6, changeover: 30 },  // changeover: minutes of overlap allowed as one session leaves and the next arrives
     sessions: [
-      { id: 'day-am', product: 'day', name: 'Morning', start: '09:30', end: '13:30', arrive: '09:15', cap: 6, days: [1, 2, 3, 4, 5, 6, 0], active: true },
-      { id: 'day-pm', product: 'day', name: 'Afternoon', start: '13:00', end: '17:00', arrive: '12:45', cap: 6, days: [1, 2, 3, 4, 5, 6, 0], active: true },
-      { id: 'acc-am', product: 'access', name: 'Morning', start: '09:30', end: '13:30', arrive: '09:15', cap: 6, days: [1, 2, 3, 4, 5, 6, 0], active: true },
-      { id: 'acc-pm', product: 'access', name: 'Afternoon', start: '14:00', end: '18:00', arrive: '13:45', cap: 6, days: [1, 2, 3, 4, 5, 6, 0], active: true },
-      { id: 'acc-ev', product: 'access', name: 'Evening', start: '18:30', end: '22:00', arrive: '18:15', cap: 6, days: [5, 6], active: true },
-      { id: 'prv-am', product: 'private', name: 'Morning', start: '09:30', end: '13:30', arrive: '09:15', cap: 16, days: [1, 2, 3, 4, 5, 6], active: true },
-      { id: 'prv-pm', product: 'private', name: 'Afternoon', start: '14:00', end: '18:00', arrive: '13:45', cap: 16, days: [1, 2, 3, 4, 5, 6], active: true },
-      { id: 'prv-sun', product: 'private', name: 'Sunday', start: '11:30', end: '15:30', arrive: '11:15', cap: 16, days: [0], active: true }
+      {"id":"day-am","product":"day","name":"Morning","start":"09:30","end":"13:30","arrive":"09:15","cap":6,"days":[1,2,3,4,5,6,0],"active":true,"length":"half"},
+      {"id":"day-pm","product":"day","name":"Afternoon","start":"13:00","end":"17:00","arrive":"12:45","cap":6,"days":[1,2,3,4,5,6,0],"active":true,"length":"half"},
+      {"id":"day-full","product":"day","name":"Full day","start":"09:30","end":"17:00","arrive":"09:15","length":"full","price":135,"cap":6,"days":[1,2,3,4,5,6,0],"active":true},
+      {"id":"acc-am","product":"access","name":"Morning","start":"09:30","end":"13:30","arrive":"09:15","cap":6,"days":[1,2,3,4,5,6,0],"active":true,"length":"half"},
+      {"id":"acc-aft","product":"access","name":"Afternoon","start":"13:00","end":"17:00","arrive":"12:45","length":"half","cap":6,"days":[1,2,3,4,5,6,0],"active":true},
+      {"id":"acc-full","product":"access","name":"Full day","start":"09:30","end":"17:00","arrive":"09:15","length":"full","price":75,"cap":6,"days":[1,2,3,4,5,6,0],"active":true},
+      {"id":"acc-pm","product":"access","name":"Afternoon","start":"14:00","end":"18:00","arrive":"13:45","cap":6,"days":[1,2,3,4,5,6,0],"active":false},
+      {"id":"acc-ev","product":"access","name":"Evening","start":"18:30","end":"22:00","arrive":"18:15","cap":6,"days":[5,6],"active":false},
+      {"id":"prv-am","product":"private","name":"Morning","start":"09:30","end":"13:30","arrive":"09:15","cap":16,"days":[1,2,3,4,5,6],"active":true},
+      {"id":"prv-pm","product":"private","name":"Afternoon","start":"14:00","end":"18:00","arrive":"13:45","cap":16,"days":[1,2,3,4,5,6],"active":true},
+      {"id":"prv-sun","product":"private","name":"Sunday","start":"11:30","end":"15:30","arrive":"11:15","cap":16,"days":[0],"active":true}
     ],
+    // booking types (user 2026-11-28); private, break2 and group are kept for older bookings, not sold
     products: {
-      day: { name: 'Day Spa', kind: 'session', price: 100, min: 1, max: 6, food: true, benefits: ['Spa pool, sauna & relaxation lounge', 'Hot & cold drinks', 'Towel, robe & slippers', 'Afternoon tea or grazing board'], includedPick: 'one', active: true, online: true,
-        blurb: '4-hour session: 20-minute massage or facial, afternoon tea or grazing board, spa pool, sauna & lounge.',
-        policy: 'Spa days are paid in full and are non-refundable. You can move your visit (subject to availability) by emailing us at least 30 days before.',
-        pay: { deposit: 100 }, cancel: { moveDays: 30, rules: [{ minDays: 0, keepPct: 100 }] } },
-      access: { name: 'Spa Access', kind: 'session', price: 50, min: 1, max: 6, food: false, benefits: ['Spa pool, sauna & relaxation lounge', 'Hot & cold drinks', 'Towel & robe'], includedPick: 'one', active: true, online: true,
-        blurb: '4-hour session: spa pool, sauna and lounge with hot & cold refreshments, towel and robe.',
-        policy: 'Spa days are paid in full and are non-refundable. You can move your visit (subject to availability) by emailing us at least 30 days before.',
-        pay: { deposit: 100 }, cancel: { moveDays: 30, rules: [{ minDays: 0, keepPct: 100 }] } },
-      private: { name: 'Private Spa', kind: 'private', price: 100, min: 4, minByDay: { 0: 6 }, max: 16, food: true, benefits: ['The spa just for your group', 'Food & drinks', 'Towel & robe'], includedPick: 'one', active: true, online: true,
-        blurb: 'The spa just for your group, with food, drinks and a 20-minute massage or luxury facial each.',
-        policy: 'Spa days are paid in full and are non-refundable. You can move your visit (subject to availability) by emailing us at least 30 days before.',
-        pay: { deposit: 100 }, cancel: { moveDays: 30, rules: [{ minDays: 0, keepPct: 100 }] } },
-      break: { name: '1-Night Spa Break', kind: 'stay', priceN: { 1: 145 }, perPerson: true, min: 2, max: 6, nights: [1],
-        arriveDays: { 1: [0, 1, 2, 3, 4] }, food: false, foodsIncluded: ['grazing'], breakfast: true,
-        exclusiveFrom: 6, benefits: ['King ensuite room', 'Spa access', 'Sweet & savoury grazing board', 'Towel & robe'], includedPick: 'one', active: true, online: true,
-        blurb: 'One night from £145 per person, based on 2 sharing. King ensuite room, grazing board, 20-minute aromatherapy massage each, spa access.',
-        times: { default: { checkIn: '13:30', spa: ['14:00', '18:00'], food: '18:00', checkOut: '11:00' }, 0: { checkIn: '14:00', spa: ['18:00', '22:30'], spa2: ['17:30', '22:00'], food: '16:30', checkOut: '11:00' } },
-        policy: 'Spa breaks can be refunded if you cancel at least 30 days before arrival. With less notice the full cost is charged, and there are no refunds for leaving early.',
-        pay: { deposit: 100 }, cancel: { rules: [{ minDays: 30, keepPct: 0 }, { minDays: 0, keepPct: 100 }] } },
-      break2: { name: '2-Night Spa Break', kind: 'stay', priceN: { 2: 220 }, perPerson: true, min: 2, max: 6, nights: [2],
-        arriveDays: { 2: [0, 1, 2, 3] }, food: false, foodsIncluded: ['grazing'], breakfast: true,
-        exclusiveFrom: 6, benefits: ['King ensuite room', 'Spa access', 'Sweet & savoury grazing board', 'Towel & robe'], includedPick: 'one', active: true, online: true,
-        blurb: 'Two nights from £220 per person, based on 2 sharing. King ensuite room, grazing board, 20-minute aromatherapy massage each, spa access.',
-        times: { default: { checkIn: '13:30', spa: ['14:00', '18:00'], food: '18:00', checkOut: '11:00' }, 0: { checkIn: '14:00', spa: ['18:00', '22:30'], spa2: ['17:30', '22:00'], food: '16:30', checkOut: '11:00' } },
-        policy: 'Spa breaks can be refunded if you cancel at least 30 days before arrival. With less notice the full cost is charged, and there are no refunds for leaving early.',
-        pay: { deposit: 100 }, cancel: { rules: [{ minDays: 30, keepPct: 0 }, { minDays: 0, keepPct: 100 }] } },
-      group: { name: 'Group Spa Break', kind: 'stay', priceN: { 1: 145 }, perPerson: true, min: 7, max: 16, nights: [1],
-        arriveDays: { 1: [0, 1, 2, 3, 4] }, food: true, foods: ['grazing', 'tea'], breakfast: true, exclusive: true, allRooms: true, benefits: ['The spa just for your group', 'Grazing board or afternoon tea', 'Up to 8 rooms'], includedPick: 'one', active: true, online: true,
-        blurb: '7+ guests, Sunday to Thursday. Up to 8 rooms, the spa just for your group, a grazing board or afternoon tea and a 20-minute aromatherapy massage each.',
-        times: { default: { checkIn: '13:30', spa: ['14:00', '22:00'], checkOut: '11:00' }, 0: { checkIn: '15:30', spa: ['17:30', '22:00'], food: '16:30', checkOut: '11:00' } },
-        policy: 'Spa breaks can be refunded if you cancel at least 30 days before arrival. With less notice the full cost is charged, and there are no refunds for leaving early.',
-        pay: { deposit: 100 }, cancel: { rules: [{ minDays: 30, keepPct: 0 }, { minDays: 0, keepPct: 100 }] } },
-      house: { name: 'Whole House & Spa', kind: 'house', night: 1840, minN: 2, maxN: 30, min: 1, max: 16, food: false, benefits: ['Exclusive use of the house & spa', 'Hot tub & sauna', 'Full kitchen & 2 living rooms', 'A basket of firewood'], includedPick: 'one', active: true, online: true,
-        blurb: 'Exclusive use of the house and spa for up to 16 guests: 8 bedrooms, kitchen, 2 living rooms, hot tub and sauna. 2-night minimum.',
-        times: { default: { checkIn: '16:00', spa: ['08:00', '22:00'], checkOut: '11:00', spaLastDay: '10:30' } },
-        policy: '50% is paid now and the balance 6 weeks before arrival (bookings within 6 weeks are paid in full). Cancel 6+ months ahead and you can move your dates; 6+ weeks ahead, the deposit is kept; under 6 weeks, the full cost is kept. A £500 damage deposit is pre-authorised on your card and released within 48 hours of departure.',
-        pay: { deposit: 50, balanceDays: 42, damage: 500 },
-        cancel: { moveDays: 183, rules: [{ minDays: 42, keepDeposit: true }, { minDays: 0, keepPct: 100 }] } },
-      treat: { name: 'Treatments only', kind: 'treat', price: 0, min: 1, max: 4, food: false, benefits: [], includedPick: 'one', active: true, online: true,
-        blurb: 'Just here for a massage, facial or head spa? Choose your treatments with no spa session.',
-        parts: { Morning: ['09:30', '13:00'], Afternoon: ['13:00', '18:00'] },
-        policy: 'Spa days are paid in full and are non-refundable. You can move your visit (subject to availability) by emailing us at least 30 days before.',
-        pay: { deposit: 100 }, cancel: { moveDays: 30, rules: [{ minDays: 0, keepPct: 100 }] } }
+      day: {"name":"Spa, Lunch & Treatment","kind":"session","price":100,"min":1,"max":6,"food":true,"benefits":["Spa pool, sauna & relaxation lounge","Lunch: afternoon tea or grazing board","20-minute massage or facial each","Towel, robe & slippers"],"includedPick":"one","active":true,"online":true,"blurb":"Everything in Spa Access Only, plus lunch (afternoon tea or a grazing board) and a 20-minute massage or facial each. Half day (4 hours) or full day (7½ hours).","policy":"Spa days are paid in full and are non-refundable. You can move your visit (subject to availability) by emailing us at least 30 days before.","pay":{"deposit":100},"cancel":{"moveDays":30,"rules":[{"minDays":0,"keepPct":100}]},"exclusiveFrom":6,"exclusiveOption":true,"exclusiveCharge":6,"groupDiscount":true},
+      access: {"name":"Spa Access Only","kind":"session","price":50,"min":1,"max":6,"food":false,"benefits":["Spa pool, sauna & relaxation lounge","Hot & cold drinks","Towel & robe"],"includedPick":"one","active":true,"online":true,"blurb":"Just the spa: pool, sauna and relaxation lounge, with hot & cold drinks, towel and robe. No food or treatment. Half day (4 hours) or full day (7½ hours).","policy":"Spa days are paid in full and are non-refundable. You can move your visit (subject to availability) by emailing us at least 30 days before.","pay":{"deposit":100},"cancel":{"moveDays":30,"rules":[{"minDays":0,"keepPct":100}]},"exclusiveFrom":6,"exclusiveOption":true,"exclusiveCharge":6,"groupDiscount":true},
+      private: {"name":"Private Spa","kind":"private","price":100,"min":4,"minByDay":{"0":6},"max":16,"food":true,"benefits":["The spa just for your group","Food & drinks","Towel & robe"],"includedPick":"one","active":false,"online":false,"blurb":"The spa just for your group, with food, drinks and a 20-minute massage or luxury facial each.","policy":"Spa days are paid in full and are non-refundable. You can move your visit (subject to availability) by emailing us at least 30 days before.","pay":{"deposit":100},"cancel":{"moveDays":30,"rules":[{"minDays":0,"keepPct":100}]}},
+      break: {"name":"Spa Break","kind":"stay","priceN":{"1":150,"2":250,"3":350,"4":450,"5":550},"perPerson":true,"min":1,"max":16,"nights":[1,2,3,4,5],"arriveDays":{"1":[0,1,2,3,4],"2":[0,1,2,3],"3":[0,1,2],"4":[0,1],"5":[0]},"food":false,"foodsIncluded":["lunch"],"breakfast":true,"exclusiveFrom":6,"benefits":["A bedroom for every 2 guests","The spa from 2pm on arrival to 6pm on your last day","Lunch every day","Use of the kitchen for your dinner","20-minute massage or facial each"],"includedPick":"one","active":true,"online":true,"blurb":"Sunday to Thursday nights, 1 to 5 nights, 1 to 16 guests. The spa from 2pm on the day you arrive until 6pm on your last evening (Sunday arrivals 6pm–10:30pm), lunch every day, the kitchen for your dinner and a 20-minute massage or facial each.","times":{"0":{"checkIn":"14:00","spa":["18:00","22:30"],"food":"18:00","checkOut":"11:00"},"default":{"checkIn":"13:00","spa":["14:00","18:00"],"spaMid":["09:30","18:00"],"food":"13:00","checkOut":"11:00"}},"policy":"Spa breaks can be refunded if you cancel at least 30 days before arrival. With less notice the full cost is charged, and there are no refunds for leaving early.","pay":{"deposit":100},"cancel":{"rules":[{"minDays":30,"keepPct":0},{"minDays":0,"keepPct":100}]},"lunchDaily":true,"anyRoom":true,"singleSupp":50,"exclusiveOption":true,"exclusiveCharge":6,"dayHours":{"0":{"on":true,"from":"17:30","to":"22:00"}},"groupDiscount":true},
+      break2: {"name":"2-Night Spa Break","kind":"stay","priceN":{"2":220},"perPerson":true,"min":2,"max":6,"nights":[2],"arriveDays":{"2":[0,1,2,3]},"food":false,"foodsIncluded":["grazing"],"breakfast":true,"exclusiveFrom":6,"benefits":["King ensuite room","Spa access","Sweet & savoury grazing board","Towel & robe"],"includedPick":"one","active":false,"online":false,"blurb":"Two nights from £220 per person, based on 2 sharing. King ensuite room, grazing board, 20-minute aromatherapy massage each, spa access.","times":{"0":{"checkIn":"14:00","spa":["18:00","22:30"],"spa2":["17:30","22:00"],"food":"16:30","checkOut":"11:00"},"default":{"checkIn":"13:30","spa":["14:00","18:00"],"food":"18:00","checkOut":"11:00"}},"policy":"Spa breaks can be refunded if you cancel at least 30 days before arrival. With less notice the full cost is charged, and there are no refunds for leaving early.","pay":{"deposit":100},"cancel":{"rules":[{"minDays":30,"keepPct":0},{"minDays":0,"keepPct":100}]}},
+      group: {"name":"Group Spa Break","kind":"stay","priceN":{"1":145},"perPerson":true,"min":7,"max":16,"nights":[1],"arriveDays":{"1":[0,1,2,3,4]},"food":true,"foods":["grazing","tea"],"breakfast":true,"exclusive":true,"allRooms":true,"benefits":["The spa just for your group","Grazing board or afternoon tea","Up to 8 rooms"],"includedPick":"one","active":false,"online":false,"blurb":"7+ guests, Sunday to Thursday. Up to 8 rooms, the spa just for your group, a grazing board or afternoon tea and a 20-minute aromatherapy massage each.","times":{"0":{"checkIn":"15:30","spa":["17:30","22:00"],"food":"16:30","checkOut":"11:00"},"default":{"checkIn":"13:30","spa":["14:00","22:00"],"checkOut":"11:00"}},"policy":"Spa breaks can be refunded if you cancel at least 30 days before arrival. With less notice the full cost is charged, and there are no refunds for leaving early.","pay":{"deposit":100},"cancel":{"rules":[{"minDays":30,"keepPct":0},{"minDays":0,"keepPct":100}]}},
+      house: {"name":"Whole House & Spa","kind":"house","night":1840,"minN":2,"maxN":30,"min":1,"max":16,"food":false,"benefits":["Exclusive use of the house & spa","Hot tub & sauna","Full kitchen & 2 living rooms","A basket of firewood"],"includedPick":"one","active":true,"online":true,"blurb":"The whole house and spa just for your group, up to 16 guests: 8 bedrooms, kitchen, 2 living rooms, hot tub and sauna. Friday and Saturday nights, and you can add nights either side.","times":{"default":{"checkIn":"16:00","spa":["08:00","22:00"],"checkOut":"11:00","spaLastDay":"10:30"}},"policy":"50% is paid now and the balance 6 weeks before arrival (bookings within 6 weeks are paid in full). Cancel 6+ months ahead and you can move your dates; 6+ weeks ahead, the deposit is kept; under 6 weeks, the full cost is kept. A £500 damage deposit is pre-authorised on your card and released within 48 hours of departure.","pay":{"deposit":50,"balanceDays":42,"damage":500},"cancel":{"moveDays":183,"rules":[{"minDays":42,"keepDeposit":true},{"minDays":0,"keepPct":100}]},"mustInclude":[5,6]},
+      treat: {"name":"Treatments only","kind":"treat","price":0,"min":1,"max":4,"food":false,"benefits":[],"includedPick":"one","active":true,"online":true,"blurb":"Just here for a massage, facial or head spa? Choose your treatments with no spa session.","parts":{"Morning":["09:30","13:00"],"Afternoon":["13:00","18:00"]},"policy":"Spa days are paid in full and are non-refundable. You can move your visit (subject to availability) by emailing us at least 30 days before.","pay":{"deposit":100},"cancel":{"moveDays":30,"rules":[{"minDays":0,"keepPct":100}]}}
     },
     breakfastPrice: 10,
     // Food service: someone must be free to serve it (at least 1 person), so they can't be booked for treatments then.
-    // Morning and afternoon spa guests eat together, between the two sessions.
     services: [
-      { id: 'lunch', name: 'Spa lunch service', start: '13:00', end: '14:00', products: ['day', 'private'], staff: 1, active: true, byDay: {} },
-      { id: 'grazing', name: 'Grazing board service', start: '18:00', end: '18:30', products: ['break', 'break2', 'group'], staff: 1, active: true, byDay: { 0: { start: '16:30', end: '17:00' } } }
+      {"id":"lunch","name":"Spa lunch service","start":"13:00","end":"14:00","products":["day","private","break"],"staff":1,"active":true,"byDay":{}},
+      {"id":"grazing","name":"Grazing board service","start":"18:00","end":"18:30","products":["break","break2","group"],"staff":1,"active":true,"byDay":{"0":{"start":"18:00","end":"18:30"}}}
     ],
     serviceAssign: {},
     roles: null,                 // set in Settings → Roles (null = the standard roles)
     // Consultation form: questions (null = the standard set), online receiving address, how long to keep forms, public key
     consult: { questions: null, endpoint: '', retentionMonths: 24, publicKey: null },           // pinned people: { '2026-12-01': { lunch: ['s2'] } }
     foods: [
-      { id: 'tea', name: 'Afternoon tea', desc: 'Sweet & savoury treats', products: ['day', 'private', 'group'], vegan: true, active: true },
-      { id: 'grazing', name: 'Sweet & savoury grazing board', desc: 'Meats, cheese & sweet treats · vegan available', products: ['day', 'private', 'group', 'break', 'break2'], vegan: true, active: true }
+      {"id":"tea","name":"Afternoon tea","desc":"Sweet & savoury treats","products":["day","private","group"],"vegan":true,"active":true},
+      {"id":"grazing","name":"Sweet & savoury grazing board","desc":"Meats, cheese & sweet treats · vegan available","products":["day","private","group","break","break2"],"vegan":true,"active":true},
+      {"id":"lunch","name":"Lunch","desc":"Lunch in the house each day of a spa break","products":["break"],"active":true}
     ],
     treatments: [
       { id: 'inc-massage', cat: 'Massage', name: '20-Minute Aromatherapy Massage', min: 20, buffer: 10, price: 0, sell: false, includedWith: ['day', 'private', 'break', 'break2', 'group'], active: true, desc: 'A relaxing back, neck and shoulder massage with aromatherapy oils.' },

@@ -28,7 +28,7 @@
       `Just before paying, the times are checked again and <b>held for ${r.holdMinutes || 30} minutes</b>. If two people pay for the same time at once, only the first gets it; the other is asked to choose again and isn’t charged.`,
       'Treatments are planned at the <b>earliest free time</b>. Guests are put side by side only if that delays them by 30 minutes or less.',
       `Treatments can start on the ${(r.slotStep || 30) === 60 ? 'hour' : (r.slotStep || 30) === 30 ? 'hour and half hour' : `${r.slotStep}-minute marks`}, or <b>back to back</b>, as soon as a therapist and room are free again (to the nearest 5 minutes).`,
-      '<b>Treatments only</b> are never offered on a day the spa is booked exclusively by a private spa or group, or during the hours a whole-house stay has the spa.',
+      '<b>Treatments only</b> can still be booked while the spa is booked “just for” a group, but never during the hours a whole-house stay has the spa.',
       'On a <b>whole-house check-in day</b>, morning sessions and treatments only can still be booked (before the house has the spa); on its <b>check-out day</b>, afternoon and evening sessions and treatments only can. Days in between are the house’s alone. <b>Groups</b> can’t be on any day of a whole-house stay.',
       'No therapist is booked over their hours, breaks, time off, food duty, or daily hands-on limit.'
     ]));
@@ -105,12 +105,51 @@
       ${grid(['Service', 'Time', 'For', 'Staff needed'], sv.map(s => [esc(s.name), `${s.start}–${s.end}${Object.keys(s.byDay || {}).length ? ' <span class="small muted">(other times on some days)</span>' : ''}`, (s.products || []).map(k => esc((cfg.products[k] || {}).name || k)).join(', '), s.staff || 1]))}
       <p class="small muted" style="margin-top:8px">Food duty: ${cfg.staff.filter(s => (s.duties || []).includes('food')).map(s => esc(s.name)).join(', ') || 'nobody yet'}. Menus: ${(cfg.foods || []).filter(f => f.active !== false).map(f => esc(f.name)).join(', ')}.</p></section>`);
 
+    // ---- prices (user 2026-11-28): what's on offer and how each price was worked out ----
+    { const pr = cfg.products, X = E.exclusiveRates(cfg), ses = k => (cfg.sessions || []).filter(s => s.product === k && s.active !== false);
+      const sp = (k, len) => { const s = ses(k).find(x => (x.length || 'half') === len); return s ? (s.price != null ? s.price : pr[k].price) : null; };
+      const times = (k, len) => ses(k).filter(x => (x.length || 'half') === len).map(x => `${x.start}–${x.end}`).join(' or ');
+      const acc = pr.access || {}, day = pr.day || {}, brk = pr.break || {}, hs = pr.house || {}, n1 = (brk.priceN || {})[1], nx = (brk.priceN || {})[2] - n1;
+      const exRow = (g) => { const e = (brk.exclusiveFrom || 6) - g; return [`${g} guest${g === 1 ? '' : 's'}`, `${e}`, gbp(e * X.half), gbp(e * X.full), gbp(e * X.night) + ' a night']; };
+      out.push(`<section class="card rl-card" id="rl-prices"><div class="card-h"><h3>Prices</h3>${link('#/products')}</div>
+      <p class="muted rl-intro">What guests can book, what each costs, and the thinking behind every price (set 28 November 2026). Change prices in Booking types; change the “just for us” prices in Settings → Booking rules.</p>
+      <h4 class="rl-h">What’s on offer</h4>
+      ${grid(['Booking', 'What’s included', 'Length', 'Guests', 'Price'], [
+        [`<b>${esc(acc.name || 'Spa Access Only')}</b>`, 'Spa pool, sauna and lounge, hot &amp; cold drinks, towel and robe. No food or treatment.', `Half day (${times('access', 'half')}) or full day (${times('access', 'full')})`, `${acc.min || 1}–${acc.max || 6}`, `${gbp(sp('access', 'half'))} half day · ${gbp(sp('access', 'full'))} full day, per person`],
+        [`<b>${esc(day.name || 'Spa, Lunch & Treatment')}</b>`, 'Everything in Spa Access Only, plus lunch (afternoon tea or a grazing board) and a 20-minute massage or facial each.', `Half day (${times('day', 'half')}) or full day (${times('day', 'full')})`, `${day.min || 1}–${day.max || 6}`, `${gbp(sp('day', 'half'))} half day · ${gbp(sp('day', 'full'))} full day, per person`],
+        [`<b>${esc(brk.name || 'Spa Break')}</b>`, 'A bedroom for every 2 guests, the spa from 2pm on arrival until 6pm on the last evening (Sunday arrivals 18:00–22:30), lunch every day, the kitchen for dinner, a 20-minute massage or facial each.', 'Sunday to Thursday nights, 1 to 5 nights, ending by Friday morning', `${brk.min || 1}–${brk.max || 16}`, Object.entries(brk.priceN || {}).map(([n, v]) => `${n} night${n === '1' ? '' : 's'} ${gbp(v)}`).join(' · ') + ` per person, 2 sharing. Room to themselves +${gbp(brk.singleSupp || 0)} a night.`],
+        [`<b>${esc(hs.name || 'Whole House & Spa')}</b>`, 'The whole house and spa: 8 bedrooms, kitchen, 2 living rooms, hot tub and sauna.', 'Must include Friday and Saturday night; extra nights either side (up to 30)', `up to ${hs.max || 16}`, `From ${gbp(hs.night || 0)} a night for the house`],
+        [`<b>${esc((pr.treat || {}).name || 'Treatments only')}</b>`, 'Massages, facials and Japanese head spa, without a spa session.', 'Guests pick a start time', `${(pr.treat || {}).min || 1}–${(pr.treat || {}).max || 4}`, 'Each treatment’s own price'],
+        ['<b>Breakfast</b> (spa breaks)', 'Continental breakfast', 'Each morning', '', `${gbp(cfg.breakfastPrice || 10)} per person per morning`]])}
+      <h4 class="rl-h">How the prices were worked out</h4>
+      <ul class="rl-list">
+        <li><b>Half days stay at the prices guests already know</b>: Spa Access ${gbp(sp('access', 'half'))} and the Day Spa (now Spa, Lunch &amp; Treatment) ${gbp(sp('day', 'half'))}, both 4 hours.</li>
+        <li><b>Full days (7½ hours) cost less per hour than two half days.</b> Spa Access Only full day ${gbp(sp('access', 'full'))} (half day + 50%). Spa, Lunch &amp; Treatment full day ${gbp(sp('day', 'full'))}: the same spa time, but lunch and the treatment are only had once, so it adds ${gbp(sp('day', 'full') - sp('day', 'half'))} to the half day rather than doubling it. Both fill the spa from 09:30 to 17:00, so a full-day guest takes the place of a morning and an afternoon guest; the premium covers most of the second half day, and a longer day is a reason to book.</li>
+        <li><b>The difference between the two spa days is lunch and a treatment</b>: ${gbp(sp('day', 'half') - sp('access', 'half'))} per person for a half day, which is the old Day Spa vs Spa Access gap.</li>
+        <li><b>Spa Break: ${gbp(n1)} for the first night, then ${gbp(nx)} for each extra night.</b> The old 1-night break was £145 and 2 nights £220; lunch is now included every day, so the first night rose by £5 and each extra night is £100 (more spa time and another lunch). Extra nights are cheaper than the first because check-in, changeover and the room clean happen once.</li>
+        <li><b>Room to themselves +${gbp(brk.singleSupp || 0)} a night</b>: break prices are based on 2 sharing, so a guest alone in a room pays towards the empty half. Not charged when the break is “just for us” or 6+, as every room is theirs anyway.</li>
+        <li><b>Whole House</b>: unchanged at ${gbp(hs.night || 0)} a night. It’s the only booking that gives a group the whole house, and it must include Friday and Saturday, when hen parties and big groups want it.</li>
+        <li><b>Head spa</b> is ${r.headSpaOff || 10}% off with a spa day or stay, as before.</li>
+        <li>${E.groupRates(cfg).on ? `<b>Group discount: ${E.groupRates(cfg).pct}% off for ${E.groupRates(cfg).from} or more guests</b> on Spa Access Only, Spa, Lunch &amp; Treatment and Spa Breaks, to help more groups book. A group of ${E.groupRates(cfg).from} fills the spa in one sale (no empty places to sell and less admin), so a small discount is worth it, and they also get the spa to themselves. It’s off the booking price only: extra treatments, where most groups spend more, and breakfast stay full price. Not on the Whole House, which is already priced for the group. Only one discount per booking, so a code or the head spa offer is used instead if it saves more. Example: 6 on a half-day Spa, Lunch &amp; Treatment pay ${gbp(6 * (sp('day', 'half') || 0) * (100 - E.groupRates(cfg).pct) / 100)} instead of ${gbp(6 * (sp('day', 'half') || 0))}.` : 'The group discount is switched off.'}</li>
+      </ul>
+      <h4 class="rl-h">“Just for us” (exclusive use)</h4>
+      <ul class="rl-list">
+        <li><b>6 or more guests have it free.</b> The spa holds 6 at once, so a booking of 6 fills it anyway. On a spa break, 6+ also means no other guests stay those nights.</li>
+        <li><b>Fewer than 6 pay for each empty place, at about half the price of that place</b>: ${gbp(X.half)} per empty place for a half day and ${gbp(X.full)} for a full day (half of Spa Access Only, because what the business loses is spa space, not lunch or treatments), and ${gbp(X.night)} per empty place per night on a spa break (half the first-night price, because the spare bedrooms close too).</li>
+        <li><b>Why half price:</b> empty places wouldn’t all have sold, so charging about half of each one leaves the business level on average, while a couple pays far less than for 6 people. Exclusive bookings also tend to add extra treatments.</li>
+        <li><b>The fewer guests, the more it costs</b>, but the more of them, the better value it is. The guest sees the exact amount on the tick box, on the half-day / full-day buttons and as its own line in the summary before paying.</li>
+        <li>${X.lastOn ? `<b>Last minute: ${X.lastPct}% off when booked ${X.lastDays} days or fewer before the visit</b>, because empty places that late rarely sell.` : 'The last-minute discount is switched off.'}</li>
+        <li>Only offered when nobody else is booked in. If a day can’t be just theirs, the guest is told and can choose another day or carry on without it.</li>
+      </ul>
+      ${grid(['Guests', 'Empty places', 'Half day', 'Full day', 'Spa break'], [1, 2, 3, 4, 5].map(exRow))}
+      <p class="small muted" style="margin-top:8px">“Just for us” amounts before any last-minute discount.</p></section>`); }
+
     // ---- capacity and rooms ----
     out.push(card('cap', 'Spa capacity and bedrooms', '', [
       `At most <b>${(cfg.spa || {}).capacity || '?'} guests</b> in the spa at once, with <b>${(cfg.spa || {}).changeover || 0} minutes</b> between sessions.`,
-      ...(cfg.sessions || []).filter(s => s.active !== false && s.cap).map(s => `${esc((cfg.products[s.product] || {}).name || s.product)} · ${esc(s.name)}: up to <b>${s.cap}</b> guests.`),
+      ...(cfg.sessions || []).filter(s => s.active !== false && s.cap && (cfg.products[s.product] || {}).active !== false).map(s => `${esc((cfg.products[s.product] || {}).name || s.product)} · ${esc(s.name)}: up to <b>${s.cap}</b> guests.`),
       `Bedrooms: ${(cfg.rooms || []).filter(x => x.active !== false).map(x => `${esc(x.name)} (sleeps ${x.people})`).join(', ')}.`,
-      'A private spa, group or whole-house booking has the spa to itself.'
+      'A whole-house booking, a spa day or spa break of 6+, or one booked “just for us” has the spa to itself.'
     ], '#/spa/capacity'));
 
     // ---- staff ----
@@ -125,7 +164,7 @@
       'Staff booking in the admin follow the same rules, and can see times guests are paying for as taken.'
     ], '#/settings/rules'));
 
-    const toc = [['glance', 'The big rules'], ['hours', 'Hours'], ['types', 'Booking types'], ['treat', 'Treatments'], ['plan', 'Planning'], ['cover', 'Staff cover'], ['breaks', 'Breaks'], ['food', 'Food'], ['cap', 'Capacity'], ['staff', 'Staff'], ['online', 'Online']];
+    const toc = [['glance', 'The big rules'], ['hours', 'Hours'], ['types', 'Booking types'], ['prices', 'Prices'], ['treat', 'Treatments'], ['plan', 'Planning'], ['cover', 'Staff cover'], ['breaks', 'Breaks'], ['food', 'Food'], ['cap', 'Capacity'], ['staff', 'Staff'], ['online', 'Online']];
     return { html: `<div class="vh"><div><div class="eyebrow">Set-up</div><h1>Rules</h1><p>Everything the booking system follows, worked out from your current settings.</p></div></div>
       <nav class="rl-toc">${toc.map(([id, t]) => `<a href="#rl-${id}" data-rl="${id}">${t}</a>`).join('')}</nav>${out.join('')}`,
       wire: el => el.querySelectorAll('[data-rl]').forEach(a => a.onclick = e => { e.preventDefault(); const t = el.querySelector('#rl-' + a.dataset.rl); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); }) };
